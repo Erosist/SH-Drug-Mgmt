@@ -1,93 +1,181 @@
-# ShanghaiDrugManagementPlatform_1
+# 上海药品信息管理与查询平台 (SH-Drug-Mgmt)
 
+一个连接药店、供应商、监管部门、物流公司的B2B药品信息管理平台，实现药品信息集中管理、流通追溯、库存监控与监管可视化。
 
+## 📋 项目概述
 
-## Getting started
+**项目名称：** 上海药品信息管理与查询平台（Shanghai Drug Management Platform）
+**架构类型：** B/S架构Web平台
+**技术栈：** Vue3 + Vite + Flask + SQLite
+**核心目标：** 实现药品全生命周期管理，支持B2B模拟交易与智能监管
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## ✨ 主要功能
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### 🔧 核心模块
+- **🏪 企业库存管理** - 药品库存登记、更新、智能预警
+- **🤝 B2B供求平台** - 供应信息发布、模拟下单、订单管理
+- **📊 流通监管** - 流通数据上报、药品全生命周期追溯
+- **📈 监管分析** - 多维度监管看板、合规分析报告
+- **🚚 智能调度** - 药品定位、最优路径规划、实时运输监控
 
-## Add your files
+### 👥 用户角色
+- **药店用户** - 库存管理、采购下单
+- **供应商用户** - 供应信息管理、订单处理
+- **监管用户** - 数据监控、合规分析
+- **物流用户** - 运输状态上报、位置更新
+- **系统管理员** - 用户权限管理
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 🛠 技术架构
+
+### 前端
+- **框架：** Vue 3 + Vite
+- **兼容性：** Chrome 90+/Firefox 88+/Edge 90+
+- **地图服务：** 高德地图API集成
+
+### 后端
+- **框架：** Flask (Python)
+- **数据库：** SQLite (开发) / PostgreSQL (生产)
+- **认证：** JWT
+- **权限：** RBAC
+- **实时通信：** WebSocket
+
+### 数据库设计
+- **12张核心表** - 支持用户、药品、库存、订单、物流等完整业务流程
+- **租户数据隔离** - 严格的多租户数据安全隔离
+- **事务一致性** - 库存与流通记录的事务保障
+
+## 📁 项目结构
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/tj-cs-swe/CS10102302-2025/group4/shanghaidrugmanagementplatform_1.git
-git branch -M main
-git push -uf origin main
+SH-Drug-Mgmt/
+├── CLAUDE.md                    # 项目开发参考手册
+├── README.md                    # 项目说明文档
+├── Docs/                        # 项目文档
+│   ├── LearningMaterials/       # 团队学习资料
+│   └── RequirementAnalysis/     # 需求分析文档
+├── frontend/                    # Vue3前端项目
+│   ├── src/
+│   │   ├── components/          # Vue组件
+│   │   ├── views/              # 页面视图
+│   │   ├── router/             # 路由配置
+│   │   └── api/                # API接口
+│   ├── package.json
+│   └── vite.config.js
+├── backend/                     # Flask后端项目
+│   ├── app.py                  # 应用入口
+│   ├── models/                 # 数据模型
+│   ├── routes/                 # 路由处理
+│   ├── services/               # 业务逻辑
+│   └── requirements.txt
+├── database/                    # 数据库相关
+│   ├── schema.sql              # 数据库结构
+│   └── migrations/             # 数据库迁移
+└── tests/                      # 测试文件
+    ├── unit/                   # 单元测试
+    └── integration/            # 集成测试
 ```
 
-## Integrate with your tools
+## 🚀 快速开始
 
-- [ ] [Set up project integrations](https://gitlab.com/tj-cs-swe/CS10102302-2025/group4/shanghaidrugmanagementplatform_1/-/settings/integrations)
+### 环境要求
+- Node.js 16+
+- Python 3.8+
+- Git
 
-## Collaborate with your team
+### 安装与运行
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+1. **克隆项目**
+   ```bash
+   git clone https://gitlab.com/tj-cs-swe/CS10102302-2025/group4/shanghaidrugmanagementplatform_1.git
+   cd SH-Drug-Mgmt
+   ```
 
-## Test and Deploy
+2. **前端环境**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-Use the built-in continuous integration in GitLab.
+3. **后端环境**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python app.py
+   ```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+4. **数据库初始化**
+   ```bash
+   python manage.py init-db
+   ```
 
-***
 
-# Editing this README
+## 🔧 开发规范
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### API设计
+- RESTful API风格
+- JSON数据格式
+- JWT认证机制
+- 统一错误处理
 
-## Suggestions for a good README
+### 代码规范
+- 前端：Vue3 Composition API + TypeScript
+- 后端：Python PEP8规范
+- 数据库：外键约束 + 索引优化
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### 安全要求
+- 密码加密存储
+- 租户数据严格隔离
+- API访问权限控制
+- 操作日志记录
 
-## Name
-Choose a self-explaining name for your project.
+## 📊 性能指标
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+- **页面加载时间** ≤ 3秒
+- **API响应时间** ≤ 2秒
+- **并发用户数** ≥ 10用户
+- **数据容量** 支持5000+流通记录
+- **系统可用性** ≥ 95%
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🚨 项目约束
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### 功能边界
+- ❌ 不支持真实在线支付
+- ❌ 不与国家药监局系统直连
+- ❌ 不支持B2C功能（仅B2B）
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 业务约束
+- 所有交易均为模拟性质
+- 不可用于真实商业交易
+- 监管数据仅供分析使用
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 🤝 团队协作
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Git工作流
+- **分支策略：** GitFlow
+- **代码审查：** 所有PR必须经过审查
+- **提交规范：** 遵循Conventional Commits
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Issue管理
+- **任务分配：** 基于GitLab Issues
+- **进度跟踪：** Milestone管理
+- **文档同步：** Wiki文档更新
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## 📈 开发计划
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### 第一阶段 (高优先级)
+- [x] 项目文档完善
+- [ ] 用户认证与权限系统
+- [ ] 基础库存管理功能
+- [ ] B2B供求平台基础功能
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### 第二阶段 (中优先级)
+- [ ] 流通监管系统
+- [ ] 数据分析看板
+- [ ] 实时位置监控
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### 第三阶段 (低优先级)
+- [ ] 智能路径优化
+- [ ] 高级数据分析
+- [ ] 系统性能优化
 
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
