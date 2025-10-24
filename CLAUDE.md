@@ -5,7 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目概述
 
 **项目名称：** 上海药品信息管理与查询平台（SH-Drug-Mgmt）
+
 **架构类型：** B/S架构Web平台
+
 **核心目标：** 连接药店、供应商、监管部门、物流公司，实现药品信息集中管理、流通追溯、库存监控、B2B模拟交易与监管可视化
 
 ## 技术栈
@@ -77,6 +79,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 用户名（唯一性校验）
 - 密码（最少8位，必须包含字母和数字）
 - 手机号或邮箱（用于验证码和找回密码）
+
 **注册流程：**
 1. 前端异步检查用户名唯一性
 2. 密码强度实时提示
@@ -89,6 +92,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **供应商用户**：《药品生产许可证》或《药品经营许可证》(批发)、《营业执照》
 - **物流用户**：《道路运输经营许可证》、《营业执照》
 - **监管用户**：无需企业认证，由管理员直接创建
+
 **认证流程：**
 1. 用户提交认证申请，状态变为"审核中"
 2. 管理员在3个工作日内完成审核
@@ -104,6 +108,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 需验证旧密码
 - 新密码符合安全策略
 - 修改后需重新登录
+
 **密码找回：**
 - 通过注册手机号或邮箱接收验证码
 - 验证码有效期10分钟
@@ -113,6 +118,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **用户列表显示：**
 - 用户名、真实姓名、所属企业、用户角色、账号状态
 - 最后登录时间、注册时间
+
 **管理功能：**
 - 按角色、状态、企业筛选
 - 禁用/启用用户账号
@@ -126,6 +132,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **审核标准：**
 - 共通标准：《营业执照》真实有效，企业信息一致
 - 角色专属标准：根据角色要求检查相应许可证
+
 **审核流程：**
 1. 按角色动态显示审核标准清单
 2. 逐项核对资质文件
@@ -138,6 +145,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 #### UC-A-006: 角色权限管理（管理员）
 **预定义角色：**
 - UNAUTHENTICATED、PHARMACY、SUPPLIER、REGULATOR、LOGISTICS、ADMIN
+
 **权限变更：**
 - 用户重新登录后生效
 - 支持角色分配和权限调整
@@ -156,6 +164,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 生产日期
 - 有效期限
 - 库存数量（不可为负数）
+
 **权限控制：**
 - 基于tenant_id的数据隔离
 - 前后端双重权限验证
@@ -168,6 +177,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **默认阈值：**
 - 库存数量 < 10件
 - 药品有效期 < 30天
+
 **预警机制：**
 - 每日定时任务扫描（凌晨执行）
 - 库存列表页面高亮显示预警项
@@ -182,6 +192,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 可供数量
 - 有效期限
 - 备注信息（可选）
+
 **供应信息状态：**
 - **ACTIVE**（活跃/上架）：对所有药店用户可见，可被下单
 - **INACTIVE**（非活跃/下架）：用户主动下架，不再可见
@@ -194,6 +205,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **显示规则：**
 - 仅显示ACTIVE状态且有效期大于当前时间的供应信息
 - 列表包含药品信息和供应商企业名称
+
 **排序与筛选：**
 - 默认按发布时间倒序排列
 - 支持按药品通用名或商品名关键词搜索
@@ -222,6 +234,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. 物流接收货物 → 状态变为IN_TRANSIT，开始运输
 6. 药品送达目的地 → 状态变为DELIVERED
 7. 药店收到药品 → 点击"确认收货"，状态变为COMPLETED
+
 **订单信息字段：**
 - **订单基本信息**：订单ID、创建时间、状态
 - **关联信息**：供应信息ID、药品详情、供应商企业信息
@@ -249,6 +262,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - CANCELLED_BY_PHARMACY（药店取消）
 - CANCELLED_BY_SUPPLIER（供应商取消）
 - EXPIRED_CANCELLED（超时取消）
+
 **操作权限：**
 - 药店：PENDING状态时可取消订单，DELIVERED状态时可确认收货
 - 供应商：PENDING状态时可确认/拒绝订单，CONFIRMED状态时可发货
@@ -258,6 +272,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **供应商手动操作**：在订单管理界面点击"发货"按钮，状态从CONFIRMED变为SHIPPED
 - **物流系统集成**：物流公司上报状态，自动更新订单状态
 - **收货确认**：药店用户在收到药品后点击"确认收货"，状态从DELIVERED变为COMPLETED
+
 **审计记录：**
 - 完整记录状态变更，包含操作人、时间、状态变化
 - 物流操作记录物流公司、运单号、发货时间等信息
@@ -268,6 +283,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 #### UC-R-001: 流通数据上报
 **任务描述：**
 流通数据上报是物流用户的核心任务，负责实时更新订单的物流状态信息。
+
 **上报权限：**
 - 物流公司用户（主要责任人）
 - 需登录验证角色权限
@@ -275,6 +291,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 流通记录ID即订单的运单号
 - 流通记录关联订单的供应商、药店（购买方）信息
 - 运输状态与订单状态同步更新
+
 **上报信息：**
 - 必填：运单号（流通记录ID）、运输状态、时间戳
 - 可选：当前位置（GPS坐标或文字地址）、备注信息
@@ -282,6 +299,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - SHIPPED（已发货）：供应商发货后生成运单号，状态为SHIPPED，同时订单状态更新为SHIPPED
 - IN_TRANSIT（在途）：运单状态变为IN_TRANSIT后，订单状态也同步变为IN_TRANSIT
 - DELIVERED（已送达）：运单状态变为DELIVERED后，订单状态也更新为DELIVERED
+
 **状态同步规则：**
 - 供应商发货后，生成运单号，状态从CONFIRMED变为SHIPPED
 - 物流接收货物后，状态从SHIPPED变为IN_TRANSIT
@@ -291,6 +309,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **未来扩展：**
 - 运输状态可获取位置信息
 - 订单状态从物流公司数据库中获取位置信息
+
 **异常处理：**
 - 运单号不存在 → 返回404
 - 状态非法 → 返回400
@@ -300,6 +319,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **查询条件：**
 - 必填：药品批号
 - 可选：时间范围、区域范围
+
 **展示方式：**
 - 时间轴视图：出厂→仓库→在途→药店
 - 流向图可视化：直观展示流转路径
@@ -307,6 +327,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - circulation_records表（流通记录）
 - logistics_records表（运输状态）
 - drugs表（药品信息）
+
 **性能要求：**
 - 响应时间≤5秒
 - 对关键字段建立索引优化查询
@@ -323,6 +344,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 在途药品数量
 - 各区域流通量对比
 - 异常上报数量（延迟上报、数据不一致）
+
 **图表类型：**
 - 折线图（时间序列分析）
 - 柱状图（区域对比）
@@ -330,6 +352,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **筛选条件：**
 - 时间范围（近7天、近1月、自定义）
 - 区域范围（按行政区划筛选）
+
 **刷新机制：**
 - 每5分钟自动刷新
 - 支持手动刷新按钮
@@ -342,12 +365,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 库存合规分析：检查异常库存、缺货、过期药品
 - 流通合规分析：评估运输状态异常、时效性对比
 - 企业合规分析：统计企业合规率，标记违规企业
+
 **导出格式：**
 - PDF：用于正式归档和汇报
 - Excel：用于二次分析和数据处理
 **生成方式：**
 - 手动生成（输入时间范围和区域范围）
 - 浏览器内预览 + 本地下载
+
 **性能要求：**
 - 标准数据量下生成时间≤10秒
 - 大数据量时提供进度提示
@@ -361,6 +386,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **推荐逻辑：**
 - 输入：药店坐标（自动获取或手动输入）+ 搜索半径
 - 输出：按距离升序排列的供应商列表
+
 **结果显示：**
 - 供应商企业名称
 - 与药店的距离
@@ -369,6 +395,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **技术实现：**
 - 集成高德地图API
 - 距离计算误差≤5%
+
 **性能要求：**
 - 响应时间≤2秒
 - 返回列表至少包含企业名称和预计配送时间
@@ -378,6 +405,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 必填：起点位置（仓库坐标/地址）
 - 必填：多个配送目的地（至少2个）
 - 可选：各目的地时间窗口（V1.0暂不支持）
+
 **算法与数据源：**
 - 集成高德地图实时交通API
 - 综合最短路径 + 实时交通速度
@@ -387,6 +415,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 每段预计行驶时间与里程
 - 总行程时间与总距离
 - 地图路线可视化展示
+
 **性能要求：**
 - 计算时间≤30秒（10个目的地以内）
 - API调用超时≤5秒
@@ -397,6 +426,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **数据来源：**
 - 车辆GPS设备
 - 每30秒推送一次位置数据
+
 **显示内容：**
 - 实时轨迹（折线图）
 - 当前车辆位置（标注点）
@@ -404,6 +434,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **刷新方式：**
 - WebSocket推送（主要方式）
 - 定时轮询（Fallback，30秒）
+
 **性能要求：**
 - 位置更新延迟≤30秒
 - 地图加载时间≤3秒
