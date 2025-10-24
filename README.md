@@ -4,10 +4,10 @@
 
 ## 📋 项目概述
 
-**项目名称：** 上海药品信息管理与查询平台（Shanghai Drug Management Platform）
-**架构类型：** B/S架构Web平台
-**技术栈：** Vue3 + Vite + Flask + SQLite
-**核心目标：** 实现药品全生命周期管理，支持B2B模拟交易与智能监管
+- **项目名称：** 上海药品信息管理与查询平台（Shanghai Drug Management Platform）
+- **架构类型：** B/S架构Web平台
+- **技术栈：** Vue3 + Vite + Flask + SQLite
+- **核心目标：** 实现药品全生命周期管理，支持B2B模拟交易与智能监管
 
 ## ✨ 主要功能
 
@@ -74,40 +74,6 @@ SH-Drug-Mgmt/
     ├── unit/                   # 单元测试
     └── integration/            # 集成测试
 ```
-
-## 🚀 快速开始
-
-### 环境要求
-- Node.js 16+
-- Python 3.8+
-- Git
-
-### 安装与运行
-
-1. **克隆项目**
-   ```bash
-   git clone https://gitlab.com/tj-cs-swe/CS10102302-2025/group4/shanghaidrugmanagementplatform_1.git
-   cd SH-Drug-Mgmt
-   ```
-
-2. **前端环境**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-3. **后端环境**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   python app.py
-   ```
-
-4. **数据库初始化**
-   ```bash
-   python manage.py init-db
-   ```
 
 
 ## 🔧 开发规范
