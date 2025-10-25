@@ -39,21 +39,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 数据库设计
 **15张核心表：**
-- `users` - 用户表（username唯一，包含手机号、邮箱等联系信息）
-- `tenants` - 租户表（企业信息）
-- `enterprise_certifications` - 企业认证表（存储认证申请和审核状态）
-- `drugs` - 药品信息表
-- `inventory_items` - 库存项表（quantity≥0）
-- `circulation_records` - 流通记录表
-- `supply_info` - 供应信息表
-- `orders` - 订单表
-- `logistics_records` - 物流记录表
-- `roles` - 角色表
-- `permissions` - 权限表
-- `user_roles` - 用户角色关联表
-- `role_permissions` - 角色权限关联表
-- `operation_logs` - 操作日志表
-- `password_reset_tokens` - 密码重置令牌表
+```
+数据库表结构
+├── 用户权限类 (5张)
+│   ├── users                # 用户基本信息
+│   ├── roles                # 角色定义
+│   ├── permissions          # 权限定义
+│   ├── user_roles           # 用户角色关联
+│   └── role_permissions     # 角色权限关联
+├── 企业认证类 (2张)
+│   ├── tenants              # 企业信息
+│   └── enterprise_certifications  # 企业认证
+├── 业务核心类 (6张)
+│   ├── drugs                # 药品信息
+│   ├── inventory_items      # 库存项
+│   ├── supply_info          # 供应信息
+│   ├── orders               # 订单
+│   ├── circulation_records  # 流通记录
+│   └── logistics_records    # 物流记录
+├── 系统管理类 (2张)
+│   ├── operation_logs       # 操作日志
+│   └── password_reset_tokens # 密码重置令牌
+```
 
 # 用户角色与权限
 
