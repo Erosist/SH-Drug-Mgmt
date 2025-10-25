@@ -13,17 +13,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 技术栈
 
 ## 前端
+
 - **框架：** Vue 3 + Vite
 - **要求：** 兼容 Chrome 90+/Firefox 88+/Edge 90+
 - **语言：** 简体中文
 
 ## 后端
+
 - **框架：** Flask
 - **数据库：** SQLite
 - **认证：** JWT
 - **权限控制：** RBAC
 
 ## 外部服务
+
 - **地图服务：** 高德地图API
 - **实时通信：** WebSocket（位置推送）
 
