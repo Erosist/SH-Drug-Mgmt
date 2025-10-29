@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. **智能调度子系统** - 药品定位、路径规划、实时监控
 
 ## 数据库设计
-**15张核心表：**
+**16张核心表：**
 ```
 数据库表结构
 ├── 用户权限类 (5张)
