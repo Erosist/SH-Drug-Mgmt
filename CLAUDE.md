@@ -46,7 +46,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `inventory_items` - 库存项表（quantity≥0）
 - `circulation_records` - 流通记录表
 - `supply_info` - 供应信息表
-- `orders` - 订单表
+- `orders` - 订单表（头）
+- `order_items` - 订单明细
 - `logistics_records` - 物流记录表
 - `roles` - 角色表
 - `permissions` - 权限表
