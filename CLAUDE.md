@@ -53,7 +53,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── 企业认证类 (2张)
 │   ├── tenants              # 企业信息
 │   └── enterprise_certifications  # 企业认证
-├── 业务核心类 (6张)
+├── 业务核心类 (7张)
 │   ├── drugs                # 药品信息
 │   ├── inventory_items      # 库存项
 │   ├── supply_info          # 供应信息
