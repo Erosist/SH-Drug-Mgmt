@@ -76,6 +76,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { login as mockLogin, roleToRoute } from '../mocks/auth'
 
 const router = useRouter()
 
@@ -110,19 +111,17 @@ const handleLogin = async () => {
     const valid = await loginFormRef.value.validate()
     if (valid) {
       loading.value = true
-      // 这里调用登录API
-      // await $http.post('/api/login', {
-      //   ...loginForm,
-      //   rememberMe: rememberMe.value,
-      //   twoFactorAuth: twoFactorAuth.value
-      // })
-      
-      // 模拟登录成功
-      setTimeout(() => {
-        ElMessage.success('登录成功')
-        // 根据实际业务逻辑跳转到相应页面
-        router.push('/home')
-      }, 1000)
+      // 使用前端mock进行登录校验
+      const user = mockLogin(loginForm.username, loginForm.password)
+      if (!user) {
+        ElMessage.error('用户名或密码错误（试试 regulator_staff / logistics_mgr / supplier_user / pharmacy_admin / unauth_user，密码均为 123456）')
+      } else {
+        ElMessage.success(`登录成功，欢迎 ${user.displayName}`)
+        const redirect = roleToRoute(user.role)
+        // 若从受限页跳来，优先回跳
+        const fromRedirect = router.currentRoute.value.query.redirect
+        router.push(typeof fromRedirect === 'string' ? fromRedirect : redirect)
+      }
     }
   } catch (error) {
     ElMessage.error('登录失败，请检查用户名和密码')
