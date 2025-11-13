@@ -13,18 +13,22 @@
     </div>
     <div class="right">
       <span v-for="(t, i) in tags" :key="i" class="tag">{{ t }}</span>
-      <el-dropdown v-if="currentUser" trigger="click">
-        <span class="user-entry">
-          {{ currentUser.displayName || currentUser.username }}<i class="el-icon--right el-icon-arrow-down" />
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item disabled>账号：{{ currentUser.username }}</el-dropdown-item>
-            <el-dropdown-item divided @click.native="doLogout">退出登录</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <router-link v-else class="login-link" :to="{ name: 'login' }">登录</router-link>
+      <!-- 未登录：显示登录按钮 -->
+      <router-link v-if="!isLoggedIn" class="login-link" :to="{ name: 'login' }">登录</router-link>
+      <!-- 已登录：仅显示用户名下拉与退出登录（不展示“我的主页”按钮） -->
+      <template v-else>
+        <el-dropdown trigger="click">
+          <span class="user-entry">
+            {{ userName }}<i class="el-icon--right el-icon-arrow-down" />
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item disabled>账号：{{ currentUser.username }}</el-dropdown-item>
+              <el-dropdown-item divided @click.native="doLogout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
     </div>
   </header>
 </template>
@@ -32,7 +36,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { getCurrentUser, logout as doMockLogout } from '../mocks/auth'
+import { getCurrentUser } from '../mocks/auth'
 
 const props = defineProps({
   tags: { type: Array, default: () => [] },
@@ -41,11 +45,24 @@ const props = defineProps({
 const router = useRouter()
 const route = useRoute()
 const currentUser = computed(() => getCurrentUser())
+const isLoggedIn = computed(() => {
+  try {
+    const token = localStorage.getItem('access_token')
+    const user = currentUser.value
+    return !!token && !!user
+  } catch { return false }
+})
+const userName = computed(() => (currentUser.value?.displayName || currentUser.value?.username || ''))
 
 const isActive = (name) => route.name === name
 
 const doLogout = () => {
-  doMockLogout()
+  try {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('current_user')
+  } catch {}
+  // 兼容旧的 mock 登录存储
+  try { localStorage.removeItem('mock_auth_current_user') } catch {}
   router.push({ name: 'login' })
 }
 </script>

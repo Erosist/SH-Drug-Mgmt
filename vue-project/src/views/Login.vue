@@ -76,7 +76,8 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { login as mockLogin, roleToRoute } from '../mocks/auth'
+import { login as apiLogin, me as apiMe } from '@/api/auth'
+import { roleToRoute } from '@/utils/roleRoute'
 
 const router = useRouter()
 
@@ -103,7 +104,7 @@ const twoFactorAuth = ref(false)
 const loading = ref(false)
 const loginFormRef = ref()
 
-// 登录处理
+// 登录处理（切换为调用后端）
 const handleLogin = async () => {
   if (!loginFormRef.value) return
   
@@ -111,16 +112,24 @@ const handleLogin = async () => {
     const valid = await loginFormRef.value.validate()
     if (valid) {
       loading.value = true
-      // 使用前端mock进行登录校验
-      const user = mockLogin(loginForm.username, loginForm.password)
-      if (!user) {
-        ElMessage.error('用户名或密码错误（试试 regulator_staff / logistics_mgr / supplier_user / pharmacy_admin / unauth_user，密码均为 123456）')
-      } else {
-        ElMessage.success(`登录成功，欢迎 ${user.displayName}`)
-        const redirect = roleToRoute(user.role)
-        // 若从受限页跳来，优先回跳
-        const fromRedirect = router.currentRoute.value.query.redirect
-        router.push(typeof fromRedirect === 'string' ? fromRedirect : redirect)
+      try {
+        const data = await apiLogin({ username: loginForm.username, password: loginForm.password })
+        // 保存 token 与用户信息
+        localStorage.setItem('access_token', data.access_token)
+        localStorage.setItem('current_user', JSON.stringify(data.user))
+
+        // 可选：再调用 /me 校验一次 token
+        try {
+          await apiMe(data.access_token)
+        } catch {}
+
+        ElMessage.success('登录成功')
+        // 登录后跳转首页或之前拦截页
+  const fromRedirect = router.currentRoute.value.query.redirect
+  const target = typeof fromRedirect === 'string' ? fromRedirect : roleToRoute(data.user.role)
+  router.push(target)
+      } catch (e) {
+        ElMessage.error(e.message || '用户名或密码错误')
       }
     }
   } catch (error) {

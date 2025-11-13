@@ -38,14 +38,9 @@ export const users = [
   },
 ]
 
-export function login(username, password) {
-  const found = users.find(
-    (u) => u.username === username && u.password === password
-  )
-  if (!found) return null
-  // 保存到 localStorage
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(found))
-  return found
+// 已废弃：真实登录改为调用后端 /api/auth/login
+export function login() {
+  throw new Error('前端 mock 登录已禁用，请使用后端登录接口')
 }
 
 export function logout() {
@@ -54,6 +49,9 @@ export function logout() {
 
 export function getCurrentUser() {
   try {
+    // 兼容后端真实登录：优先读取后端登录保存的键
+    const real = localStorage.getItem('current_user')
+    if (real) return JSON.parse(real)
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch (e) {

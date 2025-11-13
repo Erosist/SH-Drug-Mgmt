@@ -23,15 +23,26 @@
               prefix-icon="User"
             />
           </el-form-item>
-          
-          <!-- 手机号 -->
-          <el-form-item prop="phone" class="form-item">
+
+          <!-- 邮箱 -->
+          <el-form-item prop="email" class="form-item">
             <el-input
-              v-model="registerForm.phone"
-              placeholder="请输入手机号"
+              v-model="registerForm.email"
+              placeholder="请输入邮箱"
               size="large"
-              prefix-icon="Iphone"
+              prefix-icon="Message"
             />
+          </el-form-item>
+
+          <!-- 角色选择 -->
+          <el-form-item prop="role" class="form-item">
+            <el-select v-model="registerForm.role" placeholder="请选择角色" size="large" style="width: 100%">
+              <el-option label="药店用户" value="pharmacy" />
+              <el-option label="供应商用户" value="supplier" />
+              <el-option label="物流用户" value="logistics" />
+              <el-option label="监管人员" value="regulator" />
+              <el-option label="未认证用户" value="unauth" />
+            </el-select>
           </el-form-item>
           
           <!-- 密码 -->
@@ -58,24 +69,7 @@
             />
           </el-form-item>
           
-          <!-- 验证码 -->
-          <el-form-item prop="captcha" class="form-item">
-            <div class="captcha-container">
-              <el-input
-                v-model="registerForm.captcha"
-                placeholder="请输入验证码"
-                size="large"
-                prefix-icon="Message"
-              />
-              <el-button 
-                class="captcha-btn" 
-                :disabled="captchaCountdown > 0"
-                @click="sendCaptcha"
-              >
-                {{ captchaCountdown > 0 ? `${captchaCountdown}秒后重新获取` : '获取验证码' }}
-              </el-button>
-            </div>
-          </el-form-item>
+          <!-- 去除验证码：不再需要 -->
 
           <!-- 协议同意 -->
           <div class="agreement-section">
@@ -164,10 +158,10 @@ const router = useRouter()
 // 注册表单
 const registerForm = reactive({
   username: '',
-  phone: '',
+  email: '',
+  role: '',
   password: '',
-  confirmPassword: '',
-  captcha: ''
+  confirmPassword: ''
 })
 
 // 表单验证规则
@@ -186,21 +180,19 @@ const registerRules = {
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 2, max: 16, message: '用户名长度为2-16个字符', trigger: 'blur' }
   ],
-  phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: ['blur','change'] }
+  ],
+  role: [
+    { required: true, message: '请选择角色', trigger: 'change' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
-    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[^]{6,}$/, message: '密码必须包含大小写字母和数字', trigger: 'blur' }
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' }
-  ],
-  captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码长度为6位', trigger: 'blur' }
   ]
 }
 
@@ -210,26 +202,7 @@ const loading = ref(false)
 const registerFormRef = ref()
 const showAgreement = ref(false)
 const showPrivacy = ref(false)
-const captchaCountdown = ref(0)
-
-// 发送验证码
-const sendCaptcha = () => {
-  if (!registerForm.phone) {
-    ElMessage.warning('请输入手机号')
-    return
-  }
-  
-  // 模拟发送验证码
-  captchaCountdown.value = 60
-  const timer = setInterval(() => {
-    captchaCountdown.value--
-    if (captchaCountdown.value <= 0) {
-      clearInterval(timer)
-    }
-  }, 1000)
-  
-  ElMessage.success('验证码已发送')
-}
+// 去除发送验证码逻辑
 
 // 注册处理
 const handleRegister = async () => {
@@ -244,14 +217,20 @@ const handleRegister = async () => {
     const valid = await registerFormRef.value.validate()
     if (valid) {
       loading.value = true
-      // 这里调用注册API
-      // await $http.post('/api/register', registerForm)
-      
-      // 模拟注册成功
-      setTimeout(() => {
+      // 调用真实注册 API
+      try {
+        const { register } = await import('@/api/auth.js')
+        await register({
+          username: registerForm.username,
+          email: registerForm.email,
+          password: registerForm.password,
+          role: registerForm.role
+        })
         ElMessage.success('注册成功')
         router.push('/login')
-      }, 1000)
+      } catch (e) {
+        ElMessage.error(e.message || '注册失败')
+      }
     }
   } catch (error) {
     ElMessage.error('注册失败，请检查输入信息')
