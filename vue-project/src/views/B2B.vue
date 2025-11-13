@@ -17,7 +17,9 @@
             <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
-            <button class="login-btn" @click="goToLogin">登录</button>
+            <button class="enterprise-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
         </div>
       </div>
@@ -25,15 +27,13 @@
 
     <!-- 主内容区域 -->
     <div class="main-content">
-      <div class="page-header">
-        <h2 class="page-title">B2B供求管理</h2>
-        <div class="page-date">{{ currentDate }}</div>
-      </div>
 
-      <!-- 标签切换 -->
-      <div class="tabs">
-        <div class="tab-item" :class="{ active: activeTab === 'supply' }" @click="activeTab='supply'">供给信息发布</div>
-        <div class="tab-item" :class="{ active: activeTab === 'demand' }" @click="activeTab='demand'">需求信息发布</div>
+      <!-- 标签切换（增加“查看供应信息”为第三个选项，点击只切换下方内容） -->
+      <div class="tabs" @click="onTabsClick">
+        <div class="tab-item" :class="{ active: activeTab === 'supply' }" @click="setActiveTab('supply')">供给信息发布</div>
+        <div class="tab-item" :class="{ active: activeTab === 'demand' }" @click="setActiveTab('demand')">需求信息发布</div>
+        <div class="tab-item" :class="{ active: activeTab === 'list' }" @click="setActiveTab('list')">查看供应信息</div>
+        <div class="tab-item" :class="{ active: activeTab === 'order' }" @click="setActiveTab('order')">模拟下单</div>
       </div>
 
       <div class="form-sections">
@@ -104,7 +104,7 @@
         </div>
 
         <!-- 需求表单 -->
-        <div v-else class="card">
+        <div v-else-if="activeTab==='demand'" class="card">
           <h3 class="card-title">发布药品需求信息</h3>
           <div class="sub-card">
             <h4 class="sub-title">需求基本信息</h4>
@@ -132,6 +132,24 @@
             </div>
           </div>
         </div>
+        
+        <!-- 查看供应信息（内联组件） -->
+        <div v-else-if="activeTab==='list'" class="card">
+          <h3 class="card-title">查看供应信息</h3>
+          <div style="padding:10px 0">
+            <SupplierList />
+          </div>
+        </div>
+
+        <!-- 模拟下单（内联组件） -->
+        <div v-else-if="activeTab==='order'" class="card">
+          <h3 class="card-title">模拟下单</h3>
+          <div style="padding:10px 0">
+            <MockOrder />
+          </div>
+        </div>
+
+        
       </div>
 
       <!-- 已发布记录列表 -->
@@ -168,15 +186,22 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+// 引入 SupplierList 以支持路由跳转到组件视图
+import SupplierList from '@/component/SupplierList.vue'
+import MockOrder from '@/views/MockOrder.vue'
+import { getCurrentUser } from '@/utils/authSession'
+import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'B2BPlatform',
+  components: { SupplierList, MockOrder },
   setup() {
     const router = useRouter()
-    const activeNav = ref('b2b')
+  const activeNav = ref('b2b')
     const activeTab = ref('supply')
+  const currentUser = ref(getCurrentUser())
 
     const currentDate = computed(() => {
       const now = new Date()
@@ -256,6 +281,8 @@ export default {
       resetDemandForm()
     }
 
+    
+
     const navigateTo = (page) => {
       activeNav.value = page
       switch(page) {
@@ -270,8 +297,27 @@ export default {
     }
 
     const goToLogin = () => router.push('/login')
+    const goToUserHome = () => {
+      const u = currentUser.value
+      if (!u) return router.push('/login')
+      router.push(roleToRoute(u.role))
+    }
 
-    return { activeNav, activeTab, navigateTo, goToLogin, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+  const goToEnterpriseAuth = () => router.push('/enterprise-auth')
+
+    function setActiveTab(tab) {
+      activeTab.value = tab
+    }
+
+    function onTabsClick(e) {
+      console.log('[B2B] tabs click target:', e.target && e.target.tagName, 'text=', e.target && e.target.textContent && e.target.textContent.trim())
+    }
+
+    const refreshUser = () => { currentUser.value = getCurrentUser() }
+    onMounted(() => { window.addEventListener('storage', refreshUser) })
+    onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
+
+  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
   }
 }
 </script>
@@ -289,6 +335,8 @@ export default {
 .nav-item { font-size:16px; color:#333; cursor:pointer; padding:5px 0; transition:color .3s; }
 .nav-item:hover { color:#1a73e8; }
 .nav-item.active { color:#1a73e8; border-bottom:2px solid #1a73e8; }
+.enterprise-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
+.enterprise-btn:hover { background-color: rgba(26,115,232,0.06) }
 .login-btn { background:#1a73e8; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:14px; }
 .login-btn:hover { background:#0d62d9; }
 
@@ -297,7 +345,10 @@ export default {
 .page-title { font-size:20px; font-weight:bold; color:#333; }
 .page-date { font-size:14px; color:#666; }
 
-.tabs { display:flex; gap:40px; border-bottom:1px solid #e5e5e5; margin-bottom:20px; }
+.tabs-row { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e5e5; margin-bottom:20px; }
+.tabs { display:flex; gap:40px; position:relative; z-index:20; /* debug: outline to visualize clickable area */ outline: none }
+.tabs.debug-outline { outline: 3px dashed rgba(255,0,0,0.35) }
+.tabs-actions { margin-left:20px }
 .tab-item { padding:10px 0; cursor:pointer; font-size:14px; color:#555; position:relative; }
 .tab-item.active { color:#1a73e8; font-weight:600; }
 .tab-item.active::after { content:''; position:absolute; left:0; bottom:0; height:2px; width:100%; background:#1a73e8; }

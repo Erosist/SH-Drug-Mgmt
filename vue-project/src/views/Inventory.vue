@@ -43,7 +43,8 @@
           </div>
           
           <div class="user-actions">
-            <button class="login-btn" @click="goToLogin">登录</button>
+            <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
         </div>
       </div>
@@ -216,15 +217,18 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { getCurrentUser } from '@/utils/authSession'
+import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'Inventory',
   setup() {
     const router = useRouter()
     const activeNav = ref('inventory')
-    const selectedSupplier = ref('renji') // 默认选中仁济医院
+  const selectedSupplier = ref('renji') // 默认选中仁济医院
     const within5km = ref(true)
+  const currentUser = ref(getCurrentUser())
     
     // 获取当前日期
     const currentDate = computed(() => {
@@ -234,6 +238,16 @@ export default {
     
     const goToLogin = () => {
       router.push('/login')
+    }
+
+    const refreshUser = () => {
+      currentUser.value = getCurrentUser()
+    }
+
+    const goToUserHome = () => {
+      const u = currentUser.value
+      if (!u) return router.push('/login')
+      router.push(roleToRoute(u.role))
     }
     
     const navigateTo = (page) => {
@@ -267,14 +281,23 @@ export default {
       selectedSupplier.value = supplier
     }
     
+    onMounted(() => {
+      window.addEventListener('storage', refreshUser)
+    })
+    onBeforeUnmount(() => {
+      window.removeEventListener('storage', refreshUser)
+    })
+
     return {
       goToLogin,
+      goToUserHome,
       navigateTo,
       activeNav,
       selectedSupplier,
       selectSupplier,
       within5km,
-      currentDate
+      currentDate,
+      currentUser
     }
   }
 }

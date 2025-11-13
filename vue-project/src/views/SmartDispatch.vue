@@ -43,7 +43,8 @@
           </div>
 
           <div class="user-actions">
-            <button class="login-btn" @click="goToLogin">登录</button>
+            <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
         </div>
       </div>
@@ -181,13 +182,16 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { getCurrentUser } from '@/utils/authSession'
+import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'SmartDispatch',
   setup() {
     const router = useRouter()
-    const activeNav = ref('service')
+  const activeNav = ref('service')
+  const currentUser = ref(getCurrentUser())
     
     // 位置与筛选
     const lat = ref('')
@@ -256,8 +260,14 @@ export default {
       }
     }
 
-    const goToLogin = () => {
-      router.push('/login')
+    const goToLogin = () => { router.push('/login') }
+
+    const refreshUser = () => { currentUser.value = getCurrentUser() }
+
+    const goToUserHome = () => {
+      const u = currentUser.value
+      if (!u) return router.push('/login')
+      router.push(roleToRoute(u.role))
     }
 
     const handleSearch = () => {
@@ -302,11 +312,16 @@ export default {
       }))
     }
 
+    onMounted(() => { window.addEventListener('storage', refreshUser) })
+    onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
+
     return {
       navigateTo,
       activeNav,
       currentDate,
       goToLogin,
+      goToUserHome,
+      currentUser,
       // 搜索交互
       lat,
       lng,

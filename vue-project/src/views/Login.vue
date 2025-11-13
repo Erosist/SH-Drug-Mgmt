@@ -77,6 +77,7 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { login as apiLogin, me as apiMe } from '@/api/auth'
+import { setAuth } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 
 const router = useRouter()
@@ -113,10 +114,9 @@ const handleLogin = async () => {
     if (valid) {
       loading.value = true
       try {
-        const data = await apiLogin({ username: loginForm.username, password: loginForm.password })
-        // 保存 token 与用户信息
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('current_user', JSON.stringify(data.user))
+  const data = await apiLogin({ username: loginForm.username, password: loginForm.password })
+  // 保存 token 与用户信息（集中管理）
+  setAuth(data.access_token, data.user)
 
         // 可选：再调用 /me 校验一次 token
         try {

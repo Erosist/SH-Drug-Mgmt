@@ -26,6 +26,10 @@ export function login({ username, password }) {
 }
 
 export function me(token) {
+	// 允许不传 token 时自动从本地获取
+	try {
+		if (!token) token = localStorage.getItem('access_token')
+	} catch {}
 	return request('/me', { method: 'GET', token });
 }
 

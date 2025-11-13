@@ -43,7 +43,8 @@
           </div>
           
           <div class="user-actions">
-            <button class="login-btn" @click="goToLogin">登录</button>
+            <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
         </div>
       </div>
@@ -52,11 +53,6 @@
     <!-- 流通监管主内容区域 - 与Home.vue边界保持一致 -->
     <div class="main-content">
       <div class="content-wrapper">
-        <!-- 页面标题 -->
-        <div class="page-header">
-          <h2 class="page-title">药品流通监管</h2>
-          <div class="page-date">{{ pageDate }}</div>
-        </div>
 
         <div class="circulation-content">
           <!-- 左侧内容 -->
@@ -202,13 +198,16 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { getCurrentUser } from '@/utils/authSession'
+import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'Circulation',
   setup() {
     const router = useRouter()
-    const activeNav = ref('circulation')
+  const activeNav = ref('circulation')
+  const currentUser = ref(getCurrentUser())
     
     // 当前日期和时间
     const currentDate = computed(() => {
@@ -283,8 +282,14 @@ export default {
       alert('流通数据提交成功！')
     }
     
-    const goToLogin = () => {
-      router.push('/login')
+    const goToLogin = () => { router.push('/login') }
+
+    const refreshUser = () => { currentUser.value = getCurrentUser() }
+
+    const goToUserHome = () => {
+      const u = currentUser.value
+      if (!u) return router.push('/login')
+      router.push(roleToRoute(u.role))
     }
     
     const navigateTo = (page) => {
@@ -317,12 +322,17 @@ export default {
     // 初始化时间戳
     onMounted(() => {
       updateTimestamp()
+      window.addEventListener('storage', refreshUser)
       // 每秒更新一次时间戳
       setInterval(updateTimestamp, 1000)
+    })
+    onBeforeUnmount(() => {
+      window.removeEventListener('storage', refreshUser)
     })
     
     return {
       goToLogin,
+      goToUserHome,
       navigateTo,
       activeNav,
       currentDate,
@@ -332,7 +342,8 @@ export default {
       location,
       auditFeedback,
       useCurrentLocation,
-      submitProcess
+      submitProcess,
+      currentUser
     }
   }
 }

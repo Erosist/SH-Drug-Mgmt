@@ -158,7 +158,8 @@
 <script>
 import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getCurrentUser, roleToRoute } from '../mocks/auth'
+import { getCurrentUser } from '@/utils/authSession'
+import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'Home',

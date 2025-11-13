@@ -36,7 +36,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { getCurrentUser } from '../mocks/auth'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
 
 const props = defineProps({
   tags: { type: Array, default: () => [] },
@@ -57,12 +57,7 @@ const userName = computed(() => (currentUser.value?.displayName || currentUser.v
 const isActive = (name) => route.name === name
 
 const doLogout = () => {
-  try {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('current_user')
-  } catch {}
-  // 兼容旧的 mock 登录存储
-  try { localStorage.removeItem('mock_auth_current_user') } catch {}
+  clearAuth()
   router.push({ name: 'login' })
 }
 </script>
