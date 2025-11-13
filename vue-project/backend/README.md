@@ -27,6 +27,7 @@
 4. 初始化数据库并运行：
 
    ```cmd
+   (这个可能不成功，建议直接python run.py)
    set FLASK_APP=run.py
    set FLASK_ENV=development
    flask run
