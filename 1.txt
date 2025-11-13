@@ -1,7 +1,0 @@
-内置测试账号（无后端）
-药店管理员：用户名 pharmacy_admin，密码 123456 → 跳转 /pharmacy
-供应商用户：用户名 supplier_user，密码 123456 → 跳转 /supplier
-物流管理员：用户名 logistics_mgr，密码 123456 → 跳转 /logistics
-监管人员：用户名 regulator_staff，密码 123456 → 跳转 /regulator
-未认证用户：用户名 unauth_user，密码 123456 → 跳转 /unauth
-你可直接在登录页用以上任一账号登录，即可预览对应角色界面。
