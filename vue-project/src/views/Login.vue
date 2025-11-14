@@ -36,8 +36,11 @@
 
           <!-- 选项 -->
           <div class="login-options">
-            <el-checkbox v-model="rememberMe">记住登录状态</el-checkbox>
-            <el-checkbox v-model="twoFactorAuth">启用两步验证</el-checkbox>
+            <div class="option-left">
+              <el-checkbox v-model="rememberMe">记住登录状态</el-checkbox>
+              <el-checkbox v-model="twoFactorAuth">启用两步验证</el-checkbox>
+            </div>
+            <el-link type="primary" class="forgot-link" @click="goToForgotPassword">忘记密码？</el-link>
           </div>
 
           <!-- 登录按钮 -->
@@ -148,6 +151,10 @@ const goToRegister = () => {
 const goToGuestMode = () => {
   router.push('/')
 }
+
+const goToForgotPassword = () => {
+  router.push({ name: 'forgot-password' })
+}
 </script>
 
 <style scoped>
@@ -213,6 +220,17 @@ const goToGuestMode = () => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 25px;
+  align-items: center;
+}
+
+.option-left {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.forgot-link {
+  font-size: 14px;
 }
 
 .login-btn {

@@ -24,7 +24,8 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item disabled>账号：{{ currentUser.username }}</el-dropdown-item>
-              <el-dropdown-item divided @click.native="doLogout">退出登录</el-dropdown-item>
+              <el-dropdown-item @click="goChangePassword">修改密码</el-dropdown-item>
+              <el-dropdown-item divided @click="doLogout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -59,6 +60,10 @@ const isActive = (name) => route.name === name
 const doLogout = () => {
   clearAuth()
   router.push({ name: 'login' })
+}
+
+const goChangePassword = () => {
+  router.push({ name: 'change-password' })
 }
 </script>
 

@@ -34,6 +34,16 @@
             />
           </el-form-item>
 
+          <!-- 手机号（可选） -->
+          <el-form-item prop="phone" class="form-item">
+            <el-input
+              v-model="registerForm.phone"
+              placeholder="请输入手机号（可选）"
+              size="large"
+              prefix-icon="Phone"
+            />
+          </el-form-item>
+
           <!-- 角色选择 -->
           <el-form-item prop="role" class="form-item">
             <el-select v-model="registerForm.role" placeholder="请选择角色" size="large" style="width: 100%">
@@ -55,6 +65,7 @@
               prefix-icon="Lock"
               show-password
             />
+            <small class="rule-hint">至少8位，需包含大小写字母和数字</small>
           </el-form-item>
           
           <!-- 确认密码 -->
@@ -159,6 +170,7 @@ const router = useRouter()
 const registerForm = reactive({
   username: '',
   email: '',
+  phone: '',
   role: '',
   password: '',
   confirmPassword: ''
@@ -175,6 +187,29 @@ const validateConfirmPassword = (rule, value, callback) => {
   }
 }
 
+const phoneValidator = (rule, value, callback) => {
+  if (!value) {
+    callback()
+    return
+  }
+  const digitsOnly = value.replace(/\s+/g, '')
+  const phonePattern = /^\d{6,20}$/
+  if (!phonePattern.test(digitsOnly)) {
+    callback(new Error('手机号需为6-20位数字'))
+  } else {
+    callback()
+  }
+}
+
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+const passwordValidator = (rule, value, callback) => {
+  if (!passwordPattern.test(value || '')) {
+    callback(new Error('至少8位，需含大小写字母和数字'))
+  } else {
+    callback()
+  }
+}
+
 const registerRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -184,12 +219,15 @@ const registerRules = {
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: ['blur','change'] }
   ],
+  phone: [
+    { validator: phoneValidator, trigger: ['blur','change'] }
+  ],
   role: [
     { required: true, message: '请选择角色', trigger: 'change' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { validator: passwordValidator, trigger: ['blur','change'] }
   ],
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' }
@@ -220,9 +258,11 @@ const handleRegister = async () => {
       // 调用真实注册 API
       try {
         const { register } = await import('@/api/auth.js')
+        const cleanedPhone = registerForm.phone ? registerForm.phone.replace(/\s+/g, '') : ''
         await register({
           username: registerForm.username,
           email: registerForm.email,
+          phone: cleanedPhone,
           password: registerForm.password,
           role: registerForm.role
         })
@@ -307,6 +347,13 @@ const goToLogin = () => {
 
 .form-item {
   margin-bottom: 20px;
+}
+
+.rule-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
 }
 
 /* 验证码容器 */

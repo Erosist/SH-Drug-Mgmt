@@ -17,8 +17,19 @@ async function request(path, { method = 'GET', body, token } = {}) {
 	return data;
 }
 
-export function register({ username, email, password, role }) {
-	return request('/register', { method: 'POST', body: { username, email, password, role } });
+function resolveToken(explicitToken) {
+	if (explicitToken) return explicitToken;
+	try {
+		return localStorage.getItem('access_token') || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+export function register({ username, email, password, role, phone }) {
+	const payload = { username, email, password, role };
+	if (phone) payload.phone = phone;
+	return request('/register', { method: 'POST', body: payload });
 }
 
 export function login({ username, password }) {
@@ -33,4 +44,26 @@ export function me(token) {
 	return request('/me', { method: 'GET', token });
 }
 
-export default { register, login, me };
+export function changePassword({ oldPassword, newPassword, token }) {
+	return request('/change-password', {
+		method: 'POST',
+		body: { old_password: oldPassword, new_password: newPassword },
+		token: resolveToken(token)
+	});
+}
+
+export function requestResetCode({ identifier, channel, contact }) {
+	return request('/request-reset-code', {
+		method: 'POST',
+		body: { identifier, channel, contact }
+	});
+}
+
+export function resetPassword({ identifier, channel, contact, code, newPassword }) {
+	return request('/reset-password', {
+		method: 'POST',
+		body: { identifier, channel, contact, code, new_password: newPassword }
+	});
+}
+
+export default { register, login, me, changePassword, requestResetCode, resetPassword };

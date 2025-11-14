@@ -13,6 +13,8 @@ import LogisticsUser from '../views/LogisticsUser.vue'
 import RegulatorUser from '../views/RegulatorUser.vue'
 import UnauthenticatedUser from '../views/UnauthenticatedUser.vue'
 import EnterpriseAuth from '../views/EnterpriseAuth.vue'
+import ChangePassword from '../views/ChangePassword.vue'
+import ForgotPassword from '../views/ForgotPassword.vue'
 import { getCurrentUser } from '@/utils/authSession'
 
 const router = createRouter({
@@ -21,6 +23,8 @@ const router = createRouter({
     { path: '/', name: 'home', component: home },
     { path: '/login', name: 'login', component: login },
     { path: '/register', name: 'register', component: register },
+    { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword },
+    { path: '/change-password', name: 'change-password', component: ChangePassword, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: inventory },
     { path: '/b2b', name: 'b2b', component: b2b },
     { path: '/circulation', name: 'circulation', component: circulation },
