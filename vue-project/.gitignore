@@ -34,3 +34,10 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Python virtual environments
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
