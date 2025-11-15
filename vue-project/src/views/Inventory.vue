@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="inventory-container">
     <!-- 顶部导航栏 - 与Home.vue保持一致 -->
     <div class="header">
@@ -52,6 +52,74 @@
 
     <!-- 库存管理主内容区域 -->
     <div class="main-content">
+      <div class="section data-query">
+        <div class="data-query-header">
+          <div>
+            <h2 class="section-title">真实数据查询</h2>
+            <p class="section-subtitle">直连后端数据库，支持药品、药店与库存批次的关键字检索</p>
+          </div>
+          <div class="tag">实时数据</div>
+        </div>
+        <div class="query-controls">
+          <div class="query-field">
+            <label>查询类型</label>
+            <select v-model="queryType">
+              <option value="drugs">药品</option>
+              <option value="tenants">药店/机构</option>
+              <option value="inventory">库存批次</option>
+            </select>
+          </div>
+          <div class="query-field flex-1">
+            <label>关键字</label>
+            <div class="query-input-group">
+              <input
+                type="text"
+                :placeholder="queryPlaceholder"
+                v-model="queryKeyword"
+                @keyup.enter="performQuery"
+              />
+              <button class="search-btn" :disabled="dataLoading" @click="performQuery">查询</button>
+              <button class="ghost-btn" :disabled="!queryKeyword || dataLoading" @click="resetQuery">重置</button>
+            </div>
+          </div>
+        </div>
+        <div class="query-results">
+          <div v-if="dataLoading" class="query-feedback">正在查询...</div>
+          <div v-else-if="dataError" class="query-feedback error">{{ dataError }}</div>
+          <div v-else-if="!results.length" class="query-feedback">暂无数据，请调整筛选条件</div>
+          <div v-else class="table-wrapper">
+            <table class="result-table">
+              <thead>
+                <tr>
+                  <th v-for="col in activeColumns" :key="col.key">{{ col.label }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in results" :key="`${queryType}-${row.id}-${row.batch_number || ''}`">
+                  <td v-for="col in activeColumns" :key="col.key">{{ formatCell(row, col.key) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pagination" v-if="pagination.total > pagination.per_page">
+              <button
+                class="ghost-btn"
+                :disabled="pagination.page === 1 || dataLoading"
+                @click="goToPage(pagination.page - 1)"
+              >
+                上一页
+              </button>
+              <span>第 {{ pagination.page }} / {{ totalPages }} 页 · 共 {{ pagination.total }} 条</span>
+              <button
+                class="ghost-btn"
+                :disabled="pagination.page >= totalPages || dataLoading"
+                @click="goToPage(pagination.page + 1)"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="content-wrapper">
         <!-- 左侧主要内容 -->
         <div class="left-content">
@@ -217,25 +285,138 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
+import { fetchDrugs, fetchInventory, fetchTenants } from '@/api/catalog'
 
 export default {
   name: 'Inventory',
   setup() {
     const router = useRouter()
     const activeNav = ref('inventory')
-  const selectedSupplier = ref('renji') // 默认选中仁济医院
+    const selectedSupplier = ref('renji')
     const within5km = ref(true)
-  const currentUser = ref(getCurrentUser())
-    
-    // 获取当前日期
+    const currentUser = ref(getCurrentUser())
+
+    const queryType = ref('drugs')
+    const queryKeyword = ref('')
+    const results = ref([])
+    const dataLoading = ref(false)
+    const dataError = ref('')
+    const pagination = ref({ page: 1, per_page: 10, total: 0 })
+
+    const queryConfigs = {
+      drugs: {
+        placeholder: '输入通用名、商品名或批文号',
+        fetcher: fetchDrugs,
+        columns: [
+          { key: 'generic_name', label: '通用名' },
+          { key: 'brand_name', label: '商品名' },
+          { key: 'dosage_form', label: '剂型' },
+          { key: 'specification', label: '规格' },
+          { key: 'manufacturer', label: '生产企业' }
+        ]
+      },
+      tenants: {
+        placeholder: '输入药店名称、地址或统一社会信用代码',
+        fetcher: fetchTenants,
+        columns: [
+          { key: 'name', label: '药店名称' },
+          { key: 'type', label: '类型' },
+          { key: 'contact_person', label: '联系人' },
+          { key: 'contact_phone', label: '联系电话' },
+          { key: 'address', label: '地址' },
+          { key: 'is_active', label: '状态' }
+        ]
+      },
+      inventory: {
+        placeholder: '输入批次号、药品或药店名称',
+        fetcher: fetchInventory,
+        columns: [
+          { key: 'batch_number', label: '批次号' },
+          { key: 'drug_name', label: '药品' },
+          { key: 'tenant_name', label: '药店' },
+          { key: 'quantity', label: '数量' },
+          { key: 'unit_price', label: '单价' },
+          { key: 'expiry_date', label: '有效期' }
+        ]
+      }
+    }
+
+    const activeColumns = computed(() => queryConfigs[queryType.value].columns)
+    const queryPlaceholder = computed(() => queryConfigs[queryType.value].placeholder)
+
+    const totalPages = computed(() => {
+      const total = pagination.value.total || 0
+      const size = pagination.value.per_page || 1
+      return Math.max(1, Math.ceil(total / size))
+    })
+
+    const fetchCurrentData = async () => {
+      const { fetcher } = queryConfigs[queryType.value]
+      dataLoading.value = true
+      dataError.value = ''
+      try {
+        const response = await fetcher({
+          keyword: queryKeyword.value.trim(),
+          page: pagination.value.page,
+          perPage: pagination.value.per_page
+        })
+        results.value = response.items || []
+        pagination.value = {
+          page: response.page ?? pagination.value.page,
+          per_page: response.per_page ?? pagination.value.per_page,
+          total: typeof response.total === 'number' ? response.total : (response.items || []).length
+        }
+      } catch (error) {
+        dataError.value = error.message || '查询失败，请稍后重试'
+        results.value = []
+      } finally {
+        dataLoading.value = false
+      }
+    }
+
+    const performQuery = () => {
+      pagination.value = { ...pagination.value, page: 1 }
+      fetchCurrentData()
+    }
+
+    const resetQuery = () => {
+      queryKeyword.value = ''
+      pagination.value = { ...pagination.value, page: 1, total: 0 }
+      fetchCurrentData()
+    }
+
+    const goToPage = (page) => {
+      const maxPage = totalPages.value
+      if (page < 1 || page > maxPage || page === pagination.value.page) return
+      pagination.value = { ...pagination.value, page }
+      fetchCurrentData()
+    }
+
+    const formatCell = (row, key) => {
+      const value = row[key]
+      if (value === null || value === undefined || value === '') return '—'
+      if (typeof value === 'boolean') return value ? '在营' : '停业'
+      if (typeof value === 'number') {
+        if (key.includes('price')) return `¥${value.toFixed(2)}`
+        return value
+      }
+      return value
+    }
+
+    watch(queryType, () => {
+      queryKeyword.value = ''
+      pagination.value = { ...pagination.value, page: 1, total: 0 }
+      fetchCurrentData()
+    })
+
     const currentDate = computed(() => {
       const now = new Date()
       return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`
     })
-    
+
     const goToLogin = () => {
       router.push('/login')
     }
@@ -249,11 +430,11 @@ export default {
       if (!u) return router.push('/login')
       router.push(roleToRoute(u.role))
     }
-    
+
     const navigateTo = (page) => {
       activeNav.value = page
-      
-      switch(page) {
+
+      switch (page) {
         case 'home':
           router.push('/')
           break
@@ -276,13 +457,14 @@ export default {
           router.push('/')
       }
     }
-    
+
     const selectSupplier = (supplier) => {
       selectedSupplier.value = supplier
     }
-    
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
+      fetchCurrentData()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -297,7 +479,20 @@ export default {
       selectSupplier,
       within5km,
       currentDate,
-      currentUser
+      currentUser,
+      queryType,
+      queryKeyword,
+      queryPlaceholder,
+      results,
+      dataLoading,
+      dataError,
+      pagination,
+      activeColumns,
+      totalPages,
+      performQuery,
+      resetQuery,
+      goToPage,
+      formatCell
     }
   }
 }
@@ -409,6 +604,9 @@ export default {
   max-width: 100%;
   margin: 0;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .content-wrapper {
@@ -433,6 +631,141 @@ export default {
   color: #333;
   padding-bottom: 10px;
   border-bottom: 1px solid #eee;
+}
+
+.section-subtitle {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.data-query-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  font-size: 13px;
+  height: fit-content;
+}
+
+.query-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 15px;
+  align-items: flex-end;
+}
+
+.query-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.query-field label {
+  font-size: 14px;
+  color: #555;
+}
+
+.query-field select,
+.query-field input {
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.query-field select:focus,
+.query-field input:focus {
+  border-color: #1a73e8;
+}
+
+.query-field.flex-1 {
+  flex: 1;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.query-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ghost-btn {
+  background-color: transparent;
+  border: 1px solid #1a73e8;
+  color: #1a73e8;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghost-btn:not(:disabled):hover {
+  background-color: #e8f2ff;
+}
+
+.query-results {
+  min-height: 180px;
+}
+
+.query-feedback {
+  text-align: center;
+  color: #666;
+  padding: 20px 0;
+}
+
+.query-feedback.error {
+  color: #d93025;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.result-table th,
+.result-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.result-table th {
+  background-color: #f7f9fc;
+  color: #555;
+}
+
+.pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 /* 搜索筛选区域样式 */
@@ -688,3 +1021,4 @@ export default {
   }
 }
 </style>
+
