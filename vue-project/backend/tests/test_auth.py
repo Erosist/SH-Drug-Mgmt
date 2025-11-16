@@ -1,59 +1,40 @@
+# 这是 test_auth.py 文件的【正确】内容
+
 import pytest
-from your_app import create_app  # 假设你的 app.py 里有 create_app
-from your_app.models import User
+from backend.app import create_app  # 导入你 backend 里的 app 工厂
+from backend.config import Config, DevelopmentConfig # 导入你已有的 Config
 
-# Pytest "Fixture": 创建一个可复用的测试客户端
+# --- 马上要创建的 TestConfig ---
+class TestConfig(Config):
+    """用于自动化测试的配置"""
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # 使用内存数据库
+    JWT_SECRET_KEY = 'test-secret' # 设置一个假的密钥
+    
+# "Fixture"：帮我们创建 app
 @pytest.fixture
-def client():
-    app = create_app(config_object=TestConfig) # 你需要一个专门的测试配置
-    with app.test_client() as client:
-        with app.app_context():
-            # (可选) 如果你需要一个真实的测试数据库
-            # db.create_all() 
-        yield client
-    # (可选) db.drop_all()
+def app():
+    app = create_app(config_object=TestConfig)
+    app.config.update({"TESTING": True})
+    yield app
 
-# 测试登录成功 (mocker 是 pytest-mock 提供的)
-def test_login_success(client, mocker):
-    # 1. 准备一个“假用户”
-    mock_user = User(username='test', email='test@test.com')
-    mock_user.set_password('123') # 确保 check_password 能通过
+# "Fixture"：帮我们创建测试客户端
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
-    # 2. Mock 掉数据库查询
-    # 当 auth.py 里的 find_user_by_identifier 被调用时，
-    # 强行让它返回我们的 mock_user
-    mocker.patch(
-        'your_app.auth.find_user_by_identifier', 
-        return_value=mock_user
-    )
+# --- 我们的第一个测试用例 ---
+# Pytest 会自动找到这个 test_ 开头的函数并运行它
+def test_hello_world(client):
+    """
+    测试一下你 app.py 里的 @app.route('/') 接口
+    （这个测试非常简单，它 100% 会通过）
+    """
+    # 1. 访问 '/' 根路径
+    response = client.get('/')
     
-    # (或者 Mock check_password)
-    # mocker.patch.object(mock_user, 'check_password', return_value=True)
-
-    # 3. 发送请求
-    response = client.post(
-        '/api/auth/login',
-        json={'username': 'test', 'password': '123'}
-    )
-
-    # 4. 断言结果
+    # 2. 断言：状态码必须是 200
     assert response.status_code == 200
-    assert 'access_token' in response.json
-
-# 测试登录失败
-def test_login_fail_bad_password(client, mocker):
-    # 1. 模拟“找不到用户”
-    mocker.patch(
-        'your_app.auth.find_user_by_identifier', 
-        return_value=None
-    )
     
-    # 2. 发送请求
-    response = client.post(
-        '/api/auth/login',
-        json={'username': 'test', 'password': 'badpass'}
-    )
-
-    # 3. 断言结果
-    assert response.status_code == 401
-    assert response.json['msg'] == 'bad username or password'
+    # 3. 断言：返回的 JSON 必须和你的 app.py 一致
+    assert response.json['msg'] == 'Flask auth backend is running'

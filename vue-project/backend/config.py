@@ -12,5 +12,12 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
 
+class TestConfig(Config):
+    """用于自动化测试的配置"""
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # 使用内存数据库
+    JWT_SECRET_KEY = 'test-secret' # 设置一个假的密钥
+    
+
 class ProductionConfig(Config):
     DEBUG = False
