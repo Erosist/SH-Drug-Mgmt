@@ -1,0 +1,113 @@
+from flask import Blueprint, jsonify, request
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
+
+from models import Drug, InventoryItem, TenantPharmacy
+
+bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
+
+
+def parse_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def get_pagination_args():
+    page = parse_int(request.args.get('page'), 1)
+    per_page = parse_int(request.args.get('per_page'), 10)
+    page = max(page or 1, 1)
+    per_page = max(min(per_page or 10, 100), 1)
+    return page, per_page
+
+
+def paginate_query(query, serializer):
+    page, per_page = get_pagination_args()
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    return {
+        'items': [serializer(item) for item in pagination.items],
+        'page': pagination.page,
+        'per_page': pagination.per_page,
+        'total': pagination.total,
+        'pages': pagination.pages,
+    }
+
+
+@bp.route('/drugs', methods=['GET'])
+def list_drugs():
+    keyword = (request.args.get('keyword') or '').strip()
+    category = (request.args.get('category') or '').strip()
+    prescription = (request.args.get('prescription_type') or '').strip()
+
+    query = Drug.query
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                Drug.generic_name.ilike(like),
+                Drug.brand_name.ilike(like),
+                Drug.approval_number.ilike(like),
+            )
+        )
+    if category:
+        query = query.filter(Drug.category == category)
+    if prescription:
+        query = query.filter(Drug.prescription_type == prescription)
+
+    query = query.order_by(Drug.id.asc())
+    return jsonify(paginate_query(query, lambda d: d.to_dict()))
+
+
+@bp.route('/tenants', methods=['GET'])
+def list_tenants():
+    keyword = (request.args.get('keyword') or '').strip()
+    type_filter = (request.args.get('type') or '').strip()
+    active_raw = (request.args.get('is_active') or '').lower().strip()
+
+    query = TenantPharmacy.query
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                TenantPharmacy.name.ilike(like),
+                TenantPharmacy.address.ilike(like),
+                TenantPharmacy.unified_social_credit_code.ilike(like),
+            )
+        )
+    if type_filter:
+        query = query.filter(TenantPharmacy.type == type_filter.upper())
+    if active_raw in {'true', 'false'}:
+        query = query.filter(TenantPharmacy.is_active == (active_raw == 'true'))
+
+    query = query.order_by(TenantPharmacy.id.asc())
+    return jsonify(paginate_query(query, lambda t: t.to_dict()))
+
+
+@bp.route('/inventory', methods=['GET'])
+def list_inventory():
+    keyword = (request.args.get('keyword') or '').strip()
+    tenant_id = parse_int(request.args.get('tenant_id'), None)
+    drug_id = parse_int(request.args.get('drug_id'), None)
+
+    query = InventoryItem.query.options(
+        joinedload(InventoryItem.drug),
+        joinedload(InventoryItem.tenant),
+    )
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.join(InventoryItem.drug).join(InventoryItem.tenant).filter(
+            or_(
+                InventoryItem.batch_number.ilike(like),
+                Drug.generic_name.ilike(like),
+                Drug.brand_name.ilike(like),
+                TenantPharmacy.name.ilike(like),
+            )
+        )
+    if tenant_id:
+        query = query.filter(InventoryItem.tenant_id == tenant_id)
+    if drug_id:
+        query = query.filter(InventoryItem.drug_id == drug_id)
+
+    query = query.order_by(InventoryItem.id.desc())
+    return jsonify(paginate_query(query, lambda item: item.to_dict(include_related=True)))

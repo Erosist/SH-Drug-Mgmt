@@ -281,6 +281,25 @@ curl -X POST http://127.0.0.1:5000/api/auth/change-password \
 - `python backend/run.py`
 - 或在 backend 目录下：`set FLASK_APP=run.py && flask run`
 
+## 导入示例数据（drugs/inventory/tenants）
+
+项目根目录已经包含 `drugs.json`、`inventory_items.json`、`tenants_pharmacy.json`，可用以下脚本一次性导入到 `backend/instance/data.db`：
+
+```bash
+cd backend
+python tools/import_seed_data.py
+```
+
+脚本会按顺序清空并写入 3 张表。若 JSON 不在根目录，可通过 `--data-dir` 指定所在目录。导入成功后，可用 `python tools/dump_db.py --table drugs --limit 5` 验证。
+
+### 查询 API + 前端展示
+
+- `GET /api/catalog/drugs`：支持 `keyword`、`category`、`prescription_type` 查询药品资料。
+- `GET /api/catalog/tenants`：支持 `keyword`、`type`、`is_active` 查询药店/机构信息。
+- `GET /api/catalog/inventory`：支持 `keyword`、`tenant_id`、`drug_id` 查询库存批次信息（返回内容附带药品与药店名称）。
+
+以上接口统一接受 `page`、`per_page` 分页参数，返回 `{ items, page, per_page, total }` 结构。前端 `库存管理` 页面新增“真实数据查询”板块，调用这些接口即可在 UI 中搜索药品、药店与库存记录。
+
 ## 安全与可改进项
 
 - 强化密码策略、登录失败重试限制、二次验证等
