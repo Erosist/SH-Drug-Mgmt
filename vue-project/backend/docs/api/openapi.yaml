@@ -1,0 +1,791 @@
+openapi: 3.0.0
+info:
+  title: 药品供应链管理系统 API
+  version: 1.0.0
+  description: |
+    ## 项目概述
+    上海药品信息管理与查询平台（SH-Drug-Mgmt）API文档
+    
+    ## 功能模块
+    - 用户认证管理
+    - 供应信息管理
+    - 药品信息管理
+    
+    ## 认证方式
+    使用JWT Bearer Token进行认证
+    
+  contact:
+    name: API Support
+    email: support@sh-drug-mgmt.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: 开发环境
+  - url: http://test.sh-drug-mgmt.com
+    description: 测试环境
+  - url: https://api.sh-drug-mgmt.com
+    description: 生产环境
+
+tags:
+  - name: 认证
+    description: 用户认证相关接口
+  - name: 供应信息管理
+    description: 供应信息的增删改查
+  - name: 药品信息
+    description: 药品主数据管理
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - 认证
+      summary: 用户登录
+      description: |
+        用户通过用户名/邮箱/手机号和密码登录系统，获取访问令牌
+        
+        **支持的登录标识：**
+        - 用户名
+        - 邮箱地址
+        - 手机号码
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              用户名登录:
+                summary: 使用用户名登录
+                value:
+                  username: "supplier1"
+                  password: "password123"
+              邮箱登录:
+                summary: 使用邮箱登录
+                value:
+                  username: "supplier1@test.com"
+                  password: "password123"
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                供应商登录成功:
+                  summary: 供应商用户登录成功
+                  value:
+                    access_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                    user:
+                      id: 1
+                      username: "supplier1"
+                      email: "supplier1@test.com"
+                      role: "supplier"
+                      tenant_id: 1
+                      tenant:
+                        id: 1
+                        name: "上海医药集团股份有限公司"
+                        type: "SUPPLIER"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags:
+        - 认证
+      summary: 获取当前用户信息
+      description: 获取当前登录用户的详细信息
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/supply/info:
+    post:
+      tags:
+        - 供应信息管理
+      summary: 发布供应信息
+      description: |
+        供应商用户发布新的药品供应信息
+        
+        **权限要求：**
+        - 用户角色必须是 `supplier` 或 `admin`
+        - 必须关联有效的企业租户
+        
+        **业务规则：**
+        - 可供应数量必须大于0
+        - 单价必须大于0
+        - 最小起订量不能超过可供应数量
+        - 有效期必须是未来日期
+      operationId: createSupplyInfo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSupplyInfoRequest'
+            examples:
+              阿莫西林供应:
+                summary: 发布阿莫西林胶囊供应信息
+                value:
+                  drug_id: 1
+                  available_quantity: 1000
+                  unit_price: 25.50
+                  min_order_quantity: 50
+                  valid_until: "2025-12-31"
+                  description: "优质药品，现货充足，支持大批量采购"
+      responses:
+        '201':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplyInfoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    get:
+      tags:
+        - 供应信息管理
+      summary: 获取供应信息列表
+      description: |
+        获取供应信息列表，支持分页和筛选
+        
+        **筛选功能：**
+        - 按药品名称搜索
+        - 按状态筛选
+        - 只显示我的供应信息（供应商用户）
+        
+        **排序规则：**
+        - 默认按发布时间倒序
+      operationId: getSupplyInfoList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: drug_name
+          in: query
+          description: 药品名称搜索关键词
+          required: false
+          schema:
+            type: string
+            example: "阿莫西林"
+        - name: status
+          in: query
+          description: 供应信息状态
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, EXPIRED]
+            example: "ACTIVE"
+        - name: only_mine
+          in: query
+          description: 只显示我的供应信息（供应商用户专用）
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplyInfoListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/supply/info/{id}:
+    get:
+      tags:
+        - 供应信息管理
+      summary: 获取供应信息详情
+      description: 根据ID获取指定供应信息的详细内容
+      operationId: getSupplyInfoDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 供应信息ID
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplyInfoDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - 供应信息管理
+      summary: 更新供应信息
+      description: |
+        更新指定的供应信息
+        
+        **权限限制：**
+        - 只能更新自己企业的供应信息
+        - 管理员可以更新任意供应信息
+        
+        **更新规则：**
+        - 部分字段更新
+        - 核心业务规则验证不变
+      operationId: updateSupplyInfo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 供应信息ID
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSupplyInfoRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplyInfoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - 供应信息管理
+      summary: 删除供应信息
+      description: |
+        删除指定的供应信息
+        
+        **权限限制：**
+        - 只能删除自己企业的供应信息
+        - 管理员可以删除任意供应信息
+        
+        **注意事项：**
+        - 删除操作不可逆
+        - 建议先下架再删除
+      operationId: deleteSupplyInfo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 供应信息ID
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/supply/drugs:
+    get:
+      tags:
+        - 药品信息
+      summary: 获取药品列表
+      description: |
+        获取药品主数据列表，用于发布供应信息时选择药品
+        
+        **搜索功能：**
+        - 支持按通用名搜索
+        - 支持按商品名搜索
+        - 支持按批准文号搜索
+      operationId: getDrugsList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: search
+          in: query
+          description: 搜索关键词（药品名称或批准文号）
+          required: false
+          schema:
+            type: string
+            example: "阿莫西林"
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DrugListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer Token 认证
+        
+        使用方式：Authorization: Bearer {token}
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: 页码（从1开始）
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+    
+    PerPageParam:
+      name: per_page
+      in: query
+      description: 每页数量
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+  schemas:
+    # 请求体定义
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名/邮箱/手机号
+          example: "supplier1"
+        password:
+          type: string
+          description: 密码
+          format: password
+          example: "password123"
+
+    CreateSupplyInfoRequest:
+      type: object
+      required:
+        - drug_id
+        - available_quantity
+        - unit_price
+        - valid_until
+      properties:
+        drug_id:
+          type: integer
+          description: 药品ID
+          example: 1
+        available_quantity:
+          type: integer
+          minimum: 1
+          description: 可供应数量
+          example: 1000
+        unit_price:
+          type: number
+          minimum: 0.01
+          description: 单价（元）
+          example: 25.50
+        min_order_quantity:
+          type: integer
+          minimum: 1
+          description: 最小起订量
+          default: 1
+          example: 50
+        valid_until:
+          type: string
+          format: date
+          description: 有效期至（YYYY-MM-DD）
+          example: "2025-12-31"
+        description:
+          type: string
+          maxLength: 500
+          description: 备注说明
+          example: "优质药品，现货充足，支持大批量采购"
+
+    UpdateSupplyInfoRequest:
+      type: object
+      properties:
+        available_quantity:
+          type: integer
+          minimum: 1
+          description: 可供应数量
+          example: 800
+        unit_price:
+          type: number
+          minimum: 0.01
+          description: 单价（元）
+          example: 26.00
+        min_order_quantity:
+          type: integer
+          minimum: 1
+          description: 最小起订量
+          example: 40
+        valid_until:
+          type: string
+          format: date
+          description: 有效期至
+          example: "2025-12-31"
+        description:
+          type: string
+          maxLength: 500
+          description: 备注说明
+          example: "价格已调整，欢迎采购"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: 状态（上架/下架）
+          example: "ACTIVE"
+
+    # 响应体定义
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT访问令牌
+        user:
+          $ref: '#/components/schemas/User'
+
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    SupplyInfoResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: "供应信息发布成功"
+        data:
+          $ref: '#/components/schemas/SupplyInfo'
+
+    SupplyInfoDetailResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: "获取供应信息详情成功"
+        data:
+          $ref: '#/components/schemas/SupplyInfoDetail'
+
+    SupplyInfoListResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: "获取供应信息列表成功"
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/SupplyInfoDetail'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    DrugListResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: "获取药品列表成功"
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Drug'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    SuccessResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: "操作成功"
+
+    ErrorResponse:
+      type: object
+      properties:
+        msg:
+          type: string
+          description: 错误信息
+        error:
+          type: string
+          description: 详细错误描述
+
+    # 实体对象定义
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "supplier1"
+        email:
+          type: string
+          format: email
+          example: "supplier1@test.com"
+        phone:
+          type: string
+          example: "13800001001"
+        role:
+          type: string
+          enum: [pharmacy, supplier, logistics, regulator, unauth, admin]
+          example: "supplier"
+        tenant_id:
+          type: integer
+          example: 1
+        is_authenticated:
+          type: boolean
+          example: true
+        last_login_at:
+          type: string
+          format: date-time
+          example: "2025-11-17T10:30:00Z"
+        tenant:
+          $ref: '#/components/schemas/Tenant'
+
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "上海医药集团股份有限公司"
+        type:
+          type: string
+          enum: [PHARMACY, SUPPLIER, LOGISTICS, REGULATOR]
+          example: "SUPPLIER"
+        contact_phone:
+          type: string
+          example: "021-12345678"
+        contact_email:
+          type: string
+          format: email
+          example: "contact@shmedical.com"
+        address:
+          type: string
+          example: "上海市浦东新区张江高科技园区"
+
+    Drug:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        generic_name:
+          type: string
+          example: "阿莫西林胶囊"
+        brand_name:
+          type: string
+          example: "阿莫仙"
+        approval_number:
+          type: string
+          example: "国药准字H10930005"
+        dosage_form:
+          type: string
+          example: "胶囊剂"
+        specification:
+          type: string
+          example: "0.25g"
+        manufacturer:
+          type: string
+          example: "石药集团中诺药业（石家庄）有限公司"
+        category:
+          type: string
+          example: "抗菌药物"
+        prescription_type:
+          type: string
+          example: "处方药"
+
+    SupplyInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        tenant_id:
+          type: integer
+          example: 1
+        drug_id:
+          type: integer
+          example: 1
+        available_quantity:
+          type: integer
+          example: 1000
+        unit_price:
+          type: number
+          example: 25.50
+        min_order_quantity:
+          type: integer
+          example: 50
+        valid_until:
+          type: string
+          format: date
+          example: "2025-12-31"
+        description:
+          type: string
+          example: "优质药品，现货充足"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, EXPIRED]
+          example: "ACTIVE"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-11-17T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-11-17T10:30:00Z"
+
+    SupplyInfoDetail:
+      allOf:
+        - $ref: '#/components/schemas/SupplyInfo'
+        - type: object
+          properties:
+            drug:
+              $ref: '#/components/schemas/Drug'
+            tenant:
+              $ref: '#/components/schemas/Tenant'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+        pages:
+          type: integer
+          example: 5
+        has_next:
+          type: boolean
+          example: true
+        has_prev:
+          type: boolean
+          example: false
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            msg: "请求参数错误"
+            error: "缺少必填字段: drug_id"
+
+    Unauthorized:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            msg: "未授权访问"
+            error: "Token无效或已过期"
+
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            msg: "权限不足"
+            error: "需要供应商角色"
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            msg: "资源不存在"
+            error: "供应信息ID不存在"
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            msg: "服务器内部错误"
+            error: "数据库连接失败"
