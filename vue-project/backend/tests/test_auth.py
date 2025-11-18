@@ -5,12 +5,7 @@ from backend.app import create_app  # 导入你 backend 里的 app 工厂
 from backend.config import Config, DevelopmentConfig # 导入你已有的 Config
 
 # --- 马上要创建的 TestConfig ---
-class TestConfig(Config):
-    """用于自动化测试的配置"""
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:' # 使用内存数据库
-    JWT_SECRET_KEY = 'test-secret' # 设置一个假的密钥
-    
+
 # "Fixture"：帮我们创建 app
 @pytest.fixture
 def app():
