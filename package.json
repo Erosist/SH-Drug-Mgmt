@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.6",
+    "vitest": "^4.0.9"
+  }
+}
