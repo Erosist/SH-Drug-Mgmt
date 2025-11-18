@@ -1,36 +1,25 @@
-# .gitlab-ci.yml
-# 针对你的“根目录Vue + backend/Flask”结构
-
 stages:
   - test
 
-# --- 后端测试任务 ---
 test-backend:
   stage: test
-  image: python:3.10
+  tags:                 # <--- 加上这个！
+    - SH-Drug-Mgmt    # <--- 填上你 Runner 的“标签”（你创建时填的那个）
   
-  before_script:
-    - echo "Installing backend dependencies..."
-    # 你的 'backend' 文件夹是对的，所以这行不变
-    - cd backend 
+  # (下面的 image, script 不变)
+  image: python:3.10
+  script:
+    - cd backend
     - pip install -r requirements.txt
     - pip install pytest pytest-flask pytest-mock
-
-  script:
-    - echo "Running backend tests..."
     - pytest
 
-# --- 前端测试任务 ---
 test-frontend:
   stage: test
+  tags:                 # <--- 加上这个！
+    - SH-Drug-Mgmt    # <--- 两个任务都要加！
+        
   image: node:18
-  
-  before_script:
-    - echo "Installing frontend dependencies..."
-    # 你的 'package.json' 就在根目录，所以我们不 cd
-    # (删掉了 'cd frontend' 这一行)
-    - npm install # 这会直接在根目录运行，是正确的
-
   script:
-    - echo "Running frontend tests..."
-    - npm run test # 这也会在根目录运行
+    - npm install
+    - npm run test
