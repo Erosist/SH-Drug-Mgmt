@@ -19,8 +19,14 @@ test-backend:
 
   script:
     - echo "我*必须*回到 'vue-project' 才能运行 pytest..."
-    - cd ..  # （从 backend/ 退回到 vue-project/）
-    - pytest backend/tests/  # （明确告诉 pytest 测试在 backend/tests/ 里）
+    - cd ..  # (从 backend/ 退回到 vue-project/)
+    
+    # --- ！！！这就是“修复 Bug”的那一行！！！ ---
+    # 告诉 Python (在 PowerShell 中) "把当前目录(.)也加入到 import 搜索路径"
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
+    # --- ！！！修复完毕！！！ ---
+    
+    - pytest backend/tests/  # (现在，pytest 终于能找到 'backend' 模块了！)
 
 test-frontend:
   stage: test
