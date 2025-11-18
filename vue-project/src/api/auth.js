@@ -33,7 +33,7 @@ export function register({ username, email, password, role, phone }) {
 }
 
 export function login({ username, password }) {
-	return request('/login', { method: 'POST', body: { username, password } });
+  return request('/login', { method: 'POST', body: { username, password } });
 }
 
 export function me(token) {

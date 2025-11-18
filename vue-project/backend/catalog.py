@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload
 
+from extensions import db
 from models import Drug, InventoryItem, TenantPharmacy
 
 bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
@@ -82,6 +83,27 @@ def list_tenants():
 
     query = query.order_by(TenantPharmacy.id.asc())
     return jsonify(paginate_query(query, lambda t: t.to_dict()))
+
+
+@bp.route('/tenants/<int:tenant_id>', methods=['GET'])
+def tenant_detail(tenant_id):
+    tenant = TenantPharmacy.query.get_or_404(tenant_id)
+    total_batches, total_drugs, total_quantity, latest_update = db.session.query(
+        func.count(InventoryItem.id),
+        func.count(func.distinct(InventoryItem.drug_id)),
+        func.coalesce(func.sum(InventoryItem.quantity), 0),
+        func.max(InventoryItem.updated_at)
+    ).filter(InventoryItem.tenant_id == tenant_id).first()
+
+    return jsonify({
+        'tenant': tenant.to_dict(),
+        'stats': {
+            'total_batches': total_batches or 0,
+            'unique_drugs': total_drugs or 0,
+            'total_quantity': int(total_quantity or 0),
+            'latest_update': latest_update.isoformat() if latest_update else None
+        }
+    })
 
 
 @bp.route('/inventory', methods=['GET'])
