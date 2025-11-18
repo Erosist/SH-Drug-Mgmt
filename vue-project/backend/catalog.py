@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from models import Drug, InventoryItem, TenantPharmacy
+from models import Drug, InventoryItem, Tenant
 
 bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
 
@@ -65,22 +65,22 @@ def list_tenants():
     type_filter = (request.args.get('type') or '').strip()
     active_raw = (request.args.get('is_active') or '').lower().strip()
 
-    query = TenantPharmacy.query
+    query = Tenant.query
     if keyword:
         like = f"%{keyword}%"
         query = query.filter(
             or_(
-                TenantPharmacy.name.ilike(like),
-                TenantPharmacy.address.ilike(like),
-                TenantPharmacy.unified_social_credit_code.ilike(like),
+                Tenant.name.ilike(like),
+                Tenant.address.ilike(like),
+                Tenant.unified_social_credit_code.ilike(like),
             )
         )
     if type_filter:
-        query = query.filter(TenantPharmacy.type == type_filter.upper())
+        query = query.filter(Tenant.type == type_filter.upper())
     if active_raw in {'true', 'false'}:
-        query = query.filter(TenantPharmacy.is_active == (active_raw == 'true'))
+        query = query.filter(Tenant.is_active == (active_raw == 'true'))
 
-    query = query.order_by(TenantPharmacy.id.asc())
+    query = query.order_by(Tenant.id.asc())
     return jsonify(paginate_query(query, lambda t: t.to_dict()))
 
 
@@ -101,7 +101,7 @@ def list_inventory():
                 InventoryItem.batch_number.ilike(like),
                 Drug.generic_name.ilike(like),
                 Drug.brand_name.ilike(like),
-                TenantPharmacy.name.ilike(like),
+                Tenant.name.ilike(like),
             )
         )
     if tenant_id:
