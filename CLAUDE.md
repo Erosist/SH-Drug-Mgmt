@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **核心目标：** 连接药店、供应商、监管部门、物流公司，实现药品信息集中管理、流通追溯、库存监控、B2B模拟交易与监管可视化
 
+
 # 技术栈
 
 ## 前端
