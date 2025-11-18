@@ -227,3 +227,197 @@ class InventoryItem(db.Model):
                 data['tenant_name'] = self.tenant.name
                 data['tenant_type'] = self.tenant.type
         return data
+
+
+class Order(db.Model):
+    """订单模型"""
+    __tablename__ = 'orders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(50), unique=True, nullable=False)  # 业务订单号
+    buyer_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    supplier_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    expected_delivery_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(30), nullable=False, default='PENDING')  # 订单状态
+    logistics_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=True)
+    tracking_number = db.Column(db.String(100), nullable=True)
+    shipped_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    received_at = db.Column(db.DateTime, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    confirmed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    confirmed_at = db.Column(db.DateTime, nullable=True)
+    received_confirmed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    cancel_reason = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关联关系
+    buyer_tenant = db.relationship('Tenant', foreign_keys=[buyer_tenant_id], backref='buyer_orders')
+    supplier_tenant = db.relationship('Tenant', foreign_keys=[supplier_tenant_id], backref='supplier_orders')
+    logistics_tenant = db.relationship('Tenant', foreign_keys=[logistics_tenant_id])
+    created_by_user = db.relationship('User', foreign_keys=[created_by], backref='created_orders')
+    confirmed_by_user = db.relationship('User', foreign_keys=[confirmed_by])
+    received_confirmed_by_user = db.relationship('User', foreign_keys=[received_confirmed_by])
+    cancelled_by_user = db.relationship('User', foreign_keys=[cancelled_by])
+    
+    # 订单明细项
+    items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
+
+    def __init__(self, **kwargs):
+        super(Order, self).__init__(**kwargs)
+        if not self.order_number:
+            self.order_number = self.generate_order_number()
+
+    def generate_order_number(self):
+        """生成订单号：PH/SP + YYYYMMDD + 3位序号"""
+        from datetime import date
+        import random
+        
+        # 根据买方类型生成前缀
+        prefix = 'PH'  # 默认药店
+        if hasattr(self, 'buyer_tenant') and self.buyer_tenant:
+            if self.buyer_tenant.type == 'SUPPLIER':
+                prefix = 'SP'
+            elif self.buyer_tenant.type == 'LOGISTICS':
+                prefix = 'LG'
+        
+        today = date.today().strftime('%Y%m%d')
+        # 生成3位随机数序号（实际项目中应该从数据库序列获取）
+        sequence = str(random.randint(1, 999)).zfill(3)
+        
+        return f"{prefix}{today}{sequence}"
+
+    @property
+    def total_amount(self):
+        """计算订单总金额"""
+        return sum(item.total_amount for item in self.items)
+    
+    @property
+    def total_quantity(self):
+        """计算订单总数量"""
+        return sum(item.quantity for item in self.items)
+
+    def to_dict(self, include_relations=False):
+        result = {
+            'id': self.id,
+            'order_number': self.order_number,
+            'buyer_tenant_id': self.buyer_tenant_id,
+            'supplier_tenant_id': self.supplier_tenant_id,
+            'expected_delivery_date': self.expected_delivery_date.isoformat() if self.expected_delivery_date else None,
+            'notes': self.notes,
+            'status': self.status,
+            'logistics_tenant_id': self.logistics_tenant_id,
+            'tracking_number': self.tracking_number,
+            'shipped_at': to_iso(self.shipped_at),
+            'delivered_at': to_iso(self.delivered_at),
+            'received_at': to_iso(self.received_at),
+            'created_by': self.created_by,
+            'confirmed_by': self.confirmed_by,
+            'confirmed_at': to_iso(self.confirmed_at),
+            'received_confirmed_by': self.received_confirmed_by,
+            'cancelled_by': self.cancelled_by,
+            'cancelled_at': to_iso(self.cancelled_at),
+            'cancel_reason': self.cancel_reason,
+            'created_at': to_iso(self.created_at),
+            'updated_at': to_iso(self.updated_at),
+            'total_amount': self.total_amount,
+            'total_quantity': self.total_quantity
+        }
+        
+        if include_relations:
+            result.update({
+                'buyer_tenant': self.buyer_tenant.to_dict() if self.buyer_tenant else None,
+                'supplier_tenant': self.supplier_tenant.to_dict() if self.supplier_tenant else None,
+                'logistics_tenant': self.logistics_tenant.to_dict() if self.logistics_tenant else None,
+                'created_by_user': self.created_by_user.to_dict() if self.created_by_user else None,
+                'confirmed_by_user': self.confirmed_by_user.to_dict() if self.confirmed_by_user else None,
+                'items': [item.to_dict(include_relations=True) for item in self.items]
+            })
+        
+        return result
+
+
+class OrderItem(db.Model):
+    """订单明细模型"""
+    __tablename__ = 'order_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False, index=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=False)
+    batch_number = db.Column(db.String(50), nullable=True)  # 指定批号（可选）
+    unit_price = db.Column(db.Numeric(10, 2), nullable=False)  # 成交单价
+    quantity = db.Column(db.Integer, nullable=False)  # 订购数量
+    
+    # 关联关系
+    drug = db.relationship('Drug', backref='order_items')
+
+    @property
+    def total_amount(self):
+        """计算明细金额"""
+        return float(self.unit_price) * self.quantity if self.unit_price else 0.0
+
+    def to_dict(self, include_relations=False):
+        result = {
+            'id': self.id,
+            'order_id': self.order_id,
+            'drug_id': self.drug_id,
+            'batch_number': self.batch_number,
+            'unit_price': float(self.unit_price) if self.unit_price else None,
+            'quantity': self.quantity,
+            'total_amount': self.total_amount
+        }
+        
+        if include_relations:
+            result.update({
+                'drug': self.drug.to_dict() if self.drug else None
+            })
+        
+        return result
+
+
+class InventoryTransaction(db.Model):
+    """库存流水模型"""
+    __tablename__ = 'inventory_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    inventory_item_id = db.Column(db.Integer, db.ForeignKey('inventory_items.id'), nullable=False, index=True)
+    transaction_type = db.Column(db.String(20), nullable=False)  # IN, OUT, ADJUST, TRANSFER
+    quantity_delta = db.Column(db.Integer, nullable=False)  # 数量变动
+    source_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=True)  # 对端企业
+    related_order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)  # 关联订单
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 关联关系
+    inventory_item = db.relationship('InventoryItem', backref='transactions')
+    source_tenant = db.relationship('Tenant')
+    related_order = db.relationship('Order')
+    created_by_user = db.relationship('User')
+
+    def to_dict(self, include_relations=False):
+        result = {
+            'id': self.id,
+            'inventory_item_id': self.inventory_item_id,
+            'transaction_type': self.transaction_type,
+            'quantity_delta': self.quantity_delta,
+            'source_tenant_id': self.source_tenant_id,
+            'related_order_id': self.related_order_id,
+            'notes': self.notes,
+            'created_by': self.created_by,
+            'created_at': to_iso(self.created_at)
+        }
+        
+        if include_relations:
+            result.update({
+                'inventory_item': self.inventory_item.to_dict() if self.inventory_item else None,
+                'source_tenant': self.source_tenant.to_dict() if self.source_tenant else None,
+                'related_order': self.related_order.to_dict() if self.related_order else None,
+                'created_by_user': self.created_by_user.to_dict() if self.created_by_user else None
+            })
+        
+        return result

@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
 from extensions import db
-from models import User, Tenant, Drug, SupplyInfo
+from models import User, Tenant, Drug, SupplyInfo, Order, OrderItem
 from datetime import datetime, date, timedelta
 
 def init_database():
@@ -32,6 +32,9 @@ def init_database():
         
         # 创建测试供应信息
         create_test_supply_info()
+        
+        # 创建测试订单
+        create_test_orders()
         
         print("数据库初始化完成！")
 
@@ -369,6 +372,134 @@ def create_test_supply_info():
     
     db.session.commit()
     print("测试供应信息创建完成")
+
+def create_test_orders():
+    """创建测试订单"""
+    # 获取药店、供应商和供应信息
+    pharmacy_users = User.query.filter_by(role='pharmacy', is_authenticated=True).all()
+    supply_infos = SupplyInfo.query.filter_by(status='ACTIVE').all()
+    
+    if not pharmacy_users or not supply_infos:
+        print("缺少药店用户或供应信息数据，跳过订单创建")
+        return
+    
+    orders_data = [
+        {
+            'pharmacy_username': 'pharmacy1',
+            'supply_info_index': 0,  # 阿莫西林胶囊
+            'quantity': 200,
+            'status': 'PENDING',
+            'expected_delivery_date': date.today() + timedelta(days=3),
+            'notes': '急需补货，请尽快发货'
+        },
+        {
+            'pharmacy_username': 'pharmacy1',
+            'supply_info_index': 2,  # 连花清瘟胶囊
+            'quantity': 500,
+            'status': 'CONFIRMED',
+            'expected_delivery_date': date.today() + timedelta(days=5),
+            'notes': '感冒季节备货',
+            'days_ago': 1  # 1天前创建，已确认
+        },
+        {
+            'pharmacy_username': 'pharmacy2',
+            'supply_info_index': 1,  # 布洛芬片
+            'quantity': 100,
+            'status': 'SHIPPED',
+            'expected_delivery_date': date.today() + timedelta(days=2),
+            'notes': '常规补货',
+            'days_ago': 2,  # 2天前创建
+            'tracking_number': 'SF1234567890'
+        },
+        {
+            'pharmacy_username': 'pharmacy2',
+            'supply_info_index': 4,  # 奥美拉唑肠溶胶囊
+            'quantity': 150,
+            'status': 'COMPLETED',
+            'expected_delivery_date': date.today() - timedelta(days=3),
+            'notes': '已收货，药品质量良好',
+            'days_ago': 5,  # 5天前创建
+            'tracking_number': 'SF0987654321'
+        }
+    ]
+    
+    for data in orders_data:
+        try:
+            # 查找药店用户
+            pharmacy_user = User.query.filter_by(username=data['pharmacy_username']).first()
+            if not pharmacy_user or data['supply_info_index'] >= len(supply_infos):
+                continue
+            
+            supply_info = supply_infos[data['supply_info_index']]
+            
+            # 检查是否已存在类似订单
+            existing_order = Order.query.filter_by(
+                buyer_tenant_id=pharmacy_user.tenant_id,
+                supplier_tenant_id=supply_info.tenant_id
+            ).join(OrderItem).filter_by(drug_id=supply_info.drug_id).first()
+            
+            if existing_order:
+                continue
+            
+            # 计算创建时间
+            created_at = datetime.utcnow()
+            if data.get('days_ago'):
+                created_at = datetime.utcnow() - timedelta(days=data['days_ago'])
+            
+            # 创建订单
+            order = Order(
+                buyer_tenant_id=pharmacy_user.tenant_id,
+                supplier_tenant_id=supply_info.tenant_id,
+                expected_delivery_date=data['expected_delivery_date'],
+                notes=data['notes'],
+                status=data['status'],
+                created_by=pharmacy_user.id,
+                created_at=created_at,
+                updated_at=created_at
+            )
+            
+            # 创建订单明细
+            order_item = OrderItem(
+                drug_id=supply_info.drug_id,
+                unit_price=supply_info.unit_price,
+                quantity=data['quantity']
+            )
+            order.items.append(order_item)
+            
+            # 根据订单状态设置额外字段
+            if data['status'] in ['CONFIRMED', 'SHIPPED', 'COMPLETED']:
+                # 模拟供应商确认
+                supplier_user = User.query.filter_by(
+                    tenant_id=supply_info.tenant_id, 
+                    role='supplier'
+                ).first()
+                if supplier_user:
+                    order.confirmed_by = supplier_user.id
+                    order.confirmed_at = created_at + timedelta(hours=2)
+            
+            if data['status'] in ['SHIPPED', 'COMPLETED']:
+                # 设置发货信息
+                order.shipped_at = created_at + timedelta(hours=4)
+                if data.get('tracking_number'):
+                    order.tracking_number = data['tracking_number']
+            
+            if data['status'] == 'COMPLETED':
+                # 设置收货信息
+                order.delivered_at = created_at + timedelta(days=2)
+                order.received_at = created_at + timedelta(days=2, hours=1)
+                order.received_confirmed_by = pharmacy_user.id
+            
+            db.session.add(order)
+            
+            # 更新供应信息库存（模拟已占用的库存）
+            supply_info.available_quantity = max(0, supply_info.available_quantity - data['quantity'])
+            
+        except Exception as e:
+            print(f"创建测试订单失败: {str(e)}")
+            continue
+    
+    db.session.commit()
+    print("测试订单创建完成")
 
 if __name__ == '__main__':
     init_database()
