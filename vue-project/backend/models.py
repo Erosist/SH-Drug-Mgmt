@@ -134,14 +134,12 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(30), unique=True, nullable=True)
-    real_name = db.Column(db.String(120), nullable=True)
-    company_name = db.Column(db.String(160), nullable=True)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='unauth')
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=True, index=True)
     is_authenticated = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
-    last_login_at = db.Column(db.DateTime, nullable=True)
+    last_login_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -160,101 +158,19 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'phone': self.phone,
-            'real_name': self.real_name,
-            'company_name': self.company_name,
             'role': self.role,
             'tenant_id': self.tenant_id,
             'is_authenticated': self.is_authenticated,
             'is_active': self.is_active,
-            'last_login_at': to_iso(self.last_login_at),
-            'created_at': to_iso(self.created_at),
-            'updated_at': to_iso(self.updated_at),
+            'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
         
         if include_relations:
             result['tenant'] = self.tenant.to_dict() if self.tenant else None
             
         return result
-
-
-class EnterpriseCertification(db.Model):
-    __tablename__ = 'enterprise_certifications'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
-    reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    role = db.Column(db.String(20), nullable=False)
-    company_name = db.Column(db.String(160), nullable=False)
-    unified_social_credit_code = db.Column(db.String(60), nullable=False)
-    contact_person = db.Column(db.String(80), nullable=False)
-    contact_phone = db.Column(db.String(40), nullable=False)
-    contact_email = db.Column(db.String(160), nullable=False)
-    registered_address = db.Column(db.String(255), nullable=False)
-    business_scope = db.Column(db.Text, nullable=False)
-    qualification_files = db.Column(db.JSON, nullable=True)
-    status = db.Column(db.String(20), default='pending', nullable=False)
-    reject_reason = db.Column(db.Text, nullable=True)
-    attempt_count = db.Column(db.Integer, default=1, nullable=False)
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    reviewed_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    user = db.relationship(
-        'User',
-        foreign_keys=[user_id],
-        backref=db.backref('enterprise_certification', uselist=False, lazy=True)
-    )
-    reviewer = db.relationship('User', foreign_keys=[reviewer_id])
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'reviewer_id': self.reviewer_id,
-            'role': self.role,
-            'company_name': self.company_name,
-            'unified_social_credit_code': self.unified_social_credit_code,
-            'contact_person': self.contact_person,
-            'contact_phone': self.contact_phone,
-            'contact_email': self.contact_email,
-            'registered_address': self.registered_address,
-            'business_scope': self.business_scope,
-            'qualification_files': self.qualification_files or [],
-            'status': self.status,
-            'reject_reason': self.reject_reason,
-            'attempt_count': self.attempt_count,
-            'submitted_at': to_iso(self.submitted_at),
-            'reviewed_at': to_iso(self.reviewed_at),
-            'created_at': to_iso(self.created_at),
-            'updated_at': to_iso(self.updated_at),
-        }
-
-
-class EnterpriseReviewLog(db.Model):
-    __tablename__ = 'enterprise_review_logs'
-
-    id = db.Column(db.Integer, primary_key=True)
-    certification_id = db.Column(db.Integer, db.ForeignKey('enterprise_certifications.id'), nullable=False)
-    reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    decision = db.Column(db.String(20), nullable=False)
-    reason_code = db.Column(db.String(64), nullable=True)
-    reason_text = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    certification = db.relationship('EnterpriseCertification', backref=db.backref('review_logs', lazy=True))
-    reviewer = db.relationship('User', foreign_keys=[reviewer_id])
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'certification_id': self.certification_id,
-            'reviewer_id': self.reviewer_id,
-            'decision': self.decision,
-            'reason_code': self.reason_code,
-            'reason_text': self.reason_text,
-            'created_at': to_iso(self.created_at),
-        }
 
 
 class PasswordResetCode(db.Model):

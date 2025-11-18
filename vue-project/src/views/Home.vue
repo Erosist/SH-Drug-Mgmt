@@ -43,9 +43,6 @@
           </div>
           
           <div class="user-actions">
-            <button v-if="!currentUser || currentUser.role!=='regulator'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -184,26 +181,6 @@ export default {
       router.push('/login')
     }
 
-    const goToEnterpriseAuth = () => {
-      if (!currentUser.value) {
-        router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
-        return
-      }
-      router.push('/enterprise-auth')
-    }
-
-    const goToEnterpriseReview = () => {
-      if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
-      router.push('/enterprise-review')
-    }
-
-    const goToAdminUsers = () => {
-      if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
-      router.push('/admin/users')
-    }
-
     const refreshUser = () => {
       currentUser.value = getCurrentUser()
     }
@@ -251,9 +228,6 @@ export default {
     return {
       goToLogin,
       goToUserHome,
-      goToEnterpriseAuth,
-      goToEnterpriseReview,
-      goToAdminUsers,
       navigateTo,
       activeNav,
       currentUser,
@@ -345,48 +319,6 @@ export default {
 .user-actions {
   display: flex;
   align-items: center;
-}
-
-.auth-btn {
-  background-color: #fff;
-  color: #1a73e8;
-  border: 1px solid #1a73e8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.auth-btn:hover {
-  background-color: rgba(26, 115, 232, 0.08);
-}
-
-.review-btn {
-  background-color: #fff7e6;
-  color: #b76c00;
-  border: 1px solid #f3e5b8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.review-btn:hover {
-  background-color: #ffeccc;
-}
-
-.admin-btn {
-  background-color: #f0f5ff;
-  color: #1a73e8;
-  border: 1px solid #d6e4ff;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.admin-btn:hover {
-  background-color: #e5edff;
 }
 
 .login-btn {

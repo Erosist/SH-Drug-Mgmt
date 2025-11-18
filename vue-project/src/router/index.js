@@ -13,11 +13,8 @@ import LogisticsUser from '../views/LogisticsUser.vue'
 import RegulatorUser from '../views/RegulatorUser.vue'
 import UnauthenticatedUser from '../views/UnauthenticatedUser.vue'
 import EnterpriseAuth from '../views/EnterpriseAuth.vue'
-import EnterpriseReview from '../views/EnterpriseReview.vue'
-import AdminUsers from '../views/AdminUsers.vue'
 import ChangePassword from '../views/ChangePassword.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
-import TenantInventory from '../views/TenantInventory.vue'
 import { getCurrentUser } from '@/utils/authSession'
 
 const router = createRouter({
@@ -29,14 +26,11 @@ const router = createRouter({
     { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword },
     { path: '/change-password', name: 'change-password', component: ChangePassword, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: inventory },
-    { path: '/tenants/:tenantId', name: 'tenant-inventory', component: TenantInventory, props: true },
     { path: '/b2b', name: 'b2b', component: b2b },
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },
     { path: '/service', name: 'service', component: service },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
-  { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'regulator' } },
-  { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'regulator' } },
 
     // 基于角色的用户界面（无后端，使用前端mock登录）
     { path: '/pharmacy', name: 'pharmacy', component: PharmacyUser, meta: { requiresAuth: true } },
@@ -53,10 +47,6 @@ router.beforeEach((to, from, next) => {
     const user = getCurrentUser()
     if (!user) {
       next({ name: 'login', query: { redirect: to.fullPath } })
-      return
-    }
-    if (to.meta.requiresRole && user.role !== to.meta.requiresRole) {
-      next({ name: 'home' })
       return
     }
   }

@@ -116,11 +116,11 @@ def login():
     user = find_user_by_identifier(identifier)
     if not user or not user.check_password(password):
         return jsonify({'msg': 'bad username or password'}), 401
-    if not user.is_active:
-        return jsonify({'msg': '账户已被禁用'}), 403
 
+    # 更新最后登录时间
     user.last_login_at = datetime.utcnow()
     db.session.commit()
+
     access_token = create_access_token(identity=str(user.id))
     return jsonify({
         'access_token': access_token, 

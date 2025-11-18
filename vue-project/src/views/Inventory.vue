@@ -43,9 +43,6 @@
           </div>
           
           <div class="user-actions">
-            <button v-if="!currentUser || currentUser.role!=='regulator'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -69,6 +66,7 @@
             <select v-model="queryType">
               <option value="drugs">药品</option>
               <option value="tenants">药店/机构</option>
+              <option value="inventory">库存批次</option>
             </select>
           </div>
           <div class="query-field flex-1">
@@ -94,21 +92,14 @@
               <thead>
                 <tr>
                   <th v-for="col in activeColumns" :key="col.key">{{ col.label }}</th>
-                  <th v-if="queryType === 'tenants'">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in results" :key="`${queryType}-${row.id}`">
+                <tr v-for="row in results" :key="`${queryType}-${row.id}-${row.batch_number || ''}`">
                   <td v-for="col in activeColumns" :key="col.key">{{ formatCell(row, col.key) }}</td>
-                  <td v-if="queryType === 'tenants'">
-                    <button class="link-btn" @click="viewTenantInventory(row.id)">查看库存</button>
-                  </td>
                 </tr>
               </tbody>
             </table>
-            <div v-if="queryType === 'tenants'" class="hint-text">
-              点击“查看库存”即可进入该药店的库存明细（二级页面）
-            </div>
             <div class="pagination" v-if="pagination.total > pagination.per_page">
               <button
                 class="ghost-btn"
@@ -297,7 +288,7 @@ import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
-import { fetchDrugs, fetchTenants } from '@/api/catalog'
+import { fetchDrugs, fetchInventory, fetchTenants } from '@/api/catalog'
 
 export default {
   name: 'Inventory',
@@ -308,7 +299,7 @@ export default {
     const within5km = ref(true)
     const currentUser = ref(getCurrentUser())
 
-    const queryType = ref('tenants')
+    const queryType = ref('drugs')
     const queryKeyword = ref('')
     const results = ref([])
     const dataLoading = ref(false)
@@ -317,7 +308,7 @@ export default {
 
     const queryConfigs = {
       drugs: {
-        placeholder: '输入通用名、商品名或批准文号',
+        placeholder: '输入通用名、商品名或批文号',
         fetcher: fetchDrugs,
         columns: [
           { key: 'generic_name', label: '通用名' },
@@ -338,6 +329,18 @@ export default {
           { key: 'address', label: '地址' },
           { key: 'is_active', label: '状态' }
         ]
+      },
+      inventory: {
+        placeholder: '输入批次号、药品或药店名称',
+        fetcher: fetchInventory,
+        columns: [
+          { key: 'batch_number', label: '批次号' },
+          { key: 'drug_name', label: '药品' },
+          { key: 'tenant_name', label: '药店' },
+          { key: 'quantity', label: '数量' },
+          { key: 'unit_price', label: '单价' },
+          { key: 'expiry_date', label: '有效期' }
+        ]
       }
     }
 
@@ -351,12 +354,11 @@ export default {
     })
 
     const fetchCurrentData = async () => {
-      const config = queryConfigs[queryType.value]
-      if (!config) return
+      const { fetcher } = queryConfigs[queryType.value]
       dataLoading.value = true
       dataError.value = ''
       try {
-        const response = await config.fetcher({
+        const response = await fetcher({
           keyword: queryKeyword.value.trim(),
           page: pagination.value.page,
           perPage: pagination.value.per_page
@@ -419,27 +421,6 @@ export default {
       router.push('/login')
     }
 
-    const goToEnterpriseAuth = () => {
-      if (!currentUser.value) {
-        router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
-        return
-      }
-      if (currentUser.value.role === 'regulator') return
-      router.push('/enterprise-auth')
-    }
-
-    const goToEnterpriseReview = () => {
-      if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
-      router.push('/enterprise-review')
-    }
-
-    const goToAdminUsers = () => {
-      if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
-      router.push('/admin/users')
-    }
-
     const refreshUser = () => {
       currentUser.value = getCurrentUser()
     }
@@ -481,11 +462,6 @@ export default {
       selectedSupplier.value = supplier
     }
 
-    const viewTenantInventory = (tenantId) => {
-      if (!tenantId) return
-      router.push({ name: 'tenant-inventory', params: { tenantId } })
-    }
-
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       fetchCurrentData()
@@ -497,9 +473,6 @@ export default {
     return {
       goToLogin,
       goToUserHome,
-      goToEnterpriseAuth,
-      goToEnterpriseReview,
-      goToAdminUsers,
       navigateTo,
       activeNav,
       selectedSupplier,
@@ -519,8 +492,7 @@ export default {
       performQuery,
       resetQuery,
       goToPage,
-      formatCell,
-      viewTenantInventory
+      formatCell
     }
   }
 }
@@ -608,48 +580,6 @@ export default {
 .user-actions {
   display: flex;
   align-items: center;
-}
-
-.auth-btn {
-  background-color: #fff;
-  color: #1a73e8;
-  border: 1px solid #1a73e8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.auth-btn:hover {
-  background-color: rgba(26, 115, 232, 0.08);
-}
-
-.review-btn {
-  background-color: #fff7e6;
-  color: #b76c00;
-  border: 1px solid #f3e5b8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.review-btn:hover {
-  background-color: #ffeccc;
-}
-
-.admin-btn {
-  background-color: #f0f5ff;
-  color: #1a73e8;
-  border: 1px solid #d6e4ff;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.admin-btn:hover {
-  background-color: #e5edff;
 }
 
 .login-btn {
@@ -791,25 +721,6 @@ export default {
 
 .ghost-btn:not(:disabled):hover {
   background-color: #e8f2ff;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: #1a73e8;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
-}
-
-.hint-text {
-  margin-top: 8px;
-  color: #6b7280;
-  font-size: 12px;
 }
 
 .query-results {
@@ -1110,5 +1021,4 @@ export default {
   }
 }
 </style>
-
 
