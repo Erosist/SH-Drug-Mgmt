@@ -1,25 +1,38 @@
+# .gitlab-ci.yml
+# 【最终修复版】告诉 CI/CD，我们所有的代码都在 'vue-project' 子文件夹里
+
 stages:
   - test
 
 test-backend:
   stage: test
-  tags:                 # <--- 加上这个！
-    - SH-Drug-Mgmt    # <--- 填上你 Runner 的“标签”（你创建时填的那个）
-  
-  # (下面的 image, script 不变)
-  image: python:3.10
-  script:
-    - cd backend
+  tags:
+    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
+
+  # （关键！）在真正“执行”前，先 cd 进到 'vue-project' 文件夹
+  before_script:
+    - cd vue-project
+    - echo "我现在在 `vue-project` 文件夹里，我开始安装后端..."
+    - cd backend  # （现在 `cd backend` 终于能找到了！）
     - pip install -r requirements.txt
     - pip install pytest pytest-flask pytest-mock
-    - pytest
+
+  script:
+    - echo "我*必须*回到 'vue-project' 才能运行 pytest..."
+    - cd ..  # （从 backend/ 退回到 vue-project/）
+    - pytest backend/tests/  # （明确告诉 pytest 测试在 backend/tests/ 里）
 
 test-frontend:
   stage: test
-  tags:                 # <--- 加上这个！
-    - SH-Drug-Mgmt    # <--- 两个任务都要加！
-        
-  image: node:18
+  tags:
+    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
+
+  # （关键！）在真正“执行”前，也先 cd 进到 'vue-project' 文件夹
+  before_script:
+    - cd vue-project
+    - echo "我现在在 `vue-project` 文件夹里，我开始安装前端..."
+    - npm install # （它现在终于能找到*正确*的 'package.json' 了！）
+
   script:
-    - npm install
+    - echo "我正在 `vue-project` 里运行前端测试..."
     - npm run test
