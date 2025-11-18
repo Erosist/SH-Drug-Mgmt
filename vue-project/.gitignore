@@ -1,43 +1,38 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# .gitlab-ci.yml
+# 【最终修复版】告诉 CI/CD，我们所有的代码都在 'vue-project' 子文件夹里
 
-node_modules
-.DS_Store
-dist
-dist-ssr
-coverage
-*.local
+stages:
+  - test
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+test-backend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
 
-*.tsbuildinfo
+  # （关键！）在真正“执行”前，先 cd 进到 'vue-project' 文件夹
+  before_script:
+    - cd vue-project
+    - echo "我现在在 `vue-project` 文件夹里，我开始安装后端..."
+    - cd backend  # （现在 `cd backend` 终于能找到了！）
+    - pip install -r requirements.txt
+    - pip install pytest pytest-flask pytest-mock
 
-.eslintcache
+  script:
+    - echo "我*必须*回到 'vue-project' 才能运行 pytest..."
+    - cd ..  # （从 backend/ 退回到 vue-project/）
+    - pytest backend/tests/  # （明确告诉 pytest 测试在 backend/tests/ 里）
 
-# Cypress
-/cypress/videos/
-/cypress/screenshots/
+test-frontend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
 
-# Vitest
-__screenshots__/
+  # （关键！）在真正“执行”前，也先 cd 进到 'vue-project' 文件夹
+  before_script:
+    - cd vue-project
+    - echo "我现在在 `vue-project` 文件夹里，我开始安装前端..."
+    - npm install # （它现在终于能找到*正确*的 'package.json' 了！）
 
-# Python virtual environments
-.pytest_cache/
-__pycache__/
-*.py[cod]
-.venv/
-backend/.venv/
+  script:
+    - echo "我正在 `vue-project` 里运行前端测试..."
+    - npm run test

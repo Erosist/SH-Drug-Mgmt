@@ -1,5 +1,5 @@
 # .gitlab-ci.yml
-# 【最终修复版】告诉 CI/CD，我们所有的代码都在 'vue-project' 子文件夹里
+# 【V7 修复版】我们（pytest）在 backend 文件夹*里面*运行
 
 stages:
   - test
@@ -7,38 +7,29 @@ stages:
 test-backend:
   stage: test
   tags:
-    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
+    - SH-Drug-Mgmt
 
-  # （关键！）在真正“执行”前，先 cd 进到 'vue-project' 文件夹
+  # （关键！）我们*进入* 'backend' 并且*待在*里面
   before_script:
     - cd vue-project
-    - echo "我现在在 `vue-project` 文件夹里，我开始安装后端..."
-    - cd backend  # （现在 `cd backend` 终于能找到了！）
+    - cd backend  # <-- 我们进入 'backend'
+    - echo "我现在在 'backend' 文件夹里, 开始安装..."
     - pip install -r requirements.txt
     - pip install pytest pytest-flask pytest-mock
 
   script:
-    - echo "我*必须*回到 'vue-project' 才能运行 pytest..."
-    - cd ..  # (从 backend/ 退回到 vue-project/)
-    
-    # --- ！！！这就是“修复 Bug”的那一行！！！ ---
-    # 告诉 Python (在 PowerShell 中) "把当前目录(.)也加入到 import 搜索路径"
-    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
-    # --- ！！！修复完毕！！！ ---
-    
-    - pytest backend/tests/  # (现在，pytest 终于能找到 'backend' 模块了！)
+    - echo "我正在 'backend' 文件夹里*直接*运行 pytest..."
+    # （我们不再需要 $env:PYTHONPATH 了，因为我们就在 'backend' 里）
+    - pytest # <-- 就运行 pytest。它会自动找到 'tests/'
+             #     并且 'app.py' 也能找到 'config.py' 了！
 
 test-frontend:
   stage: test
   tags:
-    - SH-Drug-Mgmt  # 使用你的“G盘发电机”
+    - SH-Drug-Mgmt
 
-  # （关键！）在真正“执行”前，也先 cd 进到 'vue-project' 文件夹
   before_script:
     - cd vue-project
-    - echo "我现在在 `vue-project` 文件夹里，我开始安装前端..."
-    - npm install # （它现在终于能找到*正确*的 'package.json' 了！）
-
+    - npm install
   script:
-    - echo "我正在 `vue-project` 里运行前端测试..."
     - npm run test
