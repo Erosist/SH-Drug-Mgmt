@@ -3,13 +3,12 @@
 
 stages:
   - test
-
 test-backend:
   stage: test
   tags:
     - SH-Drug-Mgmt
 
-  # （关键！）我们*进入* 'backend' 并且*待在*里面
+  # （before_script 不变）
   before_script:
     - cd vue-project
     - cd backend  # <-- 我们进入 'backend'
@@ -19,10 +18,13 @@ test-backend:
 
   script:
     - echo "我正在 'backend' 文件夹里*直接*运行 pytest..."
-    # （我们不再需要 $env:PYTHONPATH 了，因为我们就在 'backend' 里）
-    - pytest # <-- 就运行 pytest。它会自动找到 'tests/'
-             #     并且 'app.py' 也能找到 'config.py' 了！
-
+    
+    # --- ！！！这就是“V8 修复 Bug”的那一行！！！ ---
+    # 告诉 Python (在 PowerShell 中) "把当前目录(.)也加入到 import 搜索路径"
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
+    # --- ！！！修复完毕！！！ ---
+    
+    - pytest # <-- 就运行 pytest。它现在（终于）能找到 'app.py' 了！
 test-frontend:
   stage: test
   tags:
