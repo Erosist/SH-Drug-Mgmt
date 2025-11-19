@@ -4,7 +4,6 @@ from sqlalchemy.orm import joinedload
 
 from models import Drug, InventoryItem, Tenant
 from extensions import db
-from models import Drug, InventoryItem, Tenant
 
 bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
 

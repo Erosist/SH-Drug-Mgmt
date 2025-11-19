@@ -42,66 +42,8 @@
         <!-- 供给表单 -->
         <div v-if="activeTab==='supply'" class="card">
           <h3 class="card-title">发布药品供给信息</h3>
-          <!-- 药品基本信息 -->
-          <div class="sub-card">
-            <h4 class="sub-title">药品基本信息</h4>
-            <div class="form-grid">
-              <div class="form-item">
-                <label>药品ID / 追溯码</label>
-                <input v-model="supplyForm.drugId" placeholder="输入药品ID或追溯码" />
-              </div>
-              <div class="form-item">
-                <label>生产厂家</label>
-                <input v-model="supplyForm.manufacturer" placeholder="输入生产厂家" />
-              </div>
-              <div class="form-item">
-                <label>药品名称</label>
-                <input v-model="supplyForm.drugName" placeholder="输入药品名称" />
-              </div>
-              <div class="form-item">
-                <label>药品规格</label>
-                <input v-model="supplyForm.spec" placeholder="输入药品规格" />
-              </div>
-            </div>
-          </div>
-
-          <!-- 供给详细信息 -->
-          <div class="sub-card">
-            <h4 class="sub-title">供给详细信息</h4>
-            <div class="form-grid">
-              <div class="form-item">
-                <label>供给数量</label>
-                <input v-model.number="supplyForm.quantity" type="number" min="0" placeholder="输入数量" />
-              </div>
-              <div class="form-item">
-                <label>生产日期</label>
-                <input v-model="supplyForm.prodDate" type="date" />
-              </div>
-              <div class="form-item">
-                <label>单价(元)</label>
-                <input v-model.number="supplyForm.unitPrice" type="number" min="0" step="0.01" placeholder="输入单价" />
-              </div>
-              <div class="form-item">
-                <label>有效期至</label>
-                <input v-model="supplyForm.expireDate" type="date" />
-              </div>
-              <div class="form-item">
-                <label>总价(自动计算)</label>
-                <input :value="totalPrice" disabled />
-              </div>
-              <div class="form-item">
-                <label>供货状态</label>
-                <select v-model="supplyForm.status">
-                  <option value="supplying">供应中</option>
-                  <option value="paused">暂停</option>
-                  <option value="ended">结束</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="secondary-btn" @click="resetSupplyForm">重置表单</button>
-              <button class="primary-btn" @click="submitSupply">提交发布</button>
-            </div>
+          <div style="padding:10px 0">
+            <SupplyInfoManagement />
           </div>
         </div>
 
@@ -192,13 +134,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 // 引入 SupplierList 以支持路由跳转到组件视图
 import SupplierList from '@/component/SupplierList.vue'
+import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
 import MockOrder from '@/views/MockOrder.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 
 export default {
   name: 'B2BPlatform',
-  components: { SupplierList, MockOrder },
+  components: { SupplierList, SupplyInfoManagement, MockOrder },
   setup() {
     const router = useRouter()
   const activeNav = ref('b2b')

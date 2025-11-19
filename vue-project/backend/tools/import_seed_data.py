@@ -21,7 +21,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app import create_app  # noqa
 from extensions import db
-from models import Drug, InventoryItem, TenantPharmacy  # noqa
+from models import Drug, InventoryItem, Tenant  # noqa
 
 
 def parse_datetime(value: str) -> datetime:
@@ -40,7 +40,7 @@ def parse_date(value: str) -> date:
 DATASETS = [
     {
         'filename': 'tenants_pharmacy.json',
-        'model': TenantPharmacy,
+        'model': Tenant,
         'casters': {
             'created_at': parse_datetime,
             'updated_at': parse_datetime,
