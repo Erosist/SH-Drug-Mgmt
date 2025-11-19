@@ -11,8 +11,8 @@ from models import User, EnterpriseCertification, to_iso
 bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
 
-def _require_regulator(user: User):
-    return user and user.role == 'regulator'
+def _require_admin(user: User):
+    return user and user.role == 'admin'
 
 
 def _paginate(query):
@@ -34,8 +34,8 @@ def _paginate(query):
 @jwt_required()
 def list_users():
     admin = get_authenticated_user()
-    if not _require_regulator(admin):
-        return jsonify({'msg': '仅监管员可访问'}), 403
+    if not _require_admin(admin):
+        return jsonify({'msg': '仅系统管理员可访问'}), 403
 
     keyword = (request.args.get('keyword') or '').strip()
     role = (request.args.get('role') or '').strip()
@@ -90,8 +90,8 @@ def list_users():
 @jwt_required()
 def update_user_status(user_id):
     admin = get_authenticated_user()
-    if not _require_regulator(admin):
-        return jsonify({'msg': '仅监管员可操作'}), 403
+    if not _require_admin(admin):
+        return jsonify({'msg': '仅系统管理员可操作'}), 403
 
     data = request.get_json() or {}
     action = (data.get('action') or '').lower()

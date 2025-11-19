@@ -18,37 +18,46 @@
           <div class="card-header">
             <div>
               <div class="card-title">1. 选择认证角色</div>
-              <p class="card-desc">不同角色的资质要求不同，监管用户无需认证。</p>
+              <p class="card-desc">不同角色的资质要求不同，监管/管理员账号无需在此认证。</p>
             </div>
             <el-tag size="small" type="info">营业执照选填</el-tag>
           </div>
-          <el-radio-group v-model="selectedRole" class="role-group">
-            <el-radio-button v-for="item in availableRoles" :key="item.key" :label="item.key">
-              {{ item.label }}
-            </el-radio-button>
-          </el-radio-group>
-          <div class="requirement-panel">
-            <div class="req-title">资质要求</div>
-            <ul class="req-list">
-              <li v-for="doc in currentRequirement.docs" :key="doc">
-                <el-icon><DocumentChecked /></el-icon>
-                <span>{{ doc }}</span>
-              </li>
-            </ul>
-            <p class="note">{{ currentRequirement.note }}</p>
-            <div class="base-fields">
-              <div class="base-title">基础信息（必填）</div>
-              <div class="chips">
-                <el-tag v-for="field in baseRequiredFields" :key="field" type="warning" effect="plain" size="small">
-                  {{ baseFieldLabels[field] || field }}
-                </el-tag>
+          <el-alert
+            v-if="roleForbidden"
+            type="warning"
+            show-icon
+            title="当前登录角色由系统管理员直接配置，无需在此提交认证"
+            description="如需变更角色，请联系系统管理员。"
+          />
+          <template v-else>
+            <el-radio-group v-model="selectedRole" class="role-group">
+              <el-radio-button v-for="item in availableRoles" :key="item.key" :label="item.key">
+                {{ item.label }}
+              </el-radio-button>
+            </el-radio-group>
+            <div class="requirement-panel">
+              <div class="req-title">资质要求</div>
+              <ul class="req-list">
+                <li v-for="doc in currentRequirement.docs" :key="doc">
+                  <el-icon><DocumentChecked /></el-icon>
+                  <span>{{ doc }}</span>
+                </li>
+              </ul>
+              <p class="note">{{ currentRequirement.note }}</p>
+              <div class="base-fields">
+                <div class="base-title">基础信息（必填）</div>
+                <div class="chips">
+                  <el-tag v-for="field in baseRequiredFields" :key="field" type="warning" effect="plain" size="small">
+                    {{ baseFieldLabels[field] || field }}
+                  </el-tag>
+                </div>
+              </div>
+              <div class="remind">
+                <el-icon><BellFilled /></el-icon>
+                <span>提交后状态变为“审核中”，服务目标 3 个工作日内完成，24 小时后自动提醒管理员团队。</span>
               </div>
             </div>
-            <div class="remind">
-              <el-icon><BellFilled /></el-icon>
-              <span>提交后状态变为“审核中”，服务目标 3 个工作日内完成，24 小时后自动提醒管理员。</span>
-            </div>
-          </div>
+          </template>
         </el-card>
 
         <el-card shadow="never" class="card status-card">
@@ -73,7 +82,7 @@
       </div>
 
       <div class="right-col">
-        <el-card shadow="never" class="card form-card">
+        <el-card v-if="!roleForbidden" shadow="never" class="card form-card">
           <div class="card-header">
             <div class="card-title">3. 填写企业信息</div>
             <el-tag type="warning" effect="plain" size="small">基础信息必填</el-tag>
@@ -143,6 +152,13 @@
             </div>
           </el-form>
         </el-card>
+        <el-card v-else shadow="never" class="card form-card">
+          <el-result
+            icon="info"
+            title="当前角色无需认证"
+            sub-title="监管/管理员账号由系统管理员直接配置，如需调整请联系管理员。"
+          />
+        </el-card>
       </div>
     </div>
   </div>
@@ -167,18 +183,17 @@ const baseRoleOptions = [
   { key: 'pharmacy', label: '药店用户' },
   { key: 'supplier', label: '供应商用户' },
   { key: 'logistics', label: '物流用户' },
-  { key: 'regulator', label: '监管用户（无需认证）' },
 ]
 
 const currentUser = getCurrentUser()
+const roleForbidden = computed(() => ['regulator', 'admin'].includes(currentUser?.role))
 const availableRoles = computed(() => {
-  if (!currentUser?.role) return baseRoleOptions.filter((r) => r.key !== 'regulator')
+  if (roleForbidden.value) return []
+  if (!currentUser?.role) return baseRoleOptions
   const matched = baseRoleOptions.find((r) => r.key === currentUser.role)
-  if (matched && matched.key !== 'regulator') return [matched]
-  // 监管用户无需认证，默认展示药店作为参考
-  return baseRoleOptions.filter((r) => r.key === 'pharmacy')
+  return matched ? [matched] : baseRoleOptions
 })
-const defaultRole = availableRoles.value[0]?.key || 'pharmacy'
+const defaultRole = availableRoles.value[0]?.key || baseRoleOptions[0].key
 const selectedRole = ref(defaultRole)
 
 const form = reactive({
@@ -309,8 +324,8 @@ function resetForm() {
 }
 
 async function submit() {
-  if (selectedRole.value === 'regulator') {
-    ElMessage.warning('监管用户由管理员创建，无需在此提交认证')
+  if (roleForbidden.value) {
+    ElMessage.warning('当前角色由管理员直接配置，无需在此提交认证')
     return
   }
   if (application.value?.status === 'rejected' && attemptsLeft.value <= 0) {

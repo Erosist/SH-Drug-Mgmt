@@ -44,17 +44,6 @@
             />
           </el-form-item>
 
-          <!-- 角色选择 -->
-          <el-form-item prop="role" class="form-item">
-            <el-select v-model="registerForm.role" placeholder="请选择角色" size="large" style="width: 100%">
-              <el-option label="药店用户" value="pharmacy" />
-              <el-option label="供应商用户" value="supplier" />
-              <el-option label="物流用户" value="logistics" />
-              <el-option label="监管人员" value="regulator" />
-              <el-option label="未认证用户" value="unauth" />
-            </el-select>
-          </el-form-item>
-          
           <!-- 密码 -->
           <el-form-item prop="password" class="form-item">
             <el-input
@@ -91,6 +80,13 @@
               <el-link type="primary" @click="showPrivacy = true">《隐私政策》</el-link>
             </el-checkbox>
           </div>
+
+          <el-alert
+            class="register-tip"
+            type="info"
+            show-icon
+            title="注册成功后账号默认进入“未认证”状态，需在个人中心完成企业认证后才能解锁企业功能。"
+          />
 
           <!-- 注册按钮 -->
           <el-button 
@@ -171,7 +167,6 @@ const registerForm = reactive({
   username: '',
   email: '',
   phone: '',
-  role: '',
   password: '',
   confirmPassword: ''
 })
@@ -222,9 +217,6 @@ const registerRules = {
   phone: [
     { validator: phoneValidator, trigger: ['blur','change'] }
   ],
-  role: [
-    { required: true, message: '请选择角色', trigger: 'change' }
-  ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { validator: passwordValidator, trigger: ['blur','change'] }
@@ -264,7 +256,6 @@ const handleRegister = async () => {
           email: registerForm.email,
           phone: cleanedPhone,
           password: registerForm.password,
-          role: registerForm.role
         })
         ElMessage.success('注册成功')
         router.push('/login')
@@ -370,6 +361,10 @@ const goToLogin = () => {
 /* 协议同意区域 */
 .agreement-section {
   margin: 20px 0;
+}
+
+.register-tip {
+  margin-bottom: 10px;
 }
 
 /* 注册按钮 */

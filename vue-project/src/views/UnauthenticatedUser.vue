@@ -85,8 +85,7 @@ export default {
       return `${y}年${m}月${day}日`
     },
     goToAuth() {
-      // 这里暂时引导去登录页，你有企业认证页面的话改为对应路由即可
-      this.$router.push({ name: 'login' })
+      this.$router.push({ name: 'enterprise-auth' })
     },
     editProfile() {
       // 这里可以打开资料编辑对话框或跳转到资料编辑页面

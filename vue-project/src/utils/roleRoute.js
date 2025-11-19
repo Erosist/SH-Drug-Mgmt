@@ -9,6 +9,8 @@ export function roleToRoute(role) {
       return '/logistics'
     case 'regulator':
       return '/regulator'
+    case 'admin':
+      return '/admin/users'
     case 'unauth':
     default:
       return '/unauth'

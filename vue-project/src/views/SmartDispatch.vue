@@ -43,9 +43,9 @@
           </div>
 
           <div class="user-actions">
-            <button v-if="!currentUser || currentUser.role!=='regulator'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
-            <button v-if="currentUser && currentUser.role==='regulator'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+            <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -270,19 +270,19 @@ export default {
         router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
         return
       }
-      if (currentUser.value.role === 'regulator') return
+      if (['regulator','admin'].includes(currentUser.value.role)) return
       router.push('/enterprise-auth')
     }
 
     const goToEnterpriseReview = () => {
       if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
+      if (currentUser.value.role !== 'admin') return
       router.push('/enterprise-review')
     }
 
     const goToAdminUsers = () => {
       if (!currentUser.value) return router.push('/login')
-      if (currentUser.value.role !== 'regulator') return
+      if (currentUser.value.role !== 'admin') return
       router.push('/admin/users')
     }
 

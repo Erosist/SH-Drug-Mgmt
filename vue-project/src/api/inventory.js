@@ -3,7 +3,7 @@ import { getToken } from '@/utils/authSession'
 
 // 创建axios实例
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5000',
+  baseURL: '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

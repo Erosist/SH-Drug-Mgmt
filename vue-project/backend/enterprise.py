@@ -34,11 +34,6 @@ ROLE_REQUIREMENTS = {
         'label': '物流用户（LOGISTICS）',
         'docs': ['道路运输经营许可证', '营业执照（可选上传）'],
         'note': '上传冷链/运输证明可加速审核'
-    },
-    'regulator': {
-        'label': '监管用户（REGULATOR）',
-        'docs': [],
-        'note': '由系统管理员直接创建，无需提交认证'
     }
 }
 
@@ -143,8 +138,8 @@ def my_certification():
     })
 
 
-def _require_regulator(user: User):
-    if not user or user.role != 'regulator':
+def _require_admin(user: User):
+    if not user or user.role != 'admin':
         return False
     return True
 
@@ -153,8 +148,8 @@ def _require_regulator(user: User):
 @jwt_required()
 def list_applications():
     reviewer = get_authenticated_user()
-    if not _require_regulator(reviewer):
-        return jsonify({'msg': '仅监管账户可查看认证申请列表'}), 403
+    if not _require_admin(reviewer):
+        return jsonify({'msg': '仅系统管理员可查看认证申请列表'}), 403
 
     status = (request.args.get('status') or 'pending').lower()
     role = (request.args.get('role') or '').lower()
@@ -191,8 +186,8 @@ def list_applications():
 @jwt_required()
 def application_detail(cert_id):
     reviewer = get_authenticated_user()
-    if not _require_regulator(reviewer):
-        return jsonify({'msg': '仅监管账户可查看认证详情'}), 403
+    if not _require_admin(reviewer):
+        return jsonify({'msg': '仅系统管理员可查看认证详情'}), 403
 
     record = EnterpriseCertification.query.get_or_404(cert_id)
     data = record.to_dict()
@@ -216,8 +211,8 @@ def submit_certification():
     data = request.form or (request.get_json(silent=True) or {})
     role = (data.get('role') or user.role or '').lower()
 
-    if role == 'regulator':
-        return jsonify({'msg': '监管用户由管理员创建，无需认证'}), 400
+    if role in {'regulator', 'admin'} or (user.role or '').lower() in {'regulator', 'admin'}:
+        return jsonify({'msg': '监管/管理员账号由系统管理员直接配置，无需走认证流程'}), 400
     if role not in SUPPORTED_ROLES:
         return jsonify({'msg': '角色类型仅支持 pharmacy/supplier/logistics'}), 400
 
@@ -302,8 +297,8 @@ def _record_review_log(certification_id: int, reviewer_id: int, decision: str, r
 @jwt_required()
 def review_certification(cert_id):
     reviewer = get_authenticated_user()
-    if not _require_regulator(reviewer):
-        return jsonify({'msg': '仅监管账户可执行审核操作'}), 403
+    if not _require_admin(reviewer):
+        return jsonify({'msg': '仅系统管理员可执行审核操作'}), 403
 
     record = EnterpriseCertification.query.get(cert_id)
     if not record:

@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-users" v-if="isRegulator">
+  <div class="admin-users" v-if="isAdmin">
     <div class="page-header">
       <div>
         <p class="eyebrow">用户管理</p>
@@ -92,7 +92,7 @@ import { getCurrentUser } from '@/utils/authSession'
 
 const router = useRouter()
 const currentUser = getCurrentUser()
-const isRegulator = computed(() => currentUser?.role === 'regulator')
+const isAdmin = computed(() => currentUser?.role === 'admin')
 
 const keyword = ref('')
 const role = ref('')
@@ -163,7 +163,7 @@ const toggle = async (row, action) => {
 const goHome = () => router.push('/')
 
 onMounted(() => {
-  if (isRegulator.value) loadData()
+  if (isAdmin.value) loadData()
 })
 </script>
 

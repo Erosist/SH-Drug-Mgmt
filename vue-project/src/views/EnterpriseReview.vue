@@ -1,5 +1,5 @@
 <template>
-  <div class="review-page" v-if="isRegulator">
+  <div class="review-page" v-if="isAdmin">
     <div class="page-header">
       <div>
         <p class="eyebrow">企业认证审核</p>
@@ -133,7 +133,7 @@
   </div>
 
   <div v-else class="no-access">
-    <el-result icon="warning" title="仅监管/审核员可访问">
+    <el-result icon="warning" title="仅系统管理员可访问">
       <template #extra>
         <el-button type="primary" @click="goHome">返回首页</el-button>
       </template>
@@ -151,7 +151,7 @@ import { fetchApplications, fetchApplicationDetail, reviewCertificationByCert } 
 
 const router = useRouter()
 const currentUser = getCurrentUser()
-const isRegulator = computed(() => currentUser?.role === 'regulator')
+const isAdmin = computed(() => currentUser?.role === 'admin')
 
 const applications = ref([])
 const loading = ref(false)
@@ -288,7 +288,7 @@ const submitDecision = async (decision) => {
 const goHome = () => router.push('/')
 
 onMounted(() => {
-  if (!isRegulator.value) return
+  if (!isAdmin.value) return
   loadList()
 })
 </script>

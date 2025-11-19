@@ -26,8 +26,8 @@ function resolveToken(explicitToken) {
 	}
 }
 
-export function register({ username, email, password, role, phone }) {
-	const payload = { username, email, password, role };
+export function register({ username, email, password, phone }) {
+	const payload = { username, email, password };
 	if (phone) payload.phone = phone;
 	return request('/register', { method: 'POST', body: payload });
 }

@@ -12,7 +12,7 @@ from models import User, PasswordResetCode
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-ALLOWED_ROLES = {'pharmacy', 'supplier', 'logistics', 'regulator', 'unauth'}
+ALLOWED_ROLES = {'pharmacy', 'supplier', 'logistics', 'regulator', 'admin', 'unauth'}
 RESET_CODE_TTL_MINUTES = 10
 CONTACT_CHANNELS = {'email', 'phone'}
 
@@ -75,16 +75,13 @@ def register():
     phone_raw = data.get('phone') or ''
     phone = normalize_phone(phone_raw)
     password = data.get('password')
-    role = data.get('role', 'unauth')
+    role = 'unauth'
 
     if not username or not email or not password:
         return jsonify({'msg': '用户名、邮箱和密码均为必填项'}), 400
 
     if phone and (len(phone) < 6 or len(phone) > 20):
         return jsonify({'msg': '手机号格式不正确'}), 400
-
-    if role not in ALLOWED_ROLES:
-        return jsonify({'msg': f'invalid role. allowed: {sorted(ALLOWED_ROLES)}'}), 400
 
     password_errors = validate_password_strength(password)
     if password_errors:
