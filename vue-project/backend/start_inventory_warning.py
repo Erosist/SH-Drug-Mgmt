@@ -94,15 +94,32 @@ def run_tests():
     try:
         print("🧪 运行预警功能测试...")
         
-        # 检查是否安装了requests
+        # 检查是否安装了pytest
         try:
-            import requests
+            import pytest
         except ImportError:
             print("安装测试依赖...")
-            subprocess.run([sys.executable, "-m", "pip", "install", "requests"])
+            subprocess.run([sys.executable, "-m", "pip", "install", "pytest", "pytest-flask", "pytest-mock"])
         
-        from test_inventory_warning import main
-        main()
+        # 设置PYTHONPATH并运行pytest
+        current_dir = os.getcwd()
+        os.environ['PYTHONPATH'] = f"{current_dir};{os.environ.get('PYTHONPATH', '')}"
+        
+        # 运行库存预警相关的测试
+        result = subprocess.run([
+            sys.executable, '-m', 'pytest', 
+            'tests/test_inventory_warning.py', 
+            '-v'
+        ], capture_output=True, text=True)
+        
+        print(result.stdout)
+        if result.stderr:
+            print("错误信息:", result.stderr)
+            
+        if result.returncode == 0:
+            print("✅ 测试通过!")
+        else:
+            print("❌ 测试失败!")
         
     except Exception as e:
         print(f"❌ 运行测试失败: {e}")
