@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 
 from models import Drug, InventoryItem, Tenant
 from extensions import db
-from models import Drug, InventoryItem, TenantPharmacy
+from models import Drug, InventoryItem, Tenant
 
 bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
 
@@ -88,7 +88,7 @@ def list_tenants():
 
 @bp.route('/tenants/<int:tenant_id>', methods=['GET'])
 def tenant_detail(tenant_id):
-    tenant = TenantPharmacy.query.get_or_404(tenant_id)
+    tenant = Tenant.query.get_or_404(tenant_id)
     total_batches, total_drugs, total_quantity, latest_update = db.session.query(
         func.count(InventoryItem.id),
         func.count(func.distinct(InventoryItem.drug_id)),
