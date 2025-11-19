@@ -119,10 +119,15 @@ def login():
     if not user.is_active:
         return jsonify({'msg': '账户已被禁用'}), 403
 
+    # 更新最后登录时间
     user.last_login_at = datetime.utcnow()
     db.session.commit()
+
     access_token = create_access_token(identity=str(user.id))
-    return jsonify({'access_token': access_token, 'user': user.to_dict()})
+    return jsonify({
+        'access_token': access_token, 
+        'user': user.to_dict(include_relations=True)
+    })
 
 @bp.route('/me', methods=['GET'])
 @jwt_required()

@@ -7,84 +7,99 @@
       <aside class="sider">
         <div class="sider-title">供应商控制台</div>
         <ul class="menu">
-          <li class="menu-item active">订单管理</li>
-          <li class="menu-item">供应信息管理</li>
-          <li class="menu-item">药品库存管理</li>
-          <li class="menu-item">物流管理</li>
-          <li class="menu-item">业绩分析</li>
+          <li class="menu-item" :class="{active: activeMenu==='orders'}" @click="activeMenu='orders'">订单管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='supply'}" @click="activeMenu='supply'">供应信息管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='inventory'}" @click="activeMenu='inventory'">药品库存管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='logistics'}" @click="activeMenu='logistics'">物流管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='analysis'}" @click="activeMenu='analysis'">业绩分析</li>
         </ul>
       </aside>
 
       <!-- 主内容 -->
       <main class="main">
-        <el-card class="panel">
-          <div class="tabs">
-            <div class="tab" :class="{active: activeTab==='list'}" @click="activeTab='list'">库存列表</div>
-            <div class="tab" :class="{active: activeTab==='create'}" @click="activeTab='create'">新增库存</div>
-          </div>
+        <!-- 供应信息管理 -->
+        <div v-if="activeMenu==='supply'">
+          <SupplyInfoManagement />
+        </div>
 
-          <div v-if="activeTab==='list'" class="list-pane">
-            <div class="toolbar">
-              <el-input v-model="q" size="small" placeholder="搜索药品..." clearable class="search" />
-              <el-select v-model="status" size="small" class="filter" placeholder="全部状态">
-                <el-option label="全部" value="" />
-                <el-option label="合格" value="ok" />
-                <el-option label="待检" value="pending" />
-              </el-select>
-              <el-select v-model="category" size="small" class="filter" placeholder="全部药品">
-                <el-option label="全部药品" value="" />
-                <el-option label="阿莫西林胶囊" value="amox" />
-                <el-option label="布洛芬片" value="ibu" />
-                <el-option label="连花清瘟胶囊" value="lhqw" />
-              </el-select>
+        <!-- 库存管理 -->
+        <div v-else-if="activeMenu==='inventory'">
+          <el-card class="panel">
+            <div class="tabs">
+              <div class="tab" :class="{active: activeTab==='list'}" @click="activeTab='list'">库存列表</div>
+              <div class="tab" :class="{active: activeTab==='create'}" @click="activeTab='create'">新增库存</div>
             </div>
 
-            <el-table :data="filteredData" size="small" class="table" border>
-              <el-table-column prop="name" label="商品名称" min-width="180" />
-              <el-table-column prop="batch" label="批号" width="120" />
-              <el-table-column prop="mfg" label="生产日期" width="120" />
-              <el-table-column prop="exp" label="有效期" width="120" />
-              <el-table-column prop="stock" label="库存数量" width="100" />
-              <el-table-column label="状态" width="100">
-                <template #default="{ row }">
-                  <el-tag type="success" v-if="row.status==='ok'">合格</el-tag>
-                  <el-tag type="warning" v-else>待检</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="140">
-                <template #default>
-                  <el-link type="primary" :underline="false">编辑</el-link>
-                  <el-divider direction="vertical" />
-                  <el-link type="danger" :underline="false">删除</el-link>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
+            <div v-if="activeTab==='list'" class="list-pane">
+              <div class="toolbar">
+                <el-input v-model="q" size="small" placeholder="搜索药品..." clearable class="search" />
+                <el-select v-model="status" size="small" class="filter" placeholder="全部状态">
+                  <el-option label="全部" value="" />
+                  <el-option label="合格" value="ok" />
+                  <el-option label="待检" value="pending" />
+                </el-select>
+                <el-select v-model="category" size="small" class="filter" placeholder="全部药品">
+                  <el-option label="全部药品" value="" />
+                  <el-option label="阿莫西林胶囊" value="amox" />
+                  <el-option label="布洛芬片" value="ibu" />
+                  <el-option label="连花清瘟胶囊" value="lhqw" />
+                </el-select>
+              </div>
 
-          <div v-else class="create-pane">
-            <el-form :model="form" label-width="86px" size="small" class="form">
-              <el-form-item label="商品名称">
-                <el-input v-model="form.name" />
-              </el-form-item>
-              <el-form-item label="批号">
-                <el-input v-model="form.batch" />
-              </el-form-item>
-              <el-form-item label="生产日期">
-                <el-date-picker v-model="form.mfg" type="date" placeholder="选择日期" />
-              </el-form-item>
-              <el-form-item label="有效期">
-                <el-date-picker v-model="form.exp" type="date" placeholder="选择日期" />
-              </el-form-item>
-              <el-form-item label="库存数量">
-                <el-input-number v-model="form.stock" :min="0" />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary">保存</el-button>
-                <el-button @click="activeTab='list'">取消</el-button>
-              </el-form-item>
-            </el-form>
-          </div>
-        </el-card>
+              <el-table :data="filteredData" size="small" class="table" border>
+                <el-table-column prop="name" label="商品名称" min-width="180" />
+                <el-table-column prop="batch" label="批号" width="120" />
+                <el-table-column prop="mfg" label="生产日期" width="120" />
+                <el-table-column prop="exp" label="有效期" width="120" />
+                <el-table-column prop="stock" label="库存数量" width="100" />
+                <el-table-column label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag type="success" v-if="row.status==='ok'">合格</el-tag>
+                    <el-tag type="warning" v-else>待检</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="140">
+                  <template #default>
+                    <el-link type="primary" :underline="false">编辑</el-link>
+                    <el-divider direction="vertical" />
+                    <el-link type="danger" :underline="false">删除</el-link>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <div v-else class="create-pane">
+              <el-form :model="form" label-width="86px" size="small" class="form">
+                <el-form-item label="商品名称">
+                  <el-input v-model="form.name" />
+                </el-form-item>
+                <el-form-item label="批号">
+                  <el-input v-model="form.batch" />
+                </el-form-item>
+                <el-form-item label="生产日期">
+                  <el-date-picker v-model="form.mfg" type="date" placeholder="选择日期" />
+                </el-form-item>
+                <el-form-item label="有效期">
+                  <el-date-picker v-model="form.exp" type="date" placeholder="选择日期" />
+                </el-form-item>
+                <el-form-item label="库存数量">
+                  <el-input-number v-model="form.stock" :min="0" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary">保存</el-button>
+                  <el-button @click="activeTab='list'">取消</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </el-card>
+        </div>
+
+        <!-- 其他功能模块 -->
+        <div v-else>
+          <el-card class="panel">
+            <el-empty description="该功能模块正在开发中..." />
+          </el-card>
+        </div>
       </main>
 
       <!-- 右侧资料卡 -->
@@ -113,12 +128,17 @@
 
 <script>
 import UserHeader from '../component/UserHeader.vue'
+import SupplyInfoManagement from '../component/SupplyInfoManagement.vue'
 
 export default {
   name: 'SupplierUser',
-  components: { UserHeader },
+  components: { 
+    UserHeader,
+    SupplyInfoManagement
+  },
   data() {
     return {
+      activeMenu: 'supply',
       activeTab: 'list',
       q: '',
       status: '',

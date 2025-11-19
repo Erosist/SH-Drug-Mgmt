@@ -7,111 +7,128 @@
       <aside class="sider">
         <div class="sider-title">管理目录</div>
         <ul class="menu">
-          <li class="menu-item active">首页</li>
-          <li class="menu-item">库存管理</li>
-          <li class="menu-item">商品流通管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='dashboard'}" @click="activeMenu='dashboard'">首页</li>
+          <li class="menu-item" :class="{active: activeMenu==='supply'}" @click="activeMenu='supply'">查看供应信息</li>
+          <li class="menu-item" :class="{active: activeMenu==='inventory'}" @click="activeMenu='inventory'">库存管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='orders'}" @click="activeMenu='orders'">订单管理</li>
+          <li class="menu-item" :class="{active: activeMenu==='circulation'}" @click="activeMenu='circulation'">商品流通管理</li>
         </ul>
       </aside>
 
       <!-- 主内容 -->
       <main class="main">
-        <section class="cards-row">
-          <el-card class="panel">
-            <div class="panel-head">
-              <span>智能管理中心</span>
-              <el-button size="small">新增任务</el-button>
-            </div>
-            <div class="kpis">
-              <div class="kpi">
-                <div class="kpi-title">待分配任务</div>
-                <div class="kpi-value">1</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-title">进行中任务</div>
-                <div class="kpi-value">2</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-title">资源使用率</div>
-                <div class="kpi-value">7%</div>
-              </div>
-            </div>
-            <div class="table-mini">
-              <div class="table-row table-head">
-                <span>调度任务</span><span>任务状态</span><span>负责人</span><span>预计用时</span><span>操作</span>
-              </div>
-              <div class="table-row">
-                <span>到货上架</span><span><em class="dot dot-warn"></em>待分配</span><span>—</span><span>—</span><a href="#">详情</a>
-              </div>
-              <div class="table-row">
-                <span>药品库存盘点</span><span><em class="dot dot-info"></em>进行中</span><span>王磊</span><span>2小时</span><a href="#">详情</a>
-              </div>
-              <div class="table-row">
-                <span>用户信息核验</span><span><em class="dot dot-success"></em>已完成</span><span>张敏</span><span>30分钟</span><a href="#">详情</a>
-              </div>
-            </div>
-          </el-card>
+        <!-- 供应信息查看 -->
+        <div v-if="activeMenu === 'supply'">
+          <SupplierList />
+        </div>
 
-          <el-card class="panel">
-            <div class="panel-head">
-              <span>链路链管理</span>
-              <div class="panel-actions">
-                <el-button size="small" plain>导出数据</el-button>
-                <el-button size="small" type="primary">同步链路</el-button>
+        <!-- 首页仪表板 -->
+        <div v-else-if="activeMenu === 'dashboard'">
+          <section class="cards-row">
+            <el-card class="panel">
+              <div class="panel-head">
+                <span>智能管理中心</span>
+                <el-button size="small">新增任务</el-button>
               </div>
-            </div>
-            <div class="stats-tiles">
-              <div class="tile"><div class="num">5,26</div><div class="label">药品总量</div></div>
-              <div class="tile"><div class="num">24</div><div class="label">管理仓库</div></div>
-              <div class="tile"><div class="num">18</div><div class="label">关联药厂</div></div>
-              <div class="tile"><div class="num">3.51</div><div class="label">日均周转</div></div>
-            </div>
-          </el-card>
-        </section>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="kpi-title">待分配任务</div>
+                  <div class="kpi-value">1</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-title">进行中任务</div>
+                  <div class="kpi-value">2</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-title">资源使用率</div>
+                  <div class="kpi-value">7%</div>
+                </div>
+              </div>
+              <div class="table-mini">
+                <div class="table-row table-head">
+                  <span>调度任务</span><span>任务状态</span><span>负责人</span><span>预计用时</span><span>操作</span>
+                </div>
+                <div class="table-row">
+                  <span>到货上架</span><span><em class="dot dot-warn"></em>待分配</span><span>—</span><span>—</span><a href="#">详情</a>
+                </div>
+                <div class="table-row">
+                  <span>药品库存盘点</span><span><em class="dot dot-info"></em>进行中</span><span>王磊</span><span>2小时</span><a href="#">详情</a>
+                </div>
+                <div class="table-row">
+                  <span>用户信息核验</span><span><em class="dot dot-success"></em>已完成</span><span>张敏</span><span>30分钟</span><a href="#">详情</a>
+                </div>
+              </div>
+            </el-card>
 
-        <section class="cards-row">
-          <el-card class="panel full">
-            <div class="panel-head">
-              <span>商品监测管理</span>
-              <el-input class="search" placeholder="输入药品名称/批次号" size="small" clearable />
-              <el-button size="small" type="primary">查询</el-button>
-            </div>
-            <div class="grid2">
-              <div class="list">
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">药品批号 #YP202501016</div>
-                    <div class="item-desc">异常事件：配送路径异常 - 来自第三仓库</div>
-                  </div>
-                  <div class="item-date">2025-10-26</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">药品批号 #YP202500280</div>
-                    <div class="item-desc">企业地址：上海静安药品分厂</div>
-                  </div>
-                  <div class="item-date">2025-10-24</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">药品批号 #YP202509782</div>
-                    <div class="item-desc">异常事件：冷链监控温度报警（原因：余热）</div>
-                  </div>
-                  <div class="item-date">2025-10-23</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">药品批号 #YP202501056</div>
-                    <div class="item-desc">库存预警：低库存提醒 阈值: 80</div>
-                  </div>
-                  <div class="item-date">2025-10-22</div>
+            <el-card class="panel">
+              <div class="panel-head">
+                <span>链路链管理</span>
+                <div class="panel-actions">
+                  <el-button size="small" plain>导出数据</el-button>
+                  <el-button size="small" type="primary">同步链路</el-button>
                 </div>
               </div>
-              <div class="chart">
-                <div ref="donutRef" class="chart-box"></div>
+              <div class="stats-tiles">
+                <div class="tile"><div class="num">5,26</div><div class="label">药品总量</div></div>
+                <div class="tile"><div class="num">24</div><div class="label">管理仓库</div></div>
+                <div class="tile"><div class="num">18</div><div class="label">关联药厂</div></div>
+                <div class="tile"><div class="num">3.51</div><div class="label">日均周转</div></div>
               </div>
-            </div>
+            </el-card>
+          </section>
+
+          <section class="cards-row">
+            <el-card class="panel full">
+              <div class="panel-head">
+                <span>商品监测管理</span>
+                <el-input class="search" placeholder="输入药品名称/批次号" size="small" clearable />
+                <el-button size="small" type="primary">查询</el-button>
+              </div>
+              <div class="grid2">
+                <div class="list">
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">药品批号 #YP202501016</div>
+                      <div class="item-desc">异常事件：配送路径异常 - 来自第三仓库</div>
+                    </div>
+                    <div class="item-date">2025-10-26</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">药品批号 #YP202500280</div>
+                      <div class="item-desc">企业地址：上海静安药品分厂</div>
+                    </div>
+                    <div class="item-date">2025-10-24</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">药品批号 #YP202509782</div>
+                      <div class="item-desc">异常事件：冷链监控温度报警（原因：余热）</div>
+                    </div>
+                    <div class="item-date">2025-10-23</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">药品批号 #YP202501056</div>
+                      <div class="item-desc">库存预警：低库存提醒 阈值: 80</div>
+                    </div>
+                    <div class="item-date">2025-10-22</div>
+                  </div>
+                </div>
+                <div class="chart">
+                  <div ref="donutRef" class="chart-box"></div>
+                </div>
+              </div>
+            </el-card>
+          </section>
+        </div>
+
+        <!-- 其他功能模块 -->
+        <div v-else>
+          <el-card class="panel">
+            <el-empty description="该功能模块正在开发中..." />
           </el-card>
-        </section>
+        </div>
       </main>
     </div>
   </div>
@@ -120,14 +137,19 @@
 <script>
 import * as echarts from 'echarts'
 import UserHeader from '../component/UserHeader.vue'
+import SupplierList from '../component/SupplierList.vue'
 
 export default {
   name: 'PharmacyUser',
-  components: { UserHeader },
+  components: { 
+    UserHeader,
+    SupplierList
+  },
   data() {
     return {
       chart: null,
       headerTags: ['药店用户'],
+      activeMenu: 'dashboard', // 默认显示首页
     }
   },
   mounted() {

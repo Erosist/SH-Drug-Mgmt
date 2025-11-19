@@ -35,9 +35,44 @@ coverage
 # Vitest
 __screenshots__/
 
-# Python virtual environments
+# Python virtual environments and files
 .pytest_cache/
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
 .venv/
 backend/.venv/
+backend/venv/
+venv/
+env/
+ENV/
+
+# Flask specific
+backend/.env
+backend/instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Database migrations (optional - keep versions but ignore temp files)
+backend/migrations/versions/*.pyc
+backend/migrations/__pycache__/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Environment and config files (if sensitive)
+.env.local
+.env.production
+.env.development

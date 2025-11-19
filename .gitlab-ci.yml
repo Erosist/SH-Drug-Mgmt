@@ -1,0 +1,37 @@
+# .gitlab-ci.yml
+# 【V7 修复版】我们（pytest）在 backend 文件夹*里面*运行
+
+stages:
+  - test
+test-backend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt
+
+  # （before_script 不变）
+  before_script:
+    - cd vue-project
+    - cd backend  # <-- 我们进入 'backend'
+    - echo "我现在在 'backend' 文件夹里, 开始安装..."
+    - pip install -r requirements.txt
+    - pip install pytest pytest-flask pytest-mock
+
+  script:
+    - echo "我正在 'backend' 文件夹里*直接*运行 pytest..."
+    
+    # --- ！！！这就是“V8 修复 Bug”的那一行！！！ ---
+    # 告诉 Python (在 PowerShell 中) "把当前目录(.)也加入到 import 搜索路径"
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
+    # --- ！！！修复完毕！！！ ---
+    
+    - pytest # <-- 就运行 pytest。它现在（终于）能找到 'app.py' 了！
+test-frontend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt
+
+  before_script:
+    - cd vue-project
+    - npm install
+  script:
+    - npm run test
