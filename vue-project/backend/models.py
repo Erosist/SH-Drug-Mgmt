@@ -205,6 +205,29 @@ class InventoryItem(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    @property
+    def is_low_stock(self):
+        """判断是否低库存（库存数量低于10件）"""
+        return self.quantity < 10
+    
+    @property
+    def is_near_expiry(self):
+        """判断是否近效期（30天内到期）"""
+        from datetime import timedelta
+        threshold = datetime.utcnow().date() + timedelta(days=30)
+        return self.expiry_date <= threshold
+    
+    @property
+    def is_expired(self):
+        """判断是否已过期"""
+        return self.expiry_date <= datetime.utcnow().date()
+    
+    @property
+    def days_to_expiry(self):
+        """距离过期还有多少天"""
+        delta = self.expiry_date - datetime.utcnow().date()
+        return delta.days
+
     def to_dict(self, include_related: bool = False):
         data = {
             'id': self.id,
@@ -217,6 +240,10 @@ class InventoryItem(db.Model):
             'unit_price': self.unit_price,
             'created_at': to_iso(self.created_at),
             'updated_at': to_iso(self.updated_at),
+            'is_low_stock': self.is_low_stock,
+            'is_near_expiry': self.is_near_expiry,
+            'is_expired': self.is_expired,
+            'days_to_expiry': self.days_to_expiry
         }
         if include_related:
             if self.drug:
