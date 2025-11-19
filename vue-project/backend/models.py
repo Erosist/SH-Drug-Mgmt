@@ -128,8 +128,10 @@ class SupplyInfo(db.Model):
         return result
 
 
-class User(db.Model):
-    __tablename__ = 'users'
+class Tenant(db.Model):
+    """企业租户模型 - 统一的租户表"""
+    __tablename__ = 'tenants'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)

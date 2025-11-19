@@ -17,7 +17,9 @@
             <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
-            <button class="enterprise-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="!currentUser || currentUser.role!=='regulator'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="currentUser && currentUser.role==='regulator'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='regulator'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -303,7 +305,26 @@ export default {
       router.push(roleToRoute(u.role))
     }
 
-  const goToEnterpriseAuth = () => router.push('/enterprise-auth')
+    const goToEnterpriseAuth = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
+        return
+      }
+      if (currentUser.value.role === 'regulator') return
+      router.push('/enterprise-auth')
+    }
+
+    const goToEnterpriseReview = () => {
+      if (!currentUser.value) return router.push('/login')
+      if (currentUser.value.role !== 'regulator') return
+      router.push('/enterprise-review')
+    }
+
+    const goToAdminUsers = () => {
+      if (!currentUser.value) return router.push('/login')
+      if (currentUser.value.role !== 'regulator') return
+      router.push('/admin/users')
+    }
 
     function setActiveTab(tab) {
       activeTab.value = tab
@@ -317,7 +338,7 @@ export default {
     onMounted(() => { window.addEventListener('storage', refreshUser) })
     onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
 
-  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
   }
 }
 </script>
@@ -335,8 +356,12 @@ export default {
 .nav-item { font-size:16px; color:#333; cursor:pointer; padding:5px 0; transition:color .3s; }
 .nav-item:hover { color:#1a73e8; }
 .nav-item.active { color:#1a73e8; border-bottom:2px solid #1a73e8; }
-.enterprise-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
-.enterprise-btn:hover { background-color: rgba(26,115,232,0.06) }
+.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
+.auth-btn:hover { background-color: rgba(26,115,232,0.06) }
+.review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
+.review-btn:hover { background-color: #ffeccc; }
+.admin-btn { background-color: #f0f5ff; color: #1a73e8; border: 1px solid #d6e4ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
+.admin-btn:hover { background-color: #e5edff; }
 .login-btn { background:#1a73e8; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:14px; }
 .login-btn:hover { background:#0d62d9; }
 

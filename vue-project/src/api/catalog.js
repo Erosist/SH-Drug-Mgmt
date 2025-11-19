@@ -49,4 +49,11 @@ export function fetchInventory({ keyword, page = 1, perPage = 10, tenantId, drug
   });
 }
 
-export default { fetchDrugs, fetchTenants, fetchInventory };
+export function fetchTenantDetail(tenantId) {
+  if (!tenantId) {
+    throw new Error('tenantId is required');
+  }
+  return request(`/tenants/${tenantId}`);
+}
+
+export default { fetchDrugs, fetchTenants, fetchInventory, fetchTenantDetail };
