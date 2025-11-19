@@ -128,9 +128,9 @@ class SupplyInfo(db.Model):
         return result
 
 
-class Tenant(db.Model):
-    """企业租户模型 - 统一的租户表"""
-    __tablename__ = 'tenants'
+class User(db.Model):
+    """用户模型"""
+    __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
