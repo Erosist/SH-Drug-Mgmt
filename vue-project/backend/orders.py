@@ -227,11 +227,16 @@ def get_orders():
         else:
             return jsonify({'msg': '权限不足'}), 403
         
-        # 角色筛选
-        if role_filter == 'my_purchases' and current_user.tenant_id:
+        # 角色筛选 - 注意：pharmacy用户已经在上面过滤了buyer_tenant_id，这里的my_purchases实际上是多余的
+        # 但为了兼容前端的调用，保持这个逻辑，只是不重复过滤
+        if role_filter == 'my_purchases' and current_user.role == 'supplier':
+            # 供应商想看作为买方的订单（这种情况很少见，但逻辑上支持）
             query = query.filter(Order.buyer_tenant_id == current_user.tenant_id)
-        elif role_filter == 'my_sales' and current_user.tenant_id:
+        elif role_filter == 'my_sales' and current_user.role == 'pharmacy':
+            # 药店想看作为供应商的订单（这种情况很少见，但逻辑上支持）
             query = query.filter(Order.supplier_tenant_id == current_user.tenant_id)
+        # 对于pharmacy用户请求my_purchases，由于上面已经过滤了buyer_tenant_id，无需重复处理
+        # 对于supplier用户请求my_sales，由于上面已经过滤了supplier_tenant_id，无需重复处理
         
         # 状态筛选
         valid_statuses = [
