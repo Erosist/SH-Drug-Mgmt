@@ -179,6 +179,23 @@ npm run dev
 
 - 验证通过后即刻更新密码，并使验证码失效。
 
+7）管理员重置用户密码
+
+- 路径：`POST /api/auth/admin/reset-user-password`
+- Header：`Authorization: Bearer <admin_token>`
+- Body（JSON）：
+
+```json
+{
+	"user_id": 42,
+	"new_password": "ResetPwd123"
+}
+```
+
+- 说明：也可使用 `identifier`（用户名/邮箱/手机号）定位用户，`user_id`/`identifier` 二选一且必须提供 `new_password`。仅 `admin` 角色可调用，且不可通过该接口重置自己的密码。
+
+- 成功：`{ "msg": "用户密码已由管理员重置" }`
+
 常见错误
 - 400 参数缺失/非法（如缺少 username/password 或 role 无效）
 - 401 未授权（token 缺失或失效、用户名或密码错误）

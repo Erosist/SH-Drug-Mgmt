@@ -66,4 +66,15 @@ export function resetPassword({ identifier, channel, contact, code, newPassword 
 	});
 }
 
-export default { register, login, me, changePassword, requestResetCode, resetPassword };
+export function adminResetUserPassword({ userId, identifier, newPassword, token }) {
+	const body = { new_password: newPassword }
+	if (userId !== undefined && userId !== null) body.user_id = userId
+	if (identifier) body.identifier = identifier
+	return request('/admin/reset-user-password', {
+		method: 'POST',
+		body,
+		token: resolveToken(token)
+	})
+}
+
+export default { register, login, me, changePassword, requestResetCode, resetPassword, adminResetUserPassword };

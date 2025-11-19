@@ -66,6 +66,10 @@ def get_authenticated_user():
         return None
     return User.query.get(user_id)
 
+
+def ensure_admin(user: User):
+    return user and user.role == 'admin'
+
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
@@ -279,3 +283,51 @@ def reset_password():
     db.session.commit()
 
     return jsonify({'msg': '密码已重置，请使用新密码登录'}), 200
+
+
+@bp.route('/admin/reset-user-password', methods=['POST'])
+@jwt_required()
+def admin_reset_user_password():
+    admin_user = get_authenticated_user()
+    if not ensure_admin(admin_user):
+        return jsonify({'msg': '仅管理员可执行此操作'}), 403
+
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    identifier = data.get('identifier')
+    new_password = data.get('new_password')
+
+    if not new_password or not (user_id or identifier):
+        return jsonify({'msg': 'user_id/identifier 与 new_password 为必填项'}), 400
+
+    target_user = None
+    if user_id is not None:
+        try:
+            target_user = User.query.get(int(user_id))
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'user_id 必须为整数'}), 400
+
+    if not target_user and identifier:
+        target_user = find_user_by_identifier(identifier)
+
+    if not target_user:
+        return jsonify({'msg': '目标用户不存在'}), 404
+
+    if target_user.id == admin_user.id:
+        return jsonify({'msg': '无法通过此接口重置自身密码'}), 400
+
+    password_errors = validate_password_strength(new_password)
+    if password_errors:
+        return jsonify({'msg': '新密码不符合安全策略', 'errors': password_errors}), 400
+
+    target_user.set_password(new_password)
+    target_user.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    current_app.logger.info(
+        'Admin %s reset password for user %s',
+        admin_user.username,
+        target_user.username
+    )
+
+    return jsonify({'msg': '用户密码已由管理员重置'}), 200
