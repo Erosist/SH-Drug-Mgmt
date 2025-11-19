@@ -5,6 +5,7 @@ from auth import bp as auth_bp
 from supply import bp as supply_bp
 from catalog import bp as catalog_bp
 from orders import bp as orders_bp
+from inventory_warning import bp as inventory_warning_bp
 
 
 def create_app(config_object=DevelopmentConfig):
@@ -21,6 +22,7 @@ def create_app(config_object=DevelopmentConfig):
     app.register_blueprint(supply_bp)
     app.register_blueprint(catalog_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(inventory_warning_bp)
 
     @app.route('/')
     def index():
