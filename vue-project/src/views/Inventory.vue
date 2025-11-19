@@ -132,6 +132,14 @@
       <div class="content-wrapper">
         <!-- 左侧主要内容 -->
         <div class="left-content">
+          <!-- 库存预警管理 -->
+          <div class="section inventory-warning-section">
+            <h2 class="section-title">库存预警管理</h2>
+            <div style="padding: 10px 0">
+              <InventoryWarning />
+            </div>
+          </div>
+          
           <!-- 药品定位与就近推荐 -->
           <div class="section drug-location">
             <h2 class="section-title">药品定位与就近推荐</h2>
@@ -298,9 +306,11 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 import { fetchDrugs, fetchTenants } from '@/api/catalog'
+import InventoryWarning from '@/component/InventoryWarning.vue'
 
 export default {
   name: 'Inventory',
+  components: { InventoryWarning },
   setup() {
     const router = useRouter()
     const activeNav = ref('inventory')
