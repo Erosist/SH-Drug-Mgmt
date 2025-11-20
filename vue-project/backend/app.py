@@ -9,6 +9,7 @@ from enterprise import bp as enterprise_bp
 from admin import bp as admin_bp
 from orders import bp as orders_bp
 from inventory_warning import bp as inventory_warning_bp
+from circulation import bp as circulation_bp
 
 def create_app(config_object=DevelopmentConfig):
     app = Flask(__name__)
@@ -33,6 +34,7 @@ def create_app(config_object=DevelopmentConfig):
     app.register_blueprint(admin_bp)
     app.register_blueprint(orders_bp)
     app.register_blueprint(inventory_warning_bp)
+    app.register_blueprint(circulation_bp)
 
     @app.route('/')
     def index():

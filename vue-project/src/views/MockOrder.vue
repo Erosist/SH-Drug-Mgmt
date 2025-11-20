@@ -4,14 +4,36 @@
       <h3>药品采购下单</h3>
       <div class="header-actions">
         <el-button @click="refreshOrders" :loading="loading" icon="Refresh" circle />
-        <el-button type="primary" @click="showCreateDialog = true" icon="Plus">
+        <el-tooltip v-if="!canUseRealApi" content="仅药店/管理员账号可以在此页面真实下单" placement="top">
+          <span>
+            <el-button type="primary" :disabled="!canUseRealApi" icon="Plus">
+              新建采购单
+            </el-button>
+          </span>
+        </el-tooltip>
+        <el-button
+          v-else
+          type="primary"
+          @click="showCreateDialog = true"
+          icon="Plus"
+        >
           新建采购单
         </el-button>
       </div>
     </div>
 
+    <el-alert
+      v-if="!canUseRealApi"
+      type="info"
+      show-icon
+      :closable="false"
+      class="auth-hint"
+      title="当前仅供监管角色查看演示"
+      description="如需真实下单或查看订单，请使用药店或管理员账号登录。监管账号不会请求后台接口。"
+    />
+
     <!-- 订单统计 -->
-    <div class="stats-panel" v-if="orderStats">
+    <div class="stats-panel" v-if="canUseRealApi && orderStats">
       <el-row :gutter="16">
         <el-col :xs="12" :sm="8" :md="4">
           <el-card class="stats-card">
@@ -65,7 +87,7 @@
     </div>
 
     <!-- 筛选工具栏 -->
-    <el-card class="filter-card" shadow="never">
+    <el-card v-if="canUseRealApi" class="filter-card" shadow="never">
       <div class="filter-toolbar">
         <el-input
           v-model="filters.orderNumber"
@@ -110,7 +132,7 @@
     </el-card>
 
     <!-- 订单列表 -->
-    <el-card class="list-card" shadow="never">
+    <el-card v-if="canUseRealApi" class="list-card" shadow="never">
       <div v-loading="loading" class="orders-list-container">
         <!-- 空状态 -->
         <el-empty 
@@ -209,10 +231,13 @@
         </div>
       </div>
     </el-card>
+    <el-card v-else class="list-card" shadow="never">
+      <el-empty description="监管角色不加载真实订单，可切换到药店账号体验下单流程。" />
+    </el-card>
 
     <!-- 新建采购单对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
+  <el-dialog
+    v-model="showCreateDialog"
       title="新建采购单"
       width="600px"
       @closed="resetCreateForm"
@@ -432,7 +457,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, Plus, Refresh
@@ -440,6 +465,7 @@ import {
 import { orderApi } from '@/api/orders'
 import { supplyApi } from '@/api/supply'
 import { formatDate } from '@/utils/date'
+import { getCurrentUser } from '@/utils/authSession'
 
 // 响应式数据
 const loading = ref(false)
@@ -482,6 +508,15 @@ const selectedSupplyInfo = computed(() => {
   return supplyOptions.value.find(s => s.id === createForm.supply_info_id)
 })
 
+const currentUser = ref(getCurrentUser())
+const canUseRealApi = computed(() => {
+  const role = currentUser.value?.role
+  return role === 'pharmacy' || role === 'admin'
+})
+const syncUser = () => {
+  currentUser.value = getCurrentUser()
+}
+
 // 表单验证规则
 const createFormRules = {
   supply_info_id: [
@@ -495,6 +530,11 @@ const createFormRules = {
 
 // 方法
 const fetchOrders = async () => {
+  if (!canUseRealApi.value) {
+    ordersList.value = []
+    pagination.total = 0
+    return
+  }
   loading.value = true
   try {
     const params = {
@@ -527,6 +567,7 @@ const fetchOrders = async () => {
 }
 
 const fetchOrderStats = async () => {
+  if (!canUseRealApi.value) return
   try {
     const response = await orderApi.getOrderStats()
     
@@ -539,6 +580,7 @@ const fetchOrderStats = async () => {
 }
 
 const refreshOrders = () => {
+  if (!canUseRealApi.value) return
   fetchOrders()
   fetchOrderStats()
 }
@@ -567,6 +609,10 @@ const handleCurrentChange = (page) => {
 }
 
 const searchSupplyInfo = async (query) => {
+  if (!canUseRealApi.value) {
+    supplyOptions.value = []
+    return
+  }
   if (!query) {
     supplyOptions.value = []
     return
@@ -611,6 +657,10 @@ const resetCreateForm = () => {
 }
 
 const submitOrder = async () => {
+  if (!canUseRealApi.value) {
+    ElMessage.warning('请使用药店或管理员账号登录后再下单')
+    return
+  }
   if (!createFormRef.value) return
   
   try {
@@ -761,9 +811,24 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+watch(canUseRealApi, (authorized) => {
+  if (authorized) {
+    refreshOrders()
+  } else {
+    ordersList.value = []
+    orderStats.value = {}
+    pagination.total = 0
+  }
+})
+
 // 生命周期
 onMounted(() => {
+  window.addEventListener('storage', syncUser)
   refreshOrders()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', syncUser)
 })
 </script>
 
@@ -777,6 +842,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.auth-hint {
+  margin-bottom: 16px;
 }
 
 .header h3 {
