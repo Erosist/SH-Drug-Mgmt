@@ -51,10 +51,10 @@ ENV/
 
 # Flask specific
 backend/.env
-backend/instance/
-*.db
-*.sqlite
-*.sqlite3
+# backend/instance/  # Temporarily allow instance/ directory for dev database
+# *.db              # Temporarily allow .db files for dev database
+# *.sqlite          # Temporarily allow .sqlite files for dev database
+# *.sqlite3         # Temporarily allow .sqlite3 files for dev database
 
 # Database migrations (optional - keep versions but ignore temp files)
 backend/migrations/versions/*.pyc
