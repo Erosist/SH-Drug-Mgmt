@@ -554,7 +554,13 @@ const fetchOrders = async () => {
     }
   } catch (error) {
     console.error('获取订单列表失败:', error)
-    ElMessage.error('获取订单列表失败，请稍后重试')
+    console.error('错误详情:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config
+    })
+    ElMessage.error(`获取订单列表失败：${error.response?.data?.msg || error.message || '请稍后重试'}`)
   } finally {
     loading.value = false
   }
