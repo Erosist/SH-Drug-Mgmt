@@ -3,7 +3,7 @@ import { getToken } from '@/utils/authSession'
 
 // 创建axios实例
 const apiClient = axios.create({
-  baseURL: '',
+  baseURL: '', // 使用相对路径，让Vite代理处理/api请求
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -32,7 +32,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token过期或无效，跳转到登录页
-      localStorage.removeItem('token')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('current_user')
       window.location.href = '/login'
     }
     return Promise.reject(error)

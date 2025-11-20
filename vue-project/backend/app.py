@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from config import DevelopmentConfig
 from extensions import db, migrate, jwt
 from auth import bp as auth_bp
@@ -9,10 +10,15 @@ from admin import bp as admin_bp
 from orders import bp as orders_bp
 from inventory_warning import bp as inventory_warning_bp
 
-
 def create_app(config_object=DevelopmentConfig):
     app = Flask(__name__)
     app.config.from_object(config_object)
+
+    # init CORS
+    CORS(app, 
+         origins=['http://localhost:5174', 'http://localhost:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5173'],
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
     # init extensions
     db.init_app(app)

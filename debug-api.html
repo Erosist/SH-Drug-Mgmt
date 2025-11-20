@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API调试工具</title>
+</head>
+<body>
+    <h1>API调试工具</h1>
+    
+    <h2>1. 登录获取Token</h2>
+    <button onclick="clearStorage()">清除存储</button>
+    <button onclick="login()">登录</button>
+    <div id="loginResult"></div>
+    
+    <h2>2. 测试订单API</h2>
+    <button onclick="testOrders()">基本订单列表</button>
+    <button onclick="testOrdersWithParams()">带参数订单列表</button>
+    <button onclick="testOrderStats()">订单统计</button>
+    <div id="ordersResult"></div>
+    
+    <h2>3. 测试库存预警API</h2>
+    <button onclick="testInventory()">基本库存预警</button>
+    <button onclick="testInventoryWithParams()">带参数库存预警</button>
+    <div id="inventoryResult"></div>
+
+    <script>
+        let token = null;
+
+        // 检查localStorage中是否有现有token
+        function checkExistingToken() {
+            const existingToken = localStorage.getItem('access_token');
+            if (existingToken) {
+                token = existingToken;
+                document.getElementById('loginResult').innerHTML = 
+                    `<p style="color: blue;">找到现有Token: ${token.substring(0, 50)}...</p>`;
+            }
+        }
+
+        // 清除localStorage
+        function clearStorage() {
+            localStorage.clear();
+            token = null;
+            document.getElementById('loginResult').innerHTML = 
+                `<p style="color: orange;">已清除所有本地存储</p>`;
+            document.getElementById('ordersResult').innerHTML = '';
+            document.getElementById('inventoryResult').innerHTML = '';
+        }
+
+        async function login() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'pharmacy1',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('登录响应:', data);
+                
+                if (data.access_token) {
+                    token = data.access_token;
+                    // 同时保存到localStorage，模拟前端的行为
+                    localStorage.setItem('access_token', token);
+                    document.getElementById('loginResult').innerHTML = 
+                        `<p style="color: green;">登录成功！Token: ${token.substring(0, 50)}...</p>`;
+                } else {
+                    document.getElementById('loginResult').innerHTML = 
+                        `<p style="color: red;">登录失败: ${JSON.stringify(data)}</p>`;
+                }
+            } catch (error) {
+                console.error('登录错误:', error);
+                document.getElementById('loginResult').innerHTML = 
+                    `<p style="color: red;">登录错误: ${error.message}</p>`;
+            }
+        }
+
+        async function testOrders() {
+            if (!token) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/orders', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('订单API响应:', data);
+                
+                document.getElementById('ordersResult').innerHTML = 
+                    `<p><strong>基本订单列表 (${response.status})</strong></p>` +
+                    `<pre style="background: #f0f0f0; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('订单API错误:', error);
+                document.getElementById('ordersResult').innerHTML = 
+                    `<p style="color: red;">订单API错误: ${error.message}</p>`;
+            }
+        }
+
+        async function testOrdersWithParams() {
+            if (!token) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            try {
+                // 模拟前端的具体调用参数
+                const response = await fetch('http://127.0.0.1:5000/api/orders?page=1&per_page=20&role_filter=my_purchases', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('带参数订单API响应:', data);
+                
+                document.getElementById('ordersResult').innerHTML += 
+                    `<p><strong>带参数订单列表 (${response.status})</strong></p>` +
+                    `<pre style="background: #f0f0f0; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('带参数订单API错误:', error);
+                document.getElementById('ordersResult').innerHTML += 
+                    `<p style="color: red;">带参数订单API错误: ${error.message}</p>`;
+            }
+        }
+
+        async function testOrderStats() {
+            if (!token) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/orders/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('订单统计API响应:', data);
+                
+                document.getElementById('ordersResult').innerHTML += 
+                    `<p><strong>订单统计 (${response.status})</strong></p>` +
+                    `<pre style="background: #f0f0f0; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('订单统计API错误:', error);
+                document.getElementById('ordersResult').innerHTML += 
+                    `<p style="color: red;">订单统计API错误: ${error.message}</p>`;
+            }
+        }
+
+        async function testInventory() {
+            if (!token) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/v1/inventory/warnings', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('库存预警API响应:', data);
+                
+                document.getElementById('inventoryResult').innerHTML = 
+                    `<p><strong>基本库存预警 (${response.status})</strong></p>` +
+                    `<pre style="background: #f0f0f0; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('库存预警API错误:', error);
+                document.getElementById('inventoryResult').innerHTML = 
+                    `<p style="color: red;">库存预警API错误: ${error.message}</p>`;
+            }
+        }
+
+        async function testInventoryWithParams() {
+            if (!token) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            try {
+                // 模拟前端的具体调用参数
+                const response = await fetch('http://127.0.0.1:5000/api/v1/inventory/warnings?warning_type=all&page=1&per_page=20', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('带参数库存预警API响应:', data);
+                
+                document.getElementById('inventoryResult').innerHTML += 
+                    `<p><strong>带参数库存预警 (${response.status})</strong></p>` +
+                    `<pre style="background: #f0f0f0; padding: 10px;">${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('带参数库存预警API错误:', error);
+                document.getElementById('inventoryResult').innerHTML += 
+                    `<p style="color: red;">带参数库存预警API错误: ${error.message}</p>`;
+            }
+        }
+    </script>
+
+    <script>
+        // 页面加载时检查现有token
+        window.onload = function() {
+            checkExistingToken();
+        }
+    </script>
+</body>
+</html>

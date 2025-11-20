@@ -1,0 +1,24 @@
+stages:
+  - test
+
+test-backend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt
+  before_script:
+    - cd vue-project/backend
+    - pip install -r requirements.txt
+    - pip install pytest pytest-flask pytest-mock
+  script:
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
+    - pytest
+
+test-frontend:
+  stage: test
+  tags:
+    - SH-Drug-Mgmt
+  before_script:
+    - cd vue-project
+    - npm install
+  script:
+    - npm run test:run
