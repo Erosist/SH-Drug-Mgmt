@@ -19,6 +19,7 @@
           <div class="user-actions">
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
@@ -263,6 +264,12 @@ export default {
       router.push('/enterprise-review')
     }
 
+    const goToSystemStatus = () => {
+      if (!currentUser.value) return router.push('/login')
+      if (currentUser.value.role !== 'admin') return
+      router.push('/admin/status')
+    }
+
     const goToAdminUsers = () => {
       if (!currentUser.value) return router.push('/login')
       if (currentUser.value.role !== 'admin') return
@@ -281,7 +288,7 @@ export default {
     onMounted(() => { window.addEventListener('storage', refreshUser) })
     onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
 
-  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
   }
 }
 </script>

@@ -34,4 +34,31 @@ export function updateUserStatus(userId, action) {
   return request(`/users/${userId}/status`, { method: 'POST', body: { action } })
 }
 
-export default { fetchUsers, updateUserStatus }
+export function getUserDetail(userId) {
+  return request(`/users/${userId}`)
+}
+
+export function deleteUser(userId) {
+  return request(`/users/${userId}`, { method: 'DELETE' })
+}
+
+export function updateUserRole(userId, { role, markAuthenticated }) {
+  const body = { role }
+  if (markAuthenticated !== undefined) {
+    body.mark_authenticated = markAuthenticated
+  }
+  return request(`/users/${userId}/role`, { method: 'POST', body })
+}
+
+export function fetchSystemStatus() {
+  return request('/system/status')
+}
+
+export default {
+  fetchUsers,
+  updateUserStatus,
+  getUserDetail,
+  deleteUser,
+  updateUserRole,
+  fetchSystemStatus,
+}

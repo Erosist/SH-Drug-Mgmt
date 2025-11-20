@@ -20,6 +20,7 @@
           <el-option label="禁用" value="disabled" />
         </el-select>
         <el-button type="primary" @click="loadData" :loading="loading">查询</el-button>
+        <el-button type="info" plain @click="goToSystemStatus">系统状态</el-button>
         <el-button type="danger" plain @click="handleLogout">退出登录</el-button>
       </div>
     </div>
@@ -59,11 +60,33 @@
         <el-table-column prop="created_at" label="注册时间" width="180">
           <template #default="scope">{{ formatDate(scope.row.created_at) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="220">
+        <el-table-column label="操作" width="320">
           <template #default="scope">
-            <el-button size="small" type="warning" v-if="scope.row.is_active" @click="toggle(scope.row, 'disable')">禁用</el-button>
-            <el-button size="small" type="success" v-else @click="toggle(scope.row, 'enable')">启用</el-button>
-            <el-button size="small" type="primary" @click="openResetDialog(scope.row)">重置密码</el-button>
+            <div class="table-actions">
+              <el-button size="small" type="primary" text @click.stop="openDetail(scope.row)">详情</el-button>
+              <el-button
+                size="small"
+                type="warning"
+                v-if="scope.row.is_active"
+                :loading="statusLoadingId === scope.row.id"
+                @click.stop="toggle(scope.row, 'disable')"
+              >禁用</el-button>
+              <el-button
+                size="small"
+                type="success"
+                v-else
+                :loading="statusLoadingId === scope.row.id"
+                @click.stop="toggle(scope.row, 'enable')"
+              >启用</el-button>
+              <el-button size="small" type="primary" @click.stop="openResetDialog(scope.row)">重置密码</el-button>
+              <el-button
+                size="small"
+                type="danger"
+                plain
+                :loading="deleteLoadingId === scope.row.id"
+                @click.stop="confirmDeleteUser(scope.row)"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -77,6 +100,106 @@
         />
       </div>
     </el-card>
+    <el-drawer
+      v-model="detailVisible"
+      :with-header="true"
+      :close-on-click-modal="false"
+      size="46%"
+      title="用户详情"
+    >
+      <div v-if="detailLoading" class="drawer-loading">
+        <el-skeleton :rows="6" animated />
+      </div>
+      <div v-else-if="activeUser" class="detail-content">
+        <div class="detail-section">
+          <div class="section-title">账户概览</div>
+          <el-descriptions :column="2" size="small" border>
+            <el-descriptions-item label="用户名">{{ activeUser.username }}</el-descriptions-item>
+            <el-descriptions-item label="角色">
+              <el-tag type="info" effect="plain">{{ roleLabel(activeUser.role) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="真实姓名">{{ activeUser.real_name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="所属企业">{{ activeUser.company_name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="activeUser.is_active ? 'success' : 'danger'">
+                {{ activeUser.is_active ? '正常' : '禁用' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="实名状态">
+              <el-tag :type="activeUser.is_authenticated ? 'success' : 'info'">
+                {{ activeUser.is_authenticated ? '已实名' : '未实名' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="邮箱">{{ activeUser.email || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="手机号">{{ activeUser.phone || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="所属租户" :span="2">
+              <span v-if="activeUser.tenant">{{ activeUser.tenant.name }}（{{ activeUser.tenant.type }}）</span>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后登录">{{ formatDate(activeUser.last_login_at) }}</el-descriptions-item>
+            <el-descriptions-item label="注册时间">{{ formatDate(activeUser.created_at) }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-title">角色与权限</div>
+          <el-alert
+            v-if="viewingSelf"
+            show-icon
+            type="warning"
+            :closable="false"
+            title="无法在此处修改自己的角色，请联系其他管理员协助。"
+          />
+          <div class="role-form">
+            <el-select
+              v-model="roleForm.role"
+              placeholder="选择角色"
+              style="width: 200px"
+              :disabled="viewingSelf || roleSaving"
+            >
+              <el-option v-for="opt in roleOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            </el-select>
+            <el-checkbox v-model="roleForm.isAuthenticated" :disabled="viewingSelf || roleSaving">
+              标记为已实名
+            </el-checkbox>
+            <el-button type="primary" :disabled="viewingSelf" :loading="roleSaving" @click="submitRoleChange">
+              保存角色
+            </el-button>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="section-title">企业认证</div>
+          <el-empty v-if="!activeUser.certification" description="尚未发起企业认证" />
+          <template v-else>
+            <el-descriptions :column="2" border size="small">
+              <el-descriptions-item label="申请角色">
+                <el-tag effect="plain">{{ roleLabel(activeUser.certification.role) }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="certTag(activeUser.certification.status)">
+                  {{ certText(activeUser.certification.status) }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="公司">{{ activeUser.certification.company_name }}</el-descriptions-item>
+              <el-descriptions-item label="统一社会信用代码">
+                {{ activeUser.certification.unified_social_credit_code }}
+              </el-descriptions-item>
+              <el-descriptions-item label="联系人">{{ activeUser.certification.contact_person }}</el-descriptions-item>
+              <el-descriptions-item label="联系电话">{{ activeUser.certification.contact_phone }}</el-descriptions-item>
+              <el-descriptions-item label="提交时间">{{ formatDate(activeUser.certification.submitted_at) }}</el-descriptions-item>
+              <el-descriptions-item label="审核时间">{{ formatDate(activeUser.certification.reviewed_at) }}</el-descriptions-item>
+              <el-descriptions-item label="驳回原因" :span="2">
+                {{ activeUser.certification.reject_reason || '-' }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </template>
+        </div>
+      </div>
+      <div v-else class="drawer-empty">
+        <el-empty description="请选择用户" />
+      </div>
+    </el-drawer>
   </div>
   <div v-else class="no-access">
     <el-result icon="warning" title="仅监管/管理员可访问">
@@ -102,11 +225,17 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, computed, reactive } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { fetchUsers, updateUserStatus } from '@/api/admin'
-  import { adminResetUserPassword } from '@/api/auth'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  fetchUsers,
+  updateUserStatus,
+  getUserDetail,
+  deleteUser as deleteUserApi,
+  updateUserRole as updateUserRoleApi,
+} from '@/api/admin'
+import { adminResetUserPassword } from '@/api/auth'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 
 const router = useRouter()
@@ -125,6 +254,26 @@ const resetDialogVisible = ref(false)
 const resetLoading = ref(false)
 const resetFormRef = ref(null)
 const resetForm = reactive({ userId: null, username: '', newPassword: '' })
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const activeUser = ref(null)
+const statusLoadingId = ref(null)
+const deleteLoadingId = ref(null)
+const roleSaving = ref(false)
+const roleForm = reactive({ role: '', isAuthenticated: true })
+
+const roleOptions = [
+  { label: '药店', value: 'pharmacy' },
+  { label: '供应商', value: 'supplier' },
+  { label: '物流', value: 'logistics' },
+  { label: '监管', value: 'regulator' },
+  { label: '管理员', value: 'admin' },
+  { label: '未认证', value: 'unauth' },
+]
+
+const viewingSelf = computed(
+  () => !!(activeUser.value && currentUser && activeUser.value.id === currentUser.id)
+)
 
 const passwordValidator = (_, value, callback) => {
   if (!value) return callback(new Error('请输入新密码'))
@@ -138,11 +287,18 @@ const passwordValidator = (_, value, callback) => {
 }
 
 const resetRules = {
-  newPassword: [{ validator: passwordValidator, trigger: 'blur' }]
+  newPassword: [{ validator: passwordValidator, trigger: 'blur' }],
 }
 
 const roleLabel = (value) => {
-  const map = { pharmacy: '药店', supplier: '供应商', logistics: '物流', regulator: '监管', unauth: '未认证' }
+  const map = {
+    pharmacy: '药店',
+    supplier: '供应商',
+    logistics: '物流',
+    regulator: '监管',
+    admin: '管理员',
+    unauth: '未认证',
+  }
   return map[value] || value || '-'
 }
 
@@ -169,6 +325,12 @@ const formatDate = (value) => {
   }
 }
 
+const applyActiveUser = (user) => {
+  activeUser.value = user
+  roleForm.role = user?.role || ''
+  roleForm.isAuthenticated = !!user?.is_authenticated
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -188,13 +350,86 @@ const loadData = async () => {
   }
 }
 
-const toggle = async (row, action) => {
+const openDetail = async (row) => {
+  detailVisible.value = true
+  detailLoading.value = true
   try {
-    await updateUserStatus(row.id, action)
+    const res = await getUserDetail(row.id)
+    applyActiveUser(res.user)
+  } catch (err) {
+    detailVisible.value = false
+    ElMessage.error(err?.message || '加载详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+const toggle = async (row, action) => {
+  statusLoadingId.value = row.id
+  try {
+    const res = await updateUserStatus(row.id, action)
     ElMessage.success(action === 'enable' ? '已启用' : '已禁用')
+    if (res?.user && activeUser.value?.id === row.id) {
+      applyActiveUser(res.user)
+    }
     loadData()
   } catch (err) {
     ElMessage.error(err?.message || '操作失败')
+  } finally {
+    statusLoadingId.value = null
+  }
+}
+
+const submitRoleChange = async () => {
+  if (!activeUser.value) return
+  if (!roleForm.role) {
+    ElMessage.error('请选择角色')
+    return
+  }
+  roleSaving.value = true
+  try {
+    const res = await updateUserRoleApi(activeUser.value.id, {
+      role: roleForm.role,
+      markAuthenticated: roleForm.isAuthenticated,
+    })
+    applyActiveUser(res.user)
+    ElMessage.success('角色已更新')
+    loadData()
+  } catch (err) {
+    ElMessage.error(err?.message || '角色更新失败')
+  } finally {
+    roleSaving.value = false
+  }
+}
+
+const confirmDeleteUser = (row) => {
+  if (currentUser && row.id === currentUser.id) {
+    ElMessage.error('无法删除当前登录的管理员账号')
+    return
+  }
+  ElMessageBox.confirm(`确认删除用户【${row.username}】？该操作会立即生效，请谨慎。`, '提示', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+    .then(() => handleDeleteUser(row))
+    .catch(() => {})
+}
+
+const handleDeleteUser = async (row) => {
+  deleteLoadingId.value = row.id
+  try {
+    await deleteUserApi(row.id)
+    ElMessage.success('用户已删除')
+    if (activeUser.value?.id === row.id) {
+      detailVisible.value = false
+      activeUser.value = null
+    }
+    loadData()
+  } catch (err) {
+    ElMessage.error(err?.message || '删除失败')
+  } finally {
+    deleteLoadingId.value = null
   }
 }
 
@@ -220,6 +455,7 @@ const submitReset = () => {
       await adminResetUserPassword({ userId: resetForm.userId, newPassword: resetForm.newPassword })
       ElMessage.success('密码已重置')
       resetDialogVisible.value = false
+      loadData()
     } catch (err) {
       ElMessage.error(err?.message || '重置失败')
     } finally {
@@ -228,6 +464,7 @@ const submitReset = () => {
   })
 }
 
+const goToSystemStatus = () => router.push('/admin/status')
 const goHome = () => router.push('/')
 
 onMounted(() => {
@@ -244,4 +481,10 @@ onMounted(() => {
 .pager { margin-top:12px; display:flex; justify-content:flex-end; }
 .no-access { padding:40px; }
 .dialog-footer { display:flex; justify-content:flex-end; gap:10px; }
+.table-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.drawer-loading { padding:20px; }
+.detail-content { display:flex; flex-direction:column; gap:18px; }
+.detail-section { margin-bottom:4px; }
+.detail-section .section-title { font-weight:600; margin-bottom:8px; }
+.role-form { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:8px; }
 </style>
