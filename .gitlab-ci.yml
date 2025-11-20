@@ -10,8 +10,8 @@ test-backend:
     - pip install -r requirements.txt
     - pip install pytest pytest-flask pytest-mock
   script:
-    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
-    - pytest
+    - export PYTHONPATH=".:$PYTHONPATH"  # Linux/Unix 语法
+    - pytest --tb=short -v
 
 test-frontend:
   stage: test

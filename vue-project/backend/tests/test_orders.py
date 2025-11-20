@@ -28,16 +28,11 @@ class TestOrders(BaseTestCase):
 
         headers = self.get_auth_headers(token)
 
-        # 测试订单数据
+        # 测试订单数据 - 使用正确的API格式
         order_data = {
-            "supplier_id": 1,
-            "items": [
-                {
-                    "drug_id": 1,
-                    "quantity": 100,
-                    "unit_price": 10.5
-                }
-            ],
+            "supply_info_id": 1,
+            "quantity": 100,
+            "expected_delivery_date": "2025-12-01",
             "notes": "测试订单"
         }
 
@@ -45,7 +40,7 @@ class TestOrders(BaseTestCase):
                              json=order_data,
                              headers=headers)
 
-        # 可能因为数据不存在而失败，这是正常的
+        # 应该成功创建或返回验证错误
         assert response.status_code in [201, 400, 404]
 
     def test_get_order_detail(self, client):
@@ -61,18 +56,18 @@ class TestOrders(BaseTestCase):
         assert response.status_code in [200, 404]
 
     def test_update_order_status(self, client):
-        """测试更新订单状态"""
+        """测试确认订单（供应商操作）"""
         token = self.login_user(client)
         if not token:
             pytest.skip("No test user available")
 
         headers = self.get_auth_headers(token)
 
-        # 测试更新订单状态
-        update_data = {"status": "confirmed"}
-        response = client.patch('/api/orders/1/status',
-                              json=update_data,
+        # 测试确认订单
+        confirm_data = {"action": "accept"}
+        response = client.post('/api/orders/1/confirm',
+                              json=confirm_data,
                               headers=headers)
 
-        # 可能因为订单不存在或权限不足而失败
-        assert response.status_code in [200, 403, 404]
+        # 可能因为订单不存在、权限不足或状态错误而失败
+        assert response.status_code in [200, 400, 403, 404]

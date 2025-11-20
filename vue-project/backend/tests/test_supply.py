@@ -23,6 +23,9 @@ class TestSupply(BaseTestCase):
             assert 'data' in data
             assert 'items' in data['data']
             assert 'pagination' in data['data']
+        else:
+            # 允许404或其他错误，因为可能没有数据
+            assert response.status_code in [200, 401, 403, 404]
 
     def test_get_supply_info_with_search(self, client):
         """测试带搜索参数的供应信息获取"""
