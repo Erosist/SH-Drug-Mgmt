@@ -612,6 +612,89 @@ GET /api/catalog/inventory?tenant_id=1&drug_id=1
 Authorization: Bearer <access_token>
 ```
 
+### 👑 管理员功能 `/api/admin`
+
+管理员令牌可以对所有用户与运行状态进行集中管理。
+
+#### 1. 创建用户
+```http
+POST /api/admin/users
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+    "username": "pharmacy_admin",
+    "email": "admin@pharmacy.com",
+    "password": "AdminPass123",
+    "role": "pharmacy",
+    "phone": "13800138000",
+    "real_name": "张三",
+    "company_name": "仁济医院药房",
+    "tenant_id": 4,
+    "is_authenticated": true,
+    "is_active": true
+}
+```
+- `role` 必须在 `pharmacy/supplier/logistics/regulator/admin/unauth` 内  
+- `tenant_id` 需要存在于租户表  
+- 密码沿用注册接口同样的安全校验
+
+#### 2. 查询与管理用户
+- `GET /api/admin/users`：分页检索（支持 `keyword/role/status`）  
+- `GET /api/admin/users/{id}`：查看任意用户详情及认证进度  
+- `POST /api/admin/users/{id}/status`：启用/禁用（不能修改自己）  
+  ```json
+  { "action": "disable" }
+  ```
+- `POST /api/admin/users/{id}/role`：调整角色并可选 `mark_authenticated`（不能修改自己）  
+  ```json
+  { "role": "regulator", "mark_authenticated": true }
+  ```
+- `DELETE /api/admin/users/{id}`：删除无关联业务数据的用户，存在订单或认证记录时会提示改为禁用
+
+#### 3. 系统运行状态
+```http
+GET /api/admin/system/status
+Authorization: Bearer <admin_token>
+```
+**响应示例**
+```json
+{
+    "generated_at": "2024-11-20T00:15:00.000000",
+    "users": {
+        "total": 56,
+        "active": 51,
+        "disabled": 5,
+        "new_last_7_days": 8
+    },
+    "certifications": {
+        "pending": 4,
+        "approved": 18,
+        "rejected": 2
+    },
+    "orders": {
+        "total": 120,
+        "by_status": {
+            "PENDING": 30,
+            "CONFIRMED": 60,
+            "COMPLETED": 25,
+            "CANCELLED": 5
+        }
+    },
+    "inventory": {
+        "total_items": 320,
+        "low_stock": 14,
+        "near_expiry": 9,
+        "expired": 1
+    },
+    "supply": {
+        "active_supplies": 42,
+        "inactive_supplies": 3
+    }
+}
+```
+该接口整合用户统计、企业认证进度、订单分布与库存预警，可快速判断系统健康状况。
+
 ## 定时任务
 
 ### 库存预警扫描任务
