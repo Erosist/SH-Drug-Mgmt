@@ -5,6 +5,7 @@
 from datetime import datetime, timedelta
 from models import db, Tenant, User, Drug, InventoryItem
 from werkzeug.security import generate_password_hash
+from app import create_app
 
 
 def create_test_data():
@@ -238,7 +239,9 @@ def clear_test_data():
 if __name__ == "__main__":
     import sys
     
-    if len(sys.argv) > 1 and sys.argv[1] == "clear":
-        clear_test_data()
-    else:
-        create_test_data()
+    app = create_app()
+    with app.app_context():
+        if len(sys.argv) > 1 and sys.argv[1] == "clear":
+            clear_test_data()
+        else:
+            create_test_data()
