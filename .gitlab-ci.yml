@@ -1,28 +1,35 @@
 stages:
   - test
 
+# 设置变量避免编码问题
+variables:
+  GIT_CLEAN_FLAGS: none
+  PYTHONIOENCODING: utf-8
+
 test-backend:
   stage: test
   tags:
     - SH-Drug-Mgmt
-  before_script:
-    - pwd
-    - ls
-    - cd backend
-    - python -m pip install -r requirements.txt
-    - python -m pip install pytest pytest-flask pytest-mock
   script:
-    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
-    - python -m pytest --tb=short -v
+    - Write-Host "=== Backend Test Started ==="
+    - Set-Location backend
+    - Write-Host "Installing dependencies..."
+    - python -m pip install --quiet -r requirements.txt
+    - python -m pip install --quiet pytest pytest-flask pytest-mock
+    - Write-Host "Running tests..."
+    - $env:PYTHONPATH = "."
+    - python -m pytest tests/ -v --tb=short
+    - Write-Host "=== Backend Test Completed ==="
 
 test-frontend:
   stage: test
   tags:
-    - SH-Drug-Mgmt
-  before_script:
-    - pwd
-    - ls
-    - cd frontend
-    - npm install
+    - SH-Drug-Mgmt  
   script:
+    - Write-Host "=== Frontend Test Started ==="
+    - Set-Location frontend
+    - Write-Host "Installing dependencies..."
+    - npm install --silent
+    - Write-Host "Running tests..."
     - npm run test:run
+    - Write-Host "=== Frontend Test Completed ==="
