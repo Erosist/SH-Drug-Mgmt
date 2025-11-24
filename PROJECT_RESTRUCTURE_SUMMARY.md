@@ -21,29 +21,118 @@ SH-Drug-Mgmt/
 └── ...
 ```
 
-### ✅ 变更后
+### ✅ 变更后 - 当前项目架构
 ```
-SH-Drug-Mgmt/                    # 根目录
-├── backend/                     # 🎯 独立后端目录
-│   ├── tests/                   # 后端测试
-│   ├── tools/                   # 工具脚本
-│   ├── docs/                    # API 文档
-│   ├── migrations/              # 数据库迁移
-│   ├── app.py                   # Flask 应用
-│   ├── requirements.txt         # Python 依赖
-│   └── ...                      # 其他后端文件
-├── frontend/                    # 🎯 独立前端目录
-│   ├── src/                     # Vue.js 源码
-│   ├── tests/                   # 前端测试
-│   ├── public/                  # 静态资源
-│   ├── package.json             # Node.js 依赖
-│   ├── vite.config.js           # 构建配置
-│   └── ...                      # 其他前端文件
-├── drugs.json                   # 🎯 数据文件 (根目录)
-├── inventory_items.json         # 🎯 数据文件 (根目录)
-├── tenants_pharmacy.json        # 🎯 数据文件 (根目录)
-├── .gitlab-ci.yml               # 🔧 CI/CD 配置 (已更新)
-└── ...                          # 其他项目文件
+SH-Drug-Mgmt/                         # 📂 项目根目录
+├── .git/                             # 🔧 Git 版本控制信息
+├── .gitlab-ci.yml                    # 🚀 GitLab CI/CD 流水线配置
+├── docs/                             # 📖 项目文档目录
+│   └── [项目相关文档]                 #    项目级别的说明文档
+├── backend/                          # 🐍 Flask 后端应用目录
+│   ├── __pycache__/                  # 🔧 Python 字节码缓存
+│   ├── instance/                     # 📊 Flask 实例文件夹
+│   │   └── [数据库文件等]             #    应用运行时生成的数据
+│   ├── migrations/                   # 🗃️ 数据库迁移脚本
+│   │   └── [Flask-Migrate 迁移文件]   #    数据库版本管理
+│   ├── docs/                         # 📋 API 文档
+│   │   ├── API_TEST_PLAN.md          #    API 测试计划
+│   │   └── [其他 API 文档]            #    接口说明文档
+│   ├── tests/                        # 🧪 单元测试目录
+│   │   ├── test_admin_reset_password.py    # 管理员密码重置测试
+│   │   ├── test_amoxicillin.py             # 药品相关测试
+│   │   ├── test_current_order.py           # 当前订单测试
+│   │   ├── test_dev_users.py               # 开发用户测试
+│   │   ├── test_frontend_scenarios.py     # 前端场景测试
+│   │   ├── test_inventory_warning.py      # 库存警告测试
+│   │   ├── test_no_tenant_user.py         # 无租户用户测试
+│   │   ├── test_order_flow.py             # 订单流程测试
+│   │   ├── test_supply_api.py             # 供应链 API 测试
+│   │   └── test_token_info.py             # 令牌信息测试
+│   ├── tools/                        # 🛠️ 开发工具脚本
+│   │   ├── check_login.py            #    登录检查工具
+│   │   ├── create_dev_users.py       #    创建开发用户
+│   │   ├── create_warning_test_data.py #   创建警告测试数据
+│   │   ├── dump_db.py                #    数据库导出工具
+│   │   ├── import_seed_data.py       #    导入种子数据
+│   │   ├── init_db.py                #    数据库初始化
+│   │   ├── start_inventory_warning.py #   启动库存警告服务
+│   │   └── README.md                 #    工具使用说明
+│   ├── scripts/                      # 📝 手动测试脚本
+│   │   ├── debug_order.py            #    订单调试脚本
+│   │   ├── debug_permissions.py      #    权限调试脚本
+│   │   ├── test_api.ps1              #    PowerShell API 测试
+│   │   ├── verify_token.py           #    令牌验证脚本
+│   │   └── [其他手动测试脚本]         #    人工测试辅助工具
+│   ├── admin.py                      # 👤 管理员功能模块
+│   ├── app.py                        # 🚀 Flask 应用主入口
+│   ├── auth.py                       # 🔐 身份认证模块
+│   ├── catalog.py                    # 📚 药品目录管理
+│   ├── circulation.py                # 🔄 药品流通管理
+│   ├── config.py                     # ⚙️ 应用配置
+│   ├── enterprise.py                 # 🏢 企业管理模块
+│   ├── extensions.py                 # 🔌 Flask 扩展配置
+│   ├── inventory_warning.py          # ⚠️ 库存警告系统
+│   ├── models.py                     # 🗄️ 数据库模型定义
+│   ├── order_utils.py                # 📦 订单工具函数
+│   ├── orders.py                     # 📋 订单管理模块
+│   ├── supply.py                     # 🚛 供应链管理
+│   ├── requirements.txt              # 📦 Python 依赖包清单
+│   ├── requirements-test.txt         # 🧪 测试环境依赖
+│   ├── pytest.ini                   # 🔧 pytest 配置
+│   ├── run.py                        # ▶️ 应用启动脚本
+│   └── README.md                     # 📖 后端项目说明
+├── frontend/                         # � Vue.js 前端应用目录
+│   ├── .vscode/                      # 🔧 VS Code 配置
+│   ├── node_modules/                 # 📦 npm 依赖包
+│   ├── public/                       # 🎨 静态资源目录
+│   │   └── favicon.ico               #    网站图标
+│   ├── src/                          # 💻 Vue.js 源代码目录
+│   │   ├── api/                      # 📡 API 请求封装
+│   │   │   ├── admin.js              #    管理员 API
+│   │   │   ├── auth.js               #    认证 API
+│   │   │   ├── catalog.js            #    目录 API
+│   │   │   ├── circulation.js        #    流通 API
+│   │   │   ├── enterprise.js         #    企业 API
+│   │   │   ├── inventory.js          #    库存 API
+│   │   │   ├── orders.js             #    订单 API
+│   │   │   └── supply.js             #    供应链 API
+│   │   ├── component/                # 🧩 Vue 组件
+│   │   │   ├── InventoryWarning.vue  #    库存警告组件
+│   │   │   ├── SupplierList.vue      #    供应商列表组件
+│   │   │   ├── SupplyInfoManagement.vue # 供应信息管理组件
+│   │   │   └── UserHeader.vue        #    用户头部组件
+│   │   ├── mocks/                    # 🎭 模拟数据
+│   │   ├── router/                   # 🗺️ 路由配置
+│   │   ├── utils/                    # 🔧 工具函数
+│   │   ├── views/                    # 📄 页面视图组件
+│   │   ├── App.vue                   # 🏠 根组件
+│   │   └── main.js                   # 🚀 应用入口文件
+│   ├── tests/                        # 🧪 前端测试
+│   │   ├── api.test.js               #    API 测试
+│   │   ├── App.test.js               #    应用测试
+│   │   ├── router.test.js            #    路由测试
+│   │   ├── utils.test.js             #    工具函数测试
+│   │   ├── setup.js                  #    测试设置
+│   │   ├── test-utils.js             #    测试工具
+│   │   └── README.md                 #    测试说明
+│   ├── .gitignore                    # 🚫 Git 忽略文件配置
+│   ├── index.html                    # 🏠 HTML 入口文件
+│   ├── jsconfig.json                 # ⚙️ JavaScript 项目配置
+│   ├── package.json                  # 📦 Node.js 项目配置
+│   ├── package-lock.json             # 🔒 依赖版本锁定文件
+│   ├── vite.config.js                # ⚡ Vite 构建工具配置
+│   ├── vitest.config.js              # 🧪 Vitest 测试配置
+│   └── README.md                     # 📖 前端项目说明
+├── debug-tools/                      # 🐛 调试工具目录
+│   ├── debug_detailed.py             #    详细调试脚本
+│   ├── fix_validation.py             #    验证修复工具
+│   └── debug-api.html                #    API 调试页面
+├── drugs.json                        # 💊 药品基础数据文件
+├── inventory_items.json              # 📦 库存物品数据文件
+├── tenants_pharmacy.json             # � 租户药房数据文件
+├── BACKEND_DEV_TESTING_COMPLETE.md   # ✅ 后端开发测试完成报告
+├── CLAUDE.md                         # 🤖 AI 助手交互记录
+└── PROJECT_RESTRUCTURE_SUMMARY.md    # 📋 本文档 - 项目重构总结
 ```
 
 ## 🔧 配置文件更新
@@ -138,24 +227,34 @@ npm run build
 ## 🎉 重构优势
 
 ### 1. 🔄 前后端完全分离
-- 独立的依赖管理
-- 独立的构建流程
-- 独立的部署策略
+- **独立的依赖管理**: 前端使用 npm/yarn，后端使用 pip
+- **独立的构建流程**: 前端 Vite 构建，后端 Flask 部署
+- **独立的部署策略**: 可分别部署到不同服务器
+- **技术栈解耦**: 前后端可独立选择技术栈版本
 
 ### 2. 📁 目录结构清晰
-- 职责分明的文件夹组织
-- 易于新团队成员理解
-- 符合行业最佳实践
+- **职责分明**: 每个目录都有明确的功能定位
+- **模块化组织**: 按功能模块组织代码，便于维护
+- **测试分离**: 单元测试与手动测试脚本分开管理
+- **工具集中**: 开发工具统一放置在 tools/ 目录
 
 ### 3. 🛠️ 开发效率提升
-- IDE 可以更好地识别项目类型
-- 减少路径混淆
-- 便于 CI/CD 配置
+- **IDE 智能识别**: 编辑器能更好地识别项目类型并提供智能提示
+- **路径简化**: 消除了 vue-project 中间层，路径更直观
+- **并行开发**: 前后端团队可独立开发，减少冲突
+- **快速定位**: 文件组织逻辑清晰，快速定位所需代码
 
 ### 4. 📈 可维护性提高
-- 更容易进行版本控制
-- 便于设置不同的权限策略
-- 支持独立的技术栈升级
+- **版本控制优化**: 前后端变更可独立提交，减少混淆
+- **权限管理**: 可对不同目录设置不同的访问权限
+- **依赖隔离**: 前后端依赖互不影响，升级风险降低
+- **文档清晰**: 每个模块都有对应的 README 文档
+
+### 5. 🧪 测试体系完善
+- **测试分类**: 单元测试、集成测试、手动测试分类清晰
+- **覆盖全面**: 前后端都有完整的测试覆盖
+- **调试工具**: 专门的 debug-tools 目录便于问题排查
+- **数据管理**: 测试数据与生产数据分离管理
 
 ## 🔗 相关分支
 
@@ -165,10 +264,36 @@ npm run build
 
 ## 📝 后续建议
 
-1. 在合并到主分支前进行完整的 CI/CD 测试
-2. 更新团队开发文档
-3. 考虑添加 Docker 配置文件
-4. 设置独立的环境变量配置
+1. **CI/CD 优化**: 在合并到主分支前进行完整的流水线测试
+2. **文档完善**: 更新团队开发文档和 API 接口文档
+3. **容器化部署**: 考虑添加 Docker 和 docker-compose 配置
+4. **环境配置**: 设置独立的开发、测试、生产环境变量
+5. **监控告警**: 为生产环境添加应用监控和日志收集
+6. **安全加固**: 定期更新依赖包，添加安全扫描
+
+## 🏗️ 架构设计原则
+
+### 📐 分层架构
+- **表示层** (frontend/): Vue.js 用户界面
+- **业务逻辑层** (backend/): Flask API 服务
+- **数据访问层** (backend/models.py): SQLAlchemy ORM
+- **数据存储层**: SQLite/PostgreSQL 数据库
+
+### 🔧 模块化设计
+- **功能模块**: 按业务功能划分 (auth, orders, supply, etc.)
+- **工具模块**: 开发和运维工具集中管理
+- **测试模块**: 完整的测试体系支持
+- **配置模块**: 统一的配置管理
+
+### 🚀 部署架构
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   前端服务器      │    │   后端API服务器   │    │   数据库服务器    │
+│   (Nginx +      │    │   (Flask +      │    │   (PostgreSQL   │
+│    Vue.js)      │────│    Gunicorn)    │────│    / Redis)     │
+│   Port: 80/443  │    │   Port: 5000    │    │   Port: 5432    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
 ---
 
