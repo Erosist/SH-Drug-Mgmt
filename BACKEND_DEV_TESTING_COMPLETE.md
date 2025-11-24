@@ -4,13 +4,13 @@
 
 ### 后端测试 (Python/Flask + pytest)
 - **框架**: pytest + pytest-flask + pytest-mock
-- **测试文件**: `vue-project/backend/tests/`
+- **测试文件**: `backend/tests/`
 - **配置文件**: `conftest.py`, `base.py`
 - **测试模块**: app, auth, supply
 
 ### 前端测试 (Vue.js + Vitest)
 - **框架**: Vitest + @vue/test-utils + jsdom
-- **测试文件**: `vue-project/tests/`
+- **测试文件**: `frontend/tests/`
 - **配置文件**: `vitest.config.js`, `setup.js`
 - **测试模块**: App组件, API功能
 
@@ -19,12 +19,12 @@
 ### 本地测试
 ```bash
 # 后端测试
-cd vue-project/backend
+cd backend
 pip install pytest pytest-flask pytest-mock
 pytest
 
 # 前端测试
-cd vue-project
+cd frontend
 npm install
 npm run test:run
 ```

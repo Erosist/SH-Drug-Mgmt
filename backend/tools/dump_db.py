@@ -6,7 +6,7 @@ from typing import Optional
 
 # 允许从 tools 子目录运行脚本
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.dirname(CURRENT_DIR)
+PARENT_DIR = os.path.dirname(CURRENT_DIR)  # 现在指向 backend 目录
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 

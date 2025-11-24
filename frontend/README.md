@@ -22,7 +22,7 @@
 ## 目录结构（摘录）
 
 ```
-vue-project/
+SH-Drug-Mgmt/
 ├─ backend/                  # Flask 后端
 │  ├─ app.py                 # 工厂函数 create_app
 │  ├─ run.py                 # 开发启动入口（默认 127.0.0.1:5000）

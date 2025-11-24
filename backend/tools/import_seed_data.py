@@ -13,7 +13,7 @@ from typing import Any, Dict, Iterable, List, Type
 
 CURRENT_DIR = Path(__file__).resolve()
 BACKEND_DIR = CURRENT_DIR.parent.parent
-PROJECT_ROOT = BACKEND_DIR.parent
+PROJECT_ROOT = BACKEND_DIR.parent  # 现在指向 SH-Drug-Mgmt 根目录
 
 import sys
 if str(BACKEND_DIR) not in sys.path:

@@ -4,7 +4,7 @@
 
 ### 1. 安装依赖
 ```bash
-cd vue-project/backend
+cd backend
 pip install -r requirements.txt
 pip install -r requirements-test.txt  # 测试依赖（可选）
 ```
@@ -18,7 +18,7 @@ python run.py
 ### 3. 启动定时任务（可选）
 在新的终端窗口：
 ```bash
-cd vue-project/backend
+cd backend
 python task_inventory_warning.py
 ```
 

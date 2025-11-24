@@ -54,7 +54,7 @@
 
 ### Step 1: 准备测试环境
 ```bash
-cd vue-project/backend
+cd backend
 python init_db.py  # 初始化测试数据
 python run.py      # 启动后端服务
 ```

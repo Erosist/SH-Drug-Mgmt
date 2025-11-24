@@ -25,7 +25,7 @@
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
-cd vue-project/backend
+cd backend
 
 # 2. 创建虚拟环境
 python -m venv .venv

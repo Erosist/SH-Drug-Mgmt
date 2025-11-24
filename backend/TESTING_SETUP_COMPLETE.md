@@ -2,7 +2,7 @@
 
 ## 📁 测试文件夹结构
 
-已成功创建 `vue-project/backend/tests/` 文件夹，包含以下测试文件：
+已成功创建 `backend/tests/` 文件夹，包含以下测试文件：
 
 ```
 backend/
@@ -43,7 +43,7 @@ test-backend:
   tags:
     - SH-Drug-Mgmt
   before_script:
-    - cd vue-project
+    - cd frontend
     - cd backend
     - pip install -r requirements.txt
     - pip install pytest pytest-flask pytest-mock
@@ -56,7 +56,7 @@ test-backend:
 
 在GitLab CI中，测试将自动运行：
 ```bash
-cd vue-project/backend
+cd backend
 $env:PYTHONPATH = ".;$env:PYTHONPATH"
 pytest
 ```
@@ -79,7 +79,7 @@ pytest
 
 ### 项目启动
 ```bash
-cd vue-project/backend
+cd backend
 
 # 安装依赖
 pip install -r requirements.txt

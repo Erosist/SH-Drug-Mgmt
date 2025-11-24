@@ -4,7 +4,7 @@
 
 ### 1. 启动后端服务
 ```bash
-cd vue-project/backend
+cd backend
 .venv\Scripts\activate  # Windows
 python run.py
 ```
