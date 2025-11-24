@@ -10,6 +10,13 @@
 - **`api_test.ps1`** - PowerShell 版本的库存预警API测试脚本
 - **`api_test_inventory_warning.py`** - Python 版本的库存预警功能手动测试
 - **`api_test_supply.py`** - 供应信息API手动测试脚本
+- **`api_test_amoxicillin.py`** - 阿莫西林胶囊下单测试
+- **`api_test_current_order.py`** - 当前用户订单测试
+- **`api_test_dev_users.py`** - 开发用户账户登录测试
+- **`api_test_frontend_scenarios.py`** - 前端场景API测试
+- **`api_test_no_tenant_user.py`** - 无租户关联用户测试
+- **`api_test_order_flow.py`** - 订单流程测试
+- **`api_test_token_info.py`** - JWT token和用户信息测试
 
 ## 🚀 使用方法
 
