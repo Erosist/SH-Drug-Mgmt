@@ -1,0 +1,78 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+
+.eslintcache
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
+
+# Vitest
+__screenshots__/
+
+# Python virtual environments and files
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+backend/.venv/
+backend/venv/
+venv/
+env/
+ENV/
+
+# Flask specific
+backend/.env
+# backend/instance/  # Temporarily allow instance/ directory for dev database
+# *.db              # Temporarily allow .db files for dev database
+# *.sqlite          # Temporarily allow .sqlite files for dev database
+# *.sqlite3         # Temporarily allow .sqlite3 files for dev database
+
+# Database migrations (optional - keep versions but ignore temp files)
+backend/migrations/versions/*.pyc
+backend/migrations/__pycache__/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Environment and config files (if sensitive)
+.env.local
+.env.production
+.env.development

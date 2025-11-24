@@ -1,0 +1,594 @@
+{
+  "info": {
+    "name": "订单管理API - SH-Drug-Mgmt",
+    "description": "上海药品管理平台 - 订单模块完整业务流程API集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🔐 身份认证 (基础支撑)",
+      "item": [
+        {
+          "name": "药店用户登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"pharmacy1\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "药店登录成功",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"pharmacy1\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access_token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n  \"user\": {\n    \"id\": 4,\n    \"username\": \"pharmacy1\",\n    \"email\": \"pharmacy1@test.com\",\n    \"role\": \"pharmacy\",\n    \"tenant_id\": 4,\n    \"tenant\": {\n      \"id\": 4,\n      \"name\": \"仁济医院药房\",\n      \"type\": \"PHARMACY\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "供应商用户登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"supplier1\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "供应商登录成功",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"supplier1\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access_token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n  \"user\": {\n    \"id\": 1,\n    \"username\": \"supplier1\",\n    \"email\": \"supplier1@test.com\",\n    \"role\": \"supplier\",\n    \"tenant_id\": 1,\n    \"tenant\": {\n      \"id\": 1,\n      \"name\": \"上海医药集团股份有限公司\",\n      \"type\": \"SUPPLIER\"\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📋 供应信息查询 (下单前准备)",
+      "item": [
+        {
+          "name": "获取供应信息列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/supply/info?page=1&per_page=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "supply",
+                "info"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "drug_name",
+                  "value": "阿莫西林",
+                  "disabled": true
+                },
+                {
+                  "key": "supplier_name",
+                  "value": "上海医药",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛒 订单管理 (核心业务流程)",
+      "item": [
+        {
+          "name": "🌟 1. 创建订单(药店下单)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supply_info_id\": 1,\n  \"quantity\": 50,\n  \"expected_delivery_date\": \"2025-11-25\",\n  \"notes\": \"紧急补货，请尽快发货\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "下单成功",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"supply_info_id\": 1,\n  \"quantity\": 50,\n  \"expected_delivery_date\": \"2025-11-25\",\n  \"notes\": \"紧急补货，请尽快发货\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"msg\": \"订单创建成功\",\n  \"data\": {\n    \"id\": 5,\n    \"order_number\": \"PH20251117001\",\n    \"buyer_tenant_id\": 4,\n    \"supplier_tenant_id\": 1,\n    \"status\": \"PENDING\",\n    \"total_amount\": 790.0,\n    \"total_quantity\": 50,\n    \"created_at\": \"2025-11-17T12:00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. 获取订单列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?page=1&per_page=20&status=PENDING&role_filter=my_purchases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                },
+                {
+                  "key": "role_filter",
+                  "value": "my_purchases",
+                  "description": "my_purchases: 我的采购订单, my_sales: 我的销售订单"
+                },
+                {
+                  "key": "order_number",
+                  "value": "PH20251117",
+                  "disabled": true
+                },
+                {
+                  "key": "drug_name",
+                  "value": "阿莫西林",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. 获取订单详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pharmacy_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "🔄 4. 供应商确认订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"accept\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{order_id}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}",
+                "confirm"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "确认成功",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"accept\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders/1/confirm",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "1",
+                    "confirm"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"msg\": \"订单确认成功\",\n  \"data\": {\n    \"id\": 1,\n    \"order_number\": \"PH20251117001\",\n    \"status\": \"CONFIRMED\",\n    \"confirmed_at\": \"2025-11-17T12:30:00\",\n    \"confirmed_by\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "4b. 供应商拒绝订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{supplier_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\",\n  \"reason\": \"库存不足，无法及时供货\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1", "confirm"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. 药店取消订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pharmacy_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"临时不需要了\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1", "cancel"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. 供应商发货",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{supplier_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tracking_number\": \"SF1234567890\",\n  \"logistics_tenant_id\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1/ship",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1", "ship"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7. 药店确认收货",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pharmacy_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"药品质量良好，包装完整\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1/receive",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1", "receive"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "📊 8. 获取订单统计",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "stats"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "统计数据",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/orders/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "orders",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"msg\": \"获取订单统计成功\",\n  \"data\": {\n    \"total\": 12,\n    \"pending\": 3,\n    \"confirmed\": 2,\n    \"shipped\": 1,\n    \"in_transit\": 1,\n    \"delivered\": 0,\n    \"completed\": 4,\n    \"cancelled\": 1,\n    \"this_month\": 5\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "用户登录后获取的JWT Token，药店或供应商都使用这个变量"
+    },
+    {
+      "key": "order_id",
+      "value": "1",
+      "type": "string",
+      "description": "订单ID，用于测试订单详情和状态变更接口"
+    }
+  ]
+}

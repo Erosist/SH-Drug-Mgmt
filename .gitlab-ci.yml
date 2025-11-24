@@ -1,37 +1,35 @@
-# .gitlab-ci.yml
-# 【V7 修复版】我们（pytest）在 backend 文件夹*里面*运行
-
 stages:
   - test
+
+# 设置变量避免编码问题
+variables:
+  GIT_CLEAN_FLAGS: none
+  PYTHONIOENCODING: utf-8
+
 test-backend:
   stage: test
   tags:
     - SH-Drug-Mgmt
-
-  # （before_script 不变）
-  before_script:
-    - cd vue-project
-    - cd backend  # <-- 我们进入 'backend'
-    - echo "我现在在 'backend' 文件夹里, 开始安装..."
-    - pip install -r requirements.txt
-    - pip install pytest pytest-flask pytest-mock
-
   script:
-    - echo "我正在 'backend' 文件夹里*直接*运行 pytest..."
-    
-    # --- ！！！这就是“V8 修复 Bug”的那一行！！！ ---
-    # 告诉 Python (在 PowerShell 中) "把当前目录(.)也加入到 import 搜索路径"
+    - Write-Host "=== Backend Test Started ==="
+    - Set-Location backend
+    - Write-Host "Installing dependencies..."
+    - python -m pip install --quiet -r requirements.txt
+    - python -m pip install --quiet pytest pytest-flask pytest-mock
+    - Write-Host "Running tests..."
     - $env:PYTHONPATH = ".;$env:PYTHONPATH"
-    # --- ！！！修复完毕！！！ ---
-    
-    - pytest # <-- 就运行 pytest。它现在（终于）能找到 'app.py' 了！
+    - python -m pytest tests/ -v --tb=short
+    - Write-Host "=== Backend Test Completed ==="
+
 test-frontend:
   stage: test
   tags:
     - SH-Drug-Mgmt
-
-  before_script:
-    - cd vue-project
-    - npm install
   script:
-    - npm run test
+    - Write-Host "=== Frontend Test Started ==="
+    - Set-Location frontend
+    - Write-Host "Installing dependencies..."
+    - npm install --silent
+    - Write-Host "Running tests..."
+    - npm run test:run
+    - Write-Host "=== Frontend Test Completed ==="

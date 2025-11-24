@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **核心目标：** 连接药店、供应商、监管部门、物流公司，实现药品信息集中管理、流通追溯、库存监控、B2B模拟交易与监管可视化
 
+
 # 技术栈
 
 ## 前端
@@ -41,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. **智能调度子系统** - 药品定位、路径规划、实时监控
 
 ## 数据库设计
-**16张核心表：**
+**17张核心表：**
 ```
 数据库表结构
 ├── 用户权限类 (5张)
@@ -53,9 +54,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── 企业认证类 (2张)
 │   ├── tenants              # 企业信息
 │   └── enterprise_certifications  # 企业认证
-├── 业务核心类 (7张)
+├── 业务核心类 (8张)
 │   ├── drugs                # 药品信息
 │   ├── inventory_items      # 库存项
+│   ├── inventory_transactions # 库存流水
 │   ├── supply_info          # 供应信息
 │   ├── orders               # 订单（头）
 │   ├── order_items          # 订单明细
@@ -64,6 +66,393 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── 系统管理类 (2张)
 │   ├── operation_logs       # 操作日志
 │   └── password_reset_tokens # 密码重置令牌
+```
+### users（用户）
+
+```
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,                          -- 用户唯一标识
+  username VARCHAR(50) NOT NULL UNIQUE,              -- 用户名（全局唯一）
+  password_hash VARCHAR(255) NOT NULL,               -- 密码哈希值（bcrypt加密）
+  email VARCHAR(100) UNIQUE,                         -- 邮箱（全局唯一，可用于登录）
+  phone VARCHAR(20) UNIQUE,                          -- 手机号（全局唯一，可用于登录）
+  real_name VARCHAR(50),                             -- 真实姓名
+  tenant_id BIGINT REFERENCES tenants(id),           -- 所属企业租户ID（允许NULL，未认证用户无企业）
+  is_authenticated BOOLEAN NOT NULL DEFAULT FALSE,   -- 是否已通过企业认证并关联企业角色（认证状态）
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,           -- 账号是否启用（若为FALSE，禁止登录/访问）
+  last_login_at TIMESTAMPTZ,                         -- 最后登录时间
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 最后更新时间
+);
+CREATE INDEX idx_users_tenant_id ON users(tenant_id);
+```
+
+### roles / permissions / user_roles / role_permissions
+
+```
+CREATE TABLE roles (
+  id BIGSERIAL PRIMARY KEY,                          -- 角色唯一标识
+  name VARCHAR(50) NOT NULL UNIQUE,                  -- 角色代码（ADMIN/PHARMACY/SUPPLIER/REGULATOR/LOGISTICS/UNAUTHENTICATED）
+  display_name VARCHAR(100) NOT NULL,                -- 角色显示名称
+  description TEXT,                                  -- 角色描述
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 最后更新时间
+);
+
+CREATE TABLE permissions (
+  id BIGSERIAL PRIMARY KEY,                          -- 权限唯一标识
+  name VARCHAR(100) NOT NULL UNIQUE,                 -- 权限名称（如inventory:create）
+  resource VARCHAR(50) NOT NULL,                     -- 资源类型（如inventory、user）
+  action VARCHAR(50) NOT NULL,                       -- 操作类型（如create、read、update、delete）
+  description TEXT,                                  -- 权限描述
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 创建时间
+);
+
+CREATE TABLE user_roles (
+  id BIGSERIAL PRIMARY KEY,                                    -- 用户角色关联唯一标识
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- 用户ID
+  role_id BIGINT NOT NULL REFERENCES roles(id),               -- 角色ID
+  assigned_by BIGINT REFERENCES users(id),                    -- 角色分配人ID
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),             -- 角色分配时间
+  expires_at TIMESTAMPTZ,                                     -- 角色过期时间（可选）
+  UNIQUE(user_id, role_id)                                    -- 用户-角色组合唯一
+);
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+
+CREATE TABLE role_permissions (
+  id BIGSERIAL PRIMARY KEY,                                          -- 角色权限关联唯一标识
+  role_id BIGINT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,    -- 角色ID
+  permission_id BIGINT NOT NULL REFERENCES permissions(id),          -- 权限ID
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),                     -- 创建时间
+  UNIQUE(role_id, permission_id)                                     -- 角色-权限组合唯一
+);
+CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
+```
+
+### tenants（租户/企业）
+
+```
+CREATE TABLE tenants (
+  id BIGSERIAL PRIMARY KEY,                          -- 租户唯一标识
+  name VARCHAR(100) NOT NULL,                        -- 企业名称
+  type VARCHAR(20) NOT NULL CHECK (type IN ('PHARMACY','SUPPLIER','LOGISTICS','REGULATOR')), -- 企业类型（药店/供应商/物流/监管）
+  unified_social_credit_code VARCHAR(18) UNIQUE,     -- 统一社会信用代码（企业唯一身份）
+  legal_representative VARCHAR(50),                  -- 法定代表人姓名
+  contact_person VARCHAR(50),                        -- 企业联系人
+  contact_phone VARCHAR(20),                         -- 企业联系电话
+  contact_email VARCHAR(100),                        -- 企业联系邮箱
+  address TEXT,                                      -- 企业注册地址
+  business_scope TEXT,                               -- 企业经营范围
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,           -- 企业状态（是否有效）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 最后更新时间
+);
+CREATE INDEX idx_tenants_name ON tenants(name);
+CREATE INDEX idx_tenants_type ON tenants(type);
+```
+
+### enterprise_certifications（企业认证）
+
+```
+CREATE TABLE enterprise_certifications (
+  id BIGSERIAL PRIMARY KEY,                          -- 认证申请唯一标识
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id),  -- 申请认证的企业ID
+  user_id BIGINT NOT NULL REFERENCES users(id),      -- 申请人用户ID
+  role_applied VARCHAR(50) NOT NULL,                 -- 申请的角色类型（PHARMACY/SUPPLIER/LOGISTICS）
+  business_license_file VARCHAR(255),                -- 营业执照文件路径（选填）
+  drug_license_file VARCHAR(255),                    -- 药品许可证文件路径（药店/供应商用户选填）
+  transport_license_file VARCHAR(255),               -- 运输许可证文件路径（物流用户选填）
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',     -- 审核状态（PENDING/APPROVED/REJECTED）
+  reject_reason TEXT,                                -- 本次驳回原因（可空）
+  reviewed_by BIGINT REFERENCES users(id),           -- 审核人ID
+  reviewed_at TIMESTAMPTZ,                           -- 审核时间
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),   -- 提交申请时间
+  application_count INTEGER NOT NULL DEFAULT 1,      -- 申请次数（累计，初始为1，最大由业务逻辑或约束控制）
+  max_retries INTEGER NOT NULL DEFAULT 3,            -- 最大重试次数（业务约束，为3次）
+  current_step VARCHAR(20) DEFAULT 'SUBMITTED',     -- 当前流程步骤（SUBMITTED/REVIEWING/COMPLETED）
+  previous_reject_reasons JSONB                       -- 历史驳回原因（数组/对象形式存储）
+);
+CREATE INDEX idx_ent_cert_tenant_id ON enterprise_certifications(tenant_id);
+CREATE INDEX idx_ent_cert_status ON enterprise_certifications(status);
+```
+
+> 说明：在当前系统开发需要生成模拟数据的条件下，药店、供应商、物流用户的资质文件为可选项；企业基础信息（如企业名称、统一社会信用代码、联系人、电话、邮箱、注册地址、经营范围）为必填。生产环境可通过配置开关恢复为强制上传并在后端校验非空。
+
+### drugs（药品主数据）
+
+```
+CREATE TABLE drugs (
+  id BIGSERIAL PRIMARY KEY,                          -- 药品唯一标识
+  generic_name VARCHAR(100) NOT NULL,                -- 药品通用名称
+  brand_name VARCHAR(100),                           -- 药品商品名/品牌名
+  approval_number VARCHAR(50) UNIQUE,                -- 国药准字号（药品批准文号）
+  dosage_form VARCHAR(50),                           -- 剂型（片剂、胶囊、注射液等）
+  specification VARCHAR(100),                        -- 规格（如10mg/片）
+  manufacturer VARCHAR(100),                         -- 生产厂家（注意：生产商并不是供应商。生产商不属于我们系统的管辖范围）
+  category VARCHAR(50),                              -- 药品分类（处方药、非处方药等）
+  prescription_type VARCHAR(20),                     -- 处方类型（OTC、处方药等）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 最后更新时间
+);
+CREATE INDEX idx_drugs_generic_name ON drugs(generic_name);
+```
+
+### inventory_items（库存）
+
+```
+CREATE TABLE inventory_items (
+  id BIGSERIAL PRIMARY KEY,                          -- 库存项唯一标识
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id),  -- 库存持有企业ID（数据隔离）
+  drug_id BIGINT NOT NULL REFERENCES drugs(id),      -- 药品ID
+  batch_number VARCHAR(50) NOT NULL,                 -- 生产批号（批次追溯关键）
+  production_date DATE NOT NULL,                     -- 生产日期
+  expiry_date DATE NOT NULL,                         -- 有效期至日期
+  quantity INTEGER NOT NULL CHECK (quantity >= 0),   -- 库存数量（不能为负数）
+  unit_price NUMERIC(10,2),                          -- 单价（采购价或成本价）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 最后更新时间
+  UNIQUE(tenant_id, drug_id, batch_number)           -- 同一企业同一药品同一批次唯一
+);
+CREATE INDEX idx_inventory_tenant ON inventory_items(tenant_id);
+CREATE INDEX idx_inventory_drug ON inventory_items(drug_id);
+CREATE INDEX idx_inventory_expiry ON inventory_items(expiry_date);
+```
+
+> 说明：本表仅表示“库存持有者”的现存数量与批次信息；任何入库/出库/调整/调拨等来源与变更均记录在 `inventory_transactions`，不在此表保存供应商/来源信息。
+
+### inventory_transactions（库存流水）
+
+```
+CREATE TABLE inventory_transactions (
+  id BIGSERIAL PRIMARY KEY,                                      -- 库存流水唯一标识
+  inventory_item_id BIGINT NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE, -- 关联库存项
+  transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('IN','OUT','ADJUST','TRANSFER')), -- 交易类型
+  quantity_delta INTEGER NOT NULL CHECK (quantity_delta <> 0),   -- 数量变动（入库为正，出库为负，调整可正可负）
+  source_tenant_id BIGINT REFERENCES tenants(id),                -- 对端企业（来源/去向，可空）
+  related_order_id BIGINT REFERENCES orders(id),                 -- 关联订单（可空）
+  notes TEXT,                                                    -- 备注
+  created_by BIGINT REFERENCES users(id),                        -- 操作人
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()                  -- 创建时间
+);
+CREATE INDEX idx_inv_tx_item_created ON inventory_transactions(inventory_item_id, created_at DESC);
+CREATE INDEX idx_inv_tx_order ON inventory_transactions(related_order_id);
+CREATE INDEX idx_inv_tx_source_tenant ON inventory_transactions(source_tenant_id);
+```
+
+### supply_info（供应信息）
+
+```
+CREATE TABLE supply_info (
+  id BIGSERIAL PRIMARY KEY,                                     -- 供应信息唯一标识
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id),             -- 供应商企业ID
+  drug_id BIGINT NOT NULL REFERENCES drugs(id),                 -- 供应的药品ID
+  available_quantity INTEGER NOT NULL CHECK (available_quantity > 0), -- 可供应数量（必须大于0）
+  unit_price NUMERIC(10,2) NOT NULL CHECK (unit_price > 0),     -- 供应单价（必须大于0）
+  valid_until DATE NOT NULL,                                    -- 供应信息有效期
+  min_order_quantity INTEGER NOT NULL DEFAULT 1,                -- 最小起订量
+  description TEXT,                                             -- 备注说明
+  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',                 -- 状态（ACTIVE/INACTIVE/EXPIRED）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),                -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()                 -- 最后更新时间
+);
+CREATE INDEX idx_supply_tenant ON supply_info(tenant_id);
+CREATE INDEX idx_supply_drug ON supply_info(drug_id);
+CREATE INDEX idx_supply_status ON supply_info(status);
+CREATE INDEX idx_supply_valid_until ON supply_info(valid_until);
+```
+
+### orders（订单，头）+ order_items（订单明细）
+
+```
+CREATE TABLE orders (
+  id BIGSERIAL PRIMARY KEY,                                     -- 订单唯一标识（数据库内部主键）
+  order_number VARCHAR(50) NOT NULL UNIQUE,                     -- 订单号（业务唯一标识，格式如：PH20251103001）
+  buyer_tenant_id BIGINT NOT NULL REFERENCES tenants(id),       -- 采购方企业ID
+  supplier_tenant_id BIGINT NOT NULL REFERENCES tenants(id),    -- 供应商企业ID
+  expected_delivery_date DATE,                                  -- 期望交付日期
+  notes TEXT,                                                   -- 订单备注
+  status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','CONFIRMED','SHIPPED','IN_TRANSIT','DELIVERED','COMPLETED','CANCELLED_BY_PHARMACY','CANCELLED_BY_SUPPLIER','EXPIRED_CANCELLED')), -- 订单状态（受限枚举）
+  logistics_tenant_id BIGINT REFERENCES tenants(id),            -- 物流公司企业ID
+  tracking_number VARCHAR(100),                                 -- 物流运单号
+  shipped_at TIMESTAMPTZ,                                       -- 发货时间
+  delivered_at TIMESTAMPTZ,                                     -- 送达时间
+  received_at TIMESTAMPTZ,                                      -- 收货确认时间
+  created_by BIGINT NOT NULL REFERENCES users(id),              -- 创建订单的用户ID（药店下单用户）
+  confirmed_by BIGINT REFERENCES users(id),                     -- 确认订单的用户ID（供应商用户）
+  confirmed_at TIMESTAMPTZ,                                     -- 供应商确认时间
+  received_confirmed_by BIGINT REFERENCES users(id),            -- 确认收货的用户ID（药店用户）
+  cancelled_by BIGINT REFERENCES users(id),                     -- 取消订单的用户ID（药店或供应商用户）
+  cancelled_at TIMESTAMPTZ,                                     -- 订单取消时间
+  cancel_reason TEXT,                                           -- 取消原因
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),                -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()                 -- 最后更新时间
+);
+CREATE INDEX idx_orders_buyer ON orders(buyer_tenant_id);
+CREATE INDEX idx_orders_supplier ON orders(supplier_tenant_id);
+CREATE INDEX idx_orders_logistics ON orders(logistics_tenant_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created ON orders(created_at);
+CREATE INDEX idx_orders_created_by ON orders(created_by);
+CREATE INDEX idx_orders_confirmed_by ON orders(confirmed_by);
+CREATE INDEX idx_orders_cancelled_by ON orders(cancelled_by);
+
+CREATE TABLE order_items (
+  id BIGSERIAL PRIMARY KEY,                                          -- 订单明细唯一标识
+  order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,  -- 订单ID
+  drug_id BIGINT NOT NULL REFERENCES drugs(id),                      -- 药品ID
+  batch_number VARCHAR(50),                                          -- 指定批号（可选）
+  unit_price NUMERIC(10,2) NOT NULL CHECK (unit_price > 0),          -- 成交单价（必须大于0）
+  quantity INTEGER NOT NULL CHECK (quantity > 0),                    -- 订购数量（必须大于0）
+  total_amount NUMERIC(12,2) GENERATED ALWAYS AS (unit_price * quantity) STORED -- 明细金额（自动计算）
+);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_drug ON order_items(drug_id);
+```
+
+> 说明：
+>
+> 1. `order_number` 采用业务友好的格式，建议规则：`{买方类型代码}{YYYYMMDD}{序号}`，如 `PH20251103001`（药店2025年11月3日第1个订单），便于用户识别和客服支持。
+> 2. `id` 作为数据库内部主键用于关联查询，`order_number` 作为业务标识用于用户交互，两者分工明确。
+> 3. 订单相关用户字段说明：
+>    - `created_by`: 创建订单的药店用户
+>    - `confirmed_by`: 确认订单的供应商用户
+>    - `received_confirmed_by`: 确认收货的药店用户
+>    - `cancelled_by`: 取消订单的用户（可能是药店或供应商用户）
+
+#### 订单状态流转规则
+
+**状态定义：**
+
+- `PENDING` (待确认) - 药店已下单，等待供应商确认
+- `CONFIRMED` (已确认) - 供应商确认接受订单
+- `SHIPPED` (已发货) - 供应商已发货，等待物流接收
+- `IN_TRANSIT` (运输中) - 物流已接收，正在运输途中
+- `DELIVERED` (已送达) - 药品已送达目的地
+- `COMPLETED` (已完成) - 药店已确认收到药品，订单完成
+- `CANCELLED_BY_PHARMACY` (药店取消) - 药店在待确认期间取消
+- `CANCELLED_BY_SUPPLIER` (供应商取消) - 供应商拒绝接受订单
+- `EXPIRED_CANCELLED` (超时取消) - 供应商24小时内未响应
+
+**状态流转规则：**
+
+- `PENDING` → `CONFIRMED` (供应商确认)
+- `PENDING` → `CANCELLED_BY_SUPPLIER` (供应商拒绝)
+- `PENDING` → `CANCELLED_BY_PHARMACY` (药店取消)
+- `PENDING` → `EXPIRED_CANCELLED` (系统超时)
+- `CONFIRMED` → `SHIPPED` (供应商发货)
+- `SHIPPED` → `IN_TRANSIT` (物流开始运输)
+- `IN_TRANSIT` → `DELIVERED` (物流送达)
+- `DELIVERED` → `COMPLETED` (药店确认收货)
+
+#### 订单状态流转规则
+
+**状态定义：**
+
+- `PENDING` (待确认) - 药店已下单，等待供应商确认
+- `CONFIRMED` (已确认) - 供应商确认接受订单
+- `SHIPPED` (已发货) - 供应商已发货，等待物流接收
+- `IN_TRANSIT` (运输中) - 物流已接收，正在运输途中
+- `DELIVERED` (已送达) - 药品已送达目的地
+- `COMPLETED` (已完成) - 药店已确认收到药品，订单完成
+- `CANCELLED_BY_PHARMACY` (药店取消) - 药店在待确认期间取消
+- `CANCELLED_BY_SUPPLIER` (供应商取消) - 供应商拒绝接受订单
+- `EXPIRED_CANCELLED` (超时取消) - 供应商24小时内未响应
+
+**状态流转规则：**
+
+- `PENDING` → `CONFIRMED` (供应商确认)
+- `PENDING` → `CANCELLED_BY_SUPPLIER` (供应商拒绝)
+- `PENDING` → `CANCELLED_BY_PHARMACY` (药店取消)
+- `PENDING` → `EXPIRED_CANCELLED` (系统超时)
+- `CONFIRMED` → `SHIPPED` (供应商发货)
+- `SHIPPED` → `IN_TRANSIT` (物流开始运输)
+- `IN_TRANSIT` → `DELIVERED` (物流送达)
+- `DELIVERED` → `COMPLETED` (药店确认收货)
+
+### circulation_records（流通记录）
+
+```
+CREATE TABLE circulation_records (
+  id BIGSERIAL PRIMARY KEY,                          -- 流通记录唯一标识
+  tracking_number VARCHAR(100) NOT NULL UNIQUE,      -- 流通追踪号（即运单号）
+  order_id BIGINT NOT NULL REFERENCES orders(id),    -- 关联订单ID
+  seller_tenant_id BIGINT NOT NULL REFERENCES tenants(id), -- 卖方企业ID
+  buyer_tenant_id BIGINT NOT NULL REFERENCES tenants(id),  -- 买方企业ID
+  drug_id BIGINT NOT NULL REFERENCES drugs(id),      -- 流通药品ID
+  batch_number VARCHAR(50) NOT NULL,                 -- 药品批号（追溯关键）
+  quantity INTEGER NOT NULL CHECK (quantity > 0),    -- 流通数量（必须大于0）
+  status VARCHAR(20) NOT NULL DEFAULT 'SHIPPED',     -- 流通状态（SHIPPED/IN_TRANSIT/DELIVERED）
+  current_location VARCHAR(255),                     -- 当前位置
+  notes TEXT,                                        -- 备注信息
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 创建时间
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()      -- 最后更新时间
+);
+CREATE INDEX idx_circ_tracking ON circulation_records(tracking_number);
+CREATE INDEX idx_circ_order ON circulation_records(order_id);
+CREATE INDEX idx_circ_batch ON circulation_records(batch_number);
+```
+
+### logistics_records（物流记录）
+
+```
+CREATE TABLE logistics_records (
+  id BIGSERIAL PRIMARY KEY,                                      -- 物流记录唯一标识
+  circulation_record_id BIGINT NOT NULL REFERENCES circulation_records(id) ON DELETE CASCADE, -- 关联流通记录ID
+  logistics_tenant_id BIGINT NOT NULL REFERENCES tenants(id),    -- 物流公司企业ID
+  status VARCHAR(20) NOT NULL,                                   -- 运输状态（SHIPPED/IN_TRANSIT/DELIVERED）
+  location VARCHAR(255),                                         -- 当前位置描述
+  latitude NUMERIC(10,8),                                        -- 纬度坐标
+  longitude NUMERIC(11,8),                                       -- 经度坐标
+  estimated_arrival TIMESTAMPTZ,                                 -- 预计到达时间
+  notes TEXT,                                                    -- 备注信息
+  created_by BIGINT NOT NULL REFERENCES users(id),              -- 记录创建人ID
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()                 -- 记录创建时间
+);
+CREATE INDEX idx_logistics_circ ON logistics_records(circulation_record_id);
+CREATE INDEX idx_logistics_tenant ON logistics_records(logistics_tenant_id);
+CREATE INDEX idx_logistics_status ON logistics_records(status);
+CREATE INDEX idx_logistics_created ON logistics_records(created_at);
+```
+
+### operation_logs（操作日志）/ password_reset_tokens（密码重置）
+
+```
+CREATE TABLE operation_logs (
+  id BIGSERIAL PRIMARY KEY,                          -- 操作日志唯一标识
+  actor_type VARCHAR(10) NOT NULL CHECK (actor_type IN ('USER','SYSTEM')), -- 操作发起方类型
+  user_id BIGINT REFERENCES users(id),               -- 当actor_type='USER'时的操作者用户ID；SYSTEM时为空
+  tenant_id BIGINT REFERENCES tenants(id),           -- 操作发生时的租户上下文（可空，用于跨租户/系统任务按租户审计）
+  action VARCHAR(100) NOT NULL,                      -- 操作类型（CREATE/UPDATE/DELETE/APPROVE/REJECT等）
+  resource_type VARCHAR(50) NOT NULL,                -- 操作的资源类型（如user、order、inventory_item）
+  resource_id BIGINT,                                -- 资源主键ID（可空，用于批量/聚合操作）
+  old_values JSONB,                                  -- 操作前的数据快照（JSON）
+  new_values JSONB,                                  -- 操作后的数据快照（JSON）
+  status VARCHAR(10) NOT NULL DEFAULT 'SUCCESS' CHECK (status IN ('SUCCESS','FAILED')), -- 执行结果
+  error_message TEXT,                                -- 失败时的错误信息（可空）
+  request_id VARCHAR(100),                           -- 请求追踪ID（如X-Request-Id）
+  ip_address VARCHAR(45),                            -- 操作来源IP（IPv4/IPv6）
+  user_agent TEXT,                                   -- 客户端标识字符串。Web端记录浏览器UA；系统任务写入如'system/<job-name>'
+  http_method VARCHAR(10),                           -- HTTP 方法（GET/POST/...，可空）
+  http_path TEXT,                                    -- HTTP 路径（可空）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),     -- 操作时间
+  CHECK ((actor_type='USER' AND user_id IS NOT NULL) OR (actor_type='SYSTEM' AND user_id IS NULL)) -- 约束用户/系统一致性
+);
+-- 索引
+CREATE INDEX idx_oplog_tenant_created ON operation_logs(tenant_id, created_at DESC);
+CREATE INDEX idx_oplog_user_created ON operation_logs(user_id, created_at DESC);
+CREATE INDEX idx_oplog_resource ON operation_logs(resource_type, resource_id);
+CREATE INDEX idx_oplog_request ON operation_logs(request_id);
+
+CREATE TABLE password_reset_tokens (
+  id BIGSERIAL PRIMARY KEY,                                      -- 密码重置令牌唯一标识
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- 用户ID
+  token VARCHAR(255) NOT NULL UNIQUE,                            -- 重置令牌（唯一）
+  expires_at TIMESTAMPTZ NOT NULL,                               -- 令牌过期时间
+  used_at TIMESTAMPTZ,                                           -- 令牌使用时间（使用后填入）
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()                  -- 令牌创建时间
+);
+CREATE INDEX idx_pwdreset_user ON password_reset_tokens(user_id);
+CREATE INDEX idx_pwdreset_expires ON password_reset_tokens(expires_at);
 ```
 
 # 用户角色与权限
