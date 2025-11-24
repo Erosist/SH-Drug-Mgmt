@@ -6,18 +6,22 @@ test-backend:
   tags:
     - SH-Drug-Mgmt
   before_script:
+    - pwd
+    - ls
     - cd backend
-    - pip install -r requirements.txt
-    - pip install pytest pytest-flask pytest-mock
+    - python -m pip install -r requirements.txt
+    - python -m pip install pytest pytest-flask pytest-mock
   script:
-    - export PYTHONPATH=".:$PYTHONPATH"  # Linux/Unix 语法
-    - pytest --tb=short -v
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
+    - python -m pytest --tb=short -v
 
 test-frontend:
   stage: test
   tags:
     - SH-Drug-Mgmt
   before_script:
+    - pwd
+    - ls
     - cd frontend
     - npm install
   script:
