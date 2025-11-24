@@ -4,7 +4,7 @@
       <h3>药品采购下单</h3>
       <div class="header-actions">
         <el-button @click="refreshOrders" :loading="loading" icon="Refresh" circle />
-        <el-tooltip v-if="!canUseRealApi" content="仅药店/管理员账号可以在此页面真实下单" placement="top">
+        <el-tooltip v-if="!canUseRealApi" content="仅药店/供应商/管理员账号可以在此页面真实下单" placement="top">
           <span>
             <el-button type="primary" :disabled="!canUseRealApi" icon="Plus">
               新建采购单
@@ -29,7 +29,7 @@
       :closable="false"
       class="auth-hint"
       title="当前仅供监管角色查看演示"
-      description="如需真实下单或查看订单，请使用药店或管理员账号登录。监管账号不会请求后台接口。"
+      description="如需真实下单或查看订单，请使用药店、供应商或管理员账号登录。监管账号不会请求后台接口。"
     />
 
     <!-- 订单统计 -->
@@ -232,7 +232,7 @@
       </div>
     </el-card>
     <el-card v-else class="list-card" shadow="never">
-      <el-empty description="监管角色不加载真实订单，可切换到药店账号体验下单流程。" />
+      <el-empty description="监管角色不加载真实订单，可切换到药店或供应商账号体验下单流程。" />
     </el-card>
 
     <!-- 新建采购单对话框 -->
@@ -509,9 +509,15 @@ const selectedSupplyInfo = computed(() => {
 })
 
 const currentUser = ref(getCurrentUser())
+const currentRole = computed(() => currentUser.value?.role)
 const canUseRealApi = computed(() => {
-  const role = currentUser.value?.role
-  return role === 'pharmacy' || role === 'admin'
+  const role = currentRole.value
+  return role === 'pharmacy' || role === 'supplier' || role === 'admin'
+})
+const orderRoleFilter = computed(() => {
+  const role = currentRole.value
+  if (role === 'supplier' || role === 'pharmacy') return 'my_purchases'
+  return undefined
 })
 const syncUser = () => {
   currentUser.value = getCurrentUser()
@@ -543,7 +549,10 @@ const fetchOrders = async () => {
       order_number: filters.orderNumber || undefined,
       status: filters.status || undefined,
       drug_name: filters.drugName || undefined,
-      role_filter: 'my_purchases' // 只显示我的采购订单
+      role_filter: orderRoleFilter.value
+    }
+    if (!params.role_filter) {
+      delete params.role_filter
     }
     
     const response = await orderApi.getOrders(params)
@@ -658,7 +667,7 @@ const resetCreateForm = () => {
 
 const submitOrder = async () => {
   if (!canUseRealApi.value) {
-    ElMessage.warning('请使用药店或管理员账号登录后再下单')
+    ElMessage.warning('请使用药店、供应商或管理员账号登录后再下单')
     return
   }
   if (!createFormRef.value) return

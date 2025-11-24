@@ -61,20 +61,7 @@ export function getCurrentUser() {
 
 // 根据角色返回对应路由路径
 export function roleToRoute(role) {
-  switch (role) {
-    case 'pharmacy':
-      return '/pharmacy'
-    case 'supplier':
-      return '/supplier'
-    case 'logistics':
-      return '/logistics'
-    case 'regulator':
-      return '/regulator'
-    case 'unauth':
-      return '/unauth'
-    default:
-      return '/'
-  }
+  return '/'
 }
 
 // 是否需要认证的路径统一由路由 meta 控制，这里辅助判断

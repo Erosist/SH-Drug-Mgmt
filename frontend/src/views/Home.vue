@@ -48,7 +48,7 @@
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
-            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
+            <button v-else class="login-btn" @click="handleLogout">退出登录</button>
           </div>
         </div>
       </div>
@@ -162,8 +162,7 @@
 <script>
 import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
-import { roleToRoute } from '@/utils/roleRoute'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
 
 export default {
   name: 'Home',
@@ -216,10 +215,10 @@ export default {
       currentUser.value = getCurrentUser()
     }
 
-    const goToUserHome = () => {
-      const u = currentUser.value
-      if (!u) return router.push('/login')
-      router.push(roleToRoute(u.role))
+    const handleLogout = () => {
+      clearAuth()
+      currentUser.value = null
+      router.push('/login')
     }
     
     const navigateTo = (page) => {
@@ -258,7 +257,7 @@ export default {
 
     return {
       goToLogin,
-      goToUserHome,
+      handleLogout,
       goToEnterpriseAuth,
       goToEnterpriseReview,
       goToSystemStatus,

@@ -186,6 +186,9 @@ npm run test:run
 ```bash
 # 启动后端服务
 cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 python run.py
 
 # 启动前端开发服务器
