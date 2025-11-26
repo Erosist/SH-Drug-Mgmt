@@ -186,6 +186,9 @@ npm run test:run
 ```bash
 # 启动后端服务
 cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 python run.py
 
 # 启动前端开发服务器
@@ -261,13 +264,13 @@ npm run build
 - **源分支**: `backend-dev`
 - **重构分支**: `refactor/project-structure-reorganization`
 - **目标分支**: `main`
-
+- **推荐合并到**: `main` (经过测试后)
 
 ## ⚠️ 注意事项
 - 此次重构为breaking change，需要更新开发环境路径
 - 建议团队成员重新clone仓库或更新本地分支
 - 相关CI/CD Runner配置已优化，无需额外操作
-```
+
 
 ## 📝 后续建议
 

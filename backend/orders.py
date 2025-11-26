@@ -21,14 +21,14 @@ def get_authenticated_user():
     return User.query.get(user_id)
 
 
-def require_pharmacy_role(f):
-    """装饰器：要求药店角色"""
+def require_buyer_role(f):
+    """装饰器：要求具备下单权限的角色"""
     def wrapper(*args, **kwargs):
         user = get_authenticated_user()
         if not user:
             return jsonify({'msg': '用户未登录'}), 401
-        if user.role not in ['pharmacy', 'admin']:
-            return jsonify({'msg': '权限不足，需要药店角色'}), 403
+        if user.role not in ['pharmacy', 'supplier', 'admin']:
+            return jsonify({'msg': '权限不足，需要药店或供应商角色'}), 403
         return f(user, *args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
@@ -65,7 +65,7 @@ def can_access_order(user, order):
 
 @bp.route('', methods=['POST'])
 @jwt_required()
-@require_pharmacy_role
+@require_buyer_role
 def create_order(current_user):
     """
     创建订单（下单）
@@ -398,7 +398,7 @@ def confirm_order(current_user, order_id):
 
 @bp.route('/<int:order_id>/cancel', methods=['POST'])
 @jwt_required()
-@require_pharmacy_role
+@require_buyer_role
 def cancel_order(current_user, order_id):
     """
     药店取消订单
@@ -514,7 +514,7 @@ def ship_order(current_user, order_id):
 
 @bp.route('/<int:order_id>/receive', methods=['POST'])
 @jwt_required()
-@require_pharmacy_role
+@require_buyer_role
 def receive_order(current_user, order_id):
     """
     药店确认收货

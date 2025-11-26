@@ -17,14 +17,14 @@ test-backend:
     - python -m pip install --quiet -r requirements.txt
     - python -m pip install --quiet pytest pytest-flask pytest-mock
     - Write-Host "Running tests..."
-    - $env:PYTHONPATH = "."
+    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
     - python -m pytest tests/ -v --tb=short
     - Write-Host "=== Backend Test Completed ==="
 
 test-frontend:
   stage: test
   tags:
-    - SH-Drug-Mgmt  
+    - SH-Drug-Mgmt
   script:
     - Write-Host "=== Frontend Test Started ==="
     - Set-Location frontend
