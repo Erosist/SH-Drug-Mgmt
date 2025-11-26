@@ -1,0 +1,101 @@
+{
+  "name": "ApiFox环境配置",
+  "environments": [
+    {
+      "name": "本地开发环境",
+      "values": [
+        {
+          "key": "baseUrl",
+          "value": "http://127.0.0.1:5000",
+          "enabled": true
+        },
+        {
+          "key": "token",
+          "value": "",
+          "enabled": true,
+          "description": "登录后自动获取"
+        }
+      ]
+    },
+    {
+      "name": "Mock云端环境",
+      "values": [
+        {
+          "key": "baseUrl", 
+          "value": "{{mock_server_url}}",
+          "enabled": true,
+          "description": "替换为ApiFox生成的Mock地址"
+        },
+        {
+          "key": "token",
+          "value": "{{$randomUuid}}",
+          "enabled": true,
+          "description": "Mock环境自动生成假token"
+        },
+        {
+          "key": "user_id",
+          "value": "{{$randomInt(1,100)}}",
+          "enabled": true
+        },
+        {
+          "key": "drug_id", 
+          "value": "{{$randomInt(1,50)}}",
+          "enabled": true
+        },
+        {
+          "key": "supplier_id",
+          "value": "{{$randomInt(1,20)}}",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "mock_rules": {
+    "auth_login": {
+      "response": {
+        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.{{$randomString(50)}}",
+        "user": {
+          "id": "{{$randomInt(1,100)}}",
+          "username": "{{$randomString(5,10)}}",
+          "email": "{{$randomEmail}}",
+          "role": "{{$randomPick(['pharmacy','supplier','logistics','regulator'])}}",
+          "created_at": "{{$randomDatetime}}"
+        }
+      }
+    },
+    "supply_list": {
+      "response": {
+        "supplies": [
+          {
+            "id": "{{$randomInt(1,100)}}",
+            "drug_id": "{{$randomInt(1,50)}}",
+            "supplier_id": "{{$randomInt(1,20)}}",
+            "quantity": "{{$randomInt(100,5000)}}",
+            "unit_price": "{{$randomFloat(1,100)}}",
+            "expiry_date": "{{$randomDate}}",
+            "description": "{{$randomString(10,50)}}",
+            "status": "{{$randomPick(['available','reserved','sold'])}}",
+            "created_at": "{{$randomDatetime}}",
+            "drug": {
+              "generic_name": "{{$randomPick(['阿司匹林','布洛芬','对乙酰氨基酚'])}}",
+              "brand_name": "{{$randomPick(['拜阿司匹林','布洛芬缓释片','泰诺林'])}}"
+            },
+            "supplier": {
+              "name": "{{$randomPick(['华润医药','国药控股','上海医药'])}}"
+            }
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "per_page": 10,
+          "total": "{{$randomInt(50,200)}}",
+          "pages": "{{$randomInt(5,20)}}"
+        }
+      }
+    }
+  },
+  "post_scripts": {
+    "login_save_token": "if (pm.response.code === 200) { const response = pm.response.json(); pm.environment.set('token', response.access_token); }",
+    "set_auth_header": "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('token') });"
+  }
+}
