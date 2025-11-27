@@ -94,6 +94,11 @@
           </el-card>
         </div>
 
+        <!-- 订单管理 -->
+        <div v-else-if="activeMenu==='orders'">
+          <SupplierOrderManagement />
+        </div>
+
         <!-- 其他功能模块 -->
         <div v-else>
           <el-card class="panel">
@@ -129,16 +134,18 @@
 <script>
 import UserHeader from '../component/UserHeader.vue'
 import SupplyInfoManagement from '../component/SupplyInfoManagement.vue'
+import SupplierOrderManagement from '../component/SupplierOrderManagement.vue'
 
 export default {
   name: 'SupplierUser',
   components: { 
     UserHeader,
-    SupplyInfoManagement
+    SupplyInfoManagement,
+    SupplierOrderManagement
   },
   data() {
     return {
-      activeMenu: 'supply',
+      activeMenu: 'orders',  // 默认选择订单管理
       activeTab: 'list',
       q: '',
       status: '',

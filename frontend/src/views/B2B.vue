@@ -109,31 +109,49 @@
       <!-- 已发布记录列表 -->
       <div class="records-section">
         <h3 class="section-title">最新发布记录</h3>
-        <table class="records-table">
-          <thead>
-            <tr>
-              <th>类型</th>
-              <th>药品名称</th>
-              <th>数量</th>
-              <th>价格/总价</th>
-              <th>状态</th>
-              <th>日期</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(r,i) in records" :key="i">
-              <td>{{ r.kind }}</td>
-              <td>{{ r.drugName }}</td>
-              <td>{{ r.quantity }}</td>
-              <td>{{ r.priceInfo }}</td>
-              <td>{{ r.status }}</td>
-              <td>{{ r.date }}</td>
-            </tr>
-            <tr v-if="records.length===0">
-              <td colspan="6" class="empty">暂无记录</td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-loading="recordsLoading" class="records-container">
+          <table class="records-table" v-if="realRecords.length > 0">
+            <thead>
+              <tr>
+                <th>类型</th>
+                <th>药品名称</th>
+                <th>数量/价格</th>
+                <th>状态</th>
+                <th>日期</th>
+                <th>操作方</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(record, index) in realRecords" :key="index">
+                <td>
+                  <el-tag 
+                    :type="record.type === 'supply' ? 'success' : record.type === 'order' ? 'primary' : 'info'"
+                    size="small"
+                  >
+                    {{ record.typeName }}
+                  </el-tag>
+                </td>
+                <td>{{ record.drugName }}</td>
+                <td>{{ record.quantityAndPrice }}</td>
+                <td>
+                  <el-tag 
+                    :type="getRecordStatusType(record.status)" 
+                    size="small"
+                  >
+                    {{ record.statusText }}
+                  </el-tag>
+                </td>
+                <td>{{ record.date }}</td>
+                <td>{{ record.operatorName }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <el-empty 
+            v-else-if="!recordsLoading"
+            description="暂无记录" 
+            :image-size="80"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -148,6 +166,8 @@ import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
 import MockOrder from '@/views/MockOrder.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
+import { supplyApi } from '@/api/supply'
+import { orderApi } from '@/api/orders'
 import { getRoleLabel } from '@/utils/roleLabel'
 
 export default {
@@ -206,6 +226,8 @@ export default {
     })
 
     const records = ref([])
+    const realRecords = ref([])
+    const recordsLoading = ref(false)
 
     const totalPrice = computed(() => {
       const q = supplyForm.value.quantity || 0
@@ -318,10 +340,129 @@ export default {
     }
 
     const refreshUser = () => { currentUser.value = getCurrentUser() }
-    onMounted(() => { window.addEventListener('storage', refreshUser) })
+    onMounted(() => { 
+      window.addEventListener('storage', refreshUser)
+      loadRecentRecords()
+    })
     onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
 
-  return { activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+    // 获取最新记录数据
+    const loadRecentRecords = async () => {
+      if (!currentUser.value || ['unauth', 'regulator'].includes(currentUser.value.role)) {
+        realRecords.value = []
+        return
+      }
+
+      recordsLoading.value = true
+      try {
+        const records = []
+
+        // 获取最新供应信息
+        try {
+          const supplyResponse = await supplyApi.getSupplyList({ per_page: 5 })
+          if (supplyResponse.data?.data?.items) {
+            supplyResponse.data.data.items.forEach(item => {
+              records.push({
+                type: 'supply',
+                typeName: '供应信息',
+                drugName: item.drug?.generic_name || '未知药品',
+                quantityAndPrice: `${item.available_quantity}个 / ¥${item.unit_price}`,
+                status: item.status,
+                statusText: item.status === 'ACTIVE' ? '有效' : '无效',
+                date: formatDate(item.created_at),
+                operatorName: item.tenant?.name || '未知',
+                createdAt: item.created_at
+              })
+            })
+          }
+        } catch (error) {
+          console.log('获取供应信息失败:', error)
+        }
+
+        // 获取最新订单
+        try {
+          const ordersResponse = await orderApi.getOrders({ per_page: 5 })
+          if (ordersResponse.data?.data?.items) {
+            ordersResponse.data.data.items.forEach(item => {
+              const drugName = item.items?.[0]?.drug?.generic_name || '未知药品'
+              const quantity = item.items?.[0]?.quantity || 0
+              const unitPrice = item.items?.[0]?.unit_price || 0
+              
+              records.push({
+                type: 'order',
+                typeName: '采购订单',
+                drugName: drugName,
+                quantityAndPrice: `${quantity}个 / ¥${unitPrice}`,
+                status: item.status,
+                statusText: getOrderStatusText(item.status),
+                date: formatDate(item.created_at),
+                operatorName: item.buyer_tenant?.name || '未知',
+                createdAt: item.created_at
+              })
+            })
+          }
+        } catch (error) {
+          console.log('获取订单信息失败:', error)
+        }
+
+        // 按创建时间排序，最新的在前
+        records.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        realRecords.value = records.slice(0, 10) // 只显示最新10条
+
+      } catch (error) {
+        console.error('加载记录失败:', error)
+      } finally {
+        recordsLoading.value = false
+      }
+    }
+
+    const formatDate = (dateStr) => {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      return date.toLocaleDateString('zh-CN', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+
+    const getOrderStatusText = (status) => {
+      const statusMap = {
+        'PENDING': '待确认',
+        'CONFIRMED': '已确认',
+        'SHIPPED': '已发货',
+        'IN_TRANSIT': '运输中',
+        'DELIVERED': '已送达',
+        'COMPLETED': '已完成',
+        'CANCELLED_BY_PHARMACY': '药店取消',
+        'CANCELLED_BY_SUPPLIER': '供应商取消',
+        'EXPIRED_CANCELLED': '超时取消'
+      }
+      return statusMap[status] || status
+    }
+
+    const getRecordStatusType = (status) => {
+      const statusTypeMap = {
+        'ACTIVE': 'success',
+        'PENDING': 'warning',
+        'CONFIRMED': 'primary',
+        'SHIPPED': 'info',
+        'COMPLETED': 'success',
+        'CANCELLED_BY_PHARMACY': 'danger',
+        'CANCELLED_BY_SUPPLIER': 'danger',
+        'EXPIRED_CANCELLED': 'danger'
+      }
+      return statusTypeMap[status] || 'info'
+    }
+
+  return { 
+    activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, 
+    navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, 
+    goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, 
+    resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
+    realRecords, recordsLoading, loadRecentRecords, getRecordStatusType
+  }
   }
 }
 </script>
@@ -383,6 +524,7 @@ export default {
 
 .records-section { background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.05); padding:20px; }
 .section-title { font-size:16px; font-weight:bold; color:#333; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #eee; }
+.records-container { min-height: 200px; }
 .records-table { width:100%; border-collapse:collapse; font-size:14px; }
 .records-table th, .records-table td { padding:10px 8px; border-bottom:1px solid #eee; text-align:left; }
 .records-table th { background:#f8f9fa; font-weight:600; }

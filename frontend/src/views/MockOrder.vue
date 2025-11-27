@@ -31,52 +31,153 @@
       title="当前仅供监管角色查看演示"
       description="如需真实下单或查看订单，请使用药店、供应商或管理员账号登录。监管账号不会请求后台接口。"
     />
-
+    
     <!-- 订单统计 -->
     <div class="stats-panel" v-if="canUseRealApi && orderStats">
-      <el-row :gutter="16">
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card">
+      <!-- 物流用户只显示相关状态 -->
+      <el-row v-if="currentRole === 'logistics'" :gutter="16">
+        <el-col :span="6">
+          <el-card 
+            class="stats-card" 
+            :class="{ active: currentStatusFilter === '' }"
+            @click="filterByStatus('')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.total || 0 }}</div>
               <div class="stats-label">总订单</div>
             </div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card pending">
+        <el-col :span="6">
+          <el-card 
+            class="stats-card shipped" 
+            :class="{ active: currentStatusFilter === 'SHIPPED' }"
+            @click="filterByStatus('SHIPPED')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.shipped || 0 }}</div>
+              <div class="stats-label">待揽收</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card 
+            class="stats-card in-transit" 
+            :class="{ active: currentStatusFilter === 'IN_TRANSIT' }"
+            @click="filterByStatus('IN_TRANSIT')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.in_transit || 0 }}</div>
+              <div class="stats-label">运输中</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card 
+            class="stats-card delivered" 
+            :class="{ active: currentStatusFilter === 'DELIVERED' }"
+            @click="filterByStatus('DELIVERED')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.delivered || 0 }}</div>
+              <div class="stats-label">已送达</div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      
+      <!-- 非物流用户显示完整状态（优化为单行布局） -->
+      <el-row v-else :gutter="12" class="stats-row-normal">
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact" 
+            :class="{ active: currentStatusFilter === '' }"
+            @click="filterByStatus('')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.total || 0 }}</div>
+              <div class="stats-label">总订单</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact pending" 
+            :class="{ active: currentStatusFilter === 'PENDING' }"
+            @click="filterByStatus('PENDING')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.pending || 0 }}</div>
               <div class="stats-label">待确认</div>
             </div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card confirmed">
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact confirmed" 
+            :class="{ active: currentStatusFilter === 'CONFIRMED' }"
+            @click="filterByStatus('CONFIRMED')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.confirmed || 0 }}</div>
               <div class="stats-label">已确认</div>
             </div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card shipped">
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact shipped" 
+            :class="{ active: currentStatusFilter === 'SHIPPED' }"
+            @click="filterByStatus('SHIPPED')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.shipped || 0 }}</div>
               <div class="stats-label">已发货</div>
             </div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card completed">
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact in-transit" 
+            :class="{ active: currentStatusFilter === 'IN_TRANSIT' }"
+            @click="filterByStatus('IN_TRANSIT')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.in_transit || 0 }}</div>
+              <div class="stats-label">运输中</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact delivered" 
+            :class="{ active: currentStatusFilter === 'DELIVERED' }"
+            @click="filterByStatus('DELIVERED')"
+          >
+            <div class="stats-content">
+              <div class="stats-number">{{ orderStats.delivered || 0 }}</div>
+              <div class="stats-label">已送达</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact completed" 
+            :class="{ active: currentStatusFilter === 'COMPLETED' }"
+            @click="filterByStatus('COMPLETED')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.completed || 0 }}</div>
               <div class="stats-label">已完成</div>
             </div>
           </el-card>
         </el-col>
-        <el-col :xs="12" :sm="8" :md="4">
-          <el-card class="stats-card cancelled">
+        <el-col :xs="6" :sm="4" :md="3" :lg="3" :xl="3">
+          <el-card 
+            class="stats-card compact cancelled" 
+            :class="{ active: currentStatusFilter === 'CANCELLED' }"
+            @click="filterByStatus('CANCELLED')"
+          >
             <div class="stats-content">
               <div class="stats-number">{{ orderStats.cancelled || 0 }}</div>
               <div class="stats-label">已取消</div>
@@ -188,31 +289,116 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button 
-                type="primary" 
-                size="small"
-                @click.stop="viewOrderDetail(row)"
-              >
-                查看详情
-              </el-button>
-              <el-button 
-                v-if="row.status === 'PENDING'"
-                type="danger" 
-                size="small"
-                @click.stop="cancelOrder(row)"
-              >
-                取消订单
-              </el-button>
-              <el-button 
-                v-if="row.status === 'DELIVERED'"
-                type="success" 
-                size="small"
-                @click.stop="confirmReceipt(row)"
-              >
-                确认收货
-              </el-button>
+              <div class="action-buttons">
+                <!-- 查看详情按钮（所有状态都有） -->
+                <el-button 
+                  type="primary" 
+                  size="small"
+                  @click.stop="viewOrderDetail(row)"
+                >
+                  查看详情
+                </el-button>
+
+                <!-- 供应商操作 -->
+                <template v-if="currentRole === 'supplier'">
+                  <!-- 待确认状态：供应商可以确认或取消 -->
+                  <template v-if="row.status === 'PENDING'">
+                    <el-button 
+                      type="success" 
+                      size="small"
+                      @click.stop="confirmOrder(row)"
+                    >
+                      确认订单
+                    </el-button>
+                    <el-button 
+                      type="danger" 
+                      size="small"
+                      @click.stop="rejectOrder(row)"
+                    >
+                      拒绝订单
+                    </el-button>
+                  </template>
+                  <!-- 已确认状态：供应商可以发货 -->
+                  <template v-if="row.status === 'CONFIRMED'">
+                    <el-button 
+                      type="warning" 
+                      size="small"
+                      @click.stop="shipOrder(row)"
+                    >
+                      发货
+                    </el-button>
+                  </template>
+                </template>
+
+                <!-- 物流公司操作 -->
+                <template v-if="currentRole === 'logistics'">
+                  <!-- 待揽收状态（SHIPPED）：物流公司可以标记为运输中 -->
+                  <template v-if="row.status === 'SHIPPED'">
+                    <el-button 
+                      type="primary" 
+                      size="small"
+                      @click.stop="markAsInTransit(row)"
+                    >
+                      标记运输中
+                    </el-button>
+                  </template>
+                  <!-- 运输中状态：物流公司可以标记为已送达 -->
+                  <template v-if="row.status === 'IN_TRANSIT'">
+                    <el-button 
+                      type="success" 
+                      size="small"
+                      @click.stop="markAsDelivered(row)"
+                    >
+                      标记已送达
+                    </el-button>
+                  </template>
+                </template>
+
+                <!-- 药店操作 -->
+                <template v-if="currentRole === 'pharmacy'">
+                  <!-- 待确认状态：药店可以取消 -->
+                  <template v-if="row.status === 'PENDING'">
+                    <el-button 
+                      type="danger" 
+                      size="small"
+                      @click.stop="cancelOrderByPharmacy(row)"
+                    >
+                      取消订单
+                    </el-button>
+                  </template>
+                  <!-- 已送达状态：药店可以确认收货 -->
+                  <template v-if="row.status === 'DELIVERED'">
+                    <el-button 
+                      type="success" 
+                      size="small"
+                      @click.stop="confirmReceipt(row)"
+                    >
+                      确认收货
+                    </el-button>
+                  </template>
+                </template>
+
+                <!-- 管理员可以进行任何操作 -->
+                <template v-if="currentRole === 'admin'">
+                  <el-dropdown trigger="click" @command="(command) => handleAdminAction(command, row)">
+                    <el-button size="small" type="info">
+                      管理操作 <el-icon><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="confirm" v-if="row.status === 'PENDING'">确认订单</el-dropdown-item>
+                        <el-dropdown-item command="reject" v-if="row.status === 'PENDING'">拒绝订单</el-dropdown-item>
+                        <el-dropdown-item command="ship" v-if="row.status === 'CONFIRMED'">发货</el-dropdown-item>
+                        <el-dropdown-item command="deliver" v-if="['SHIPPED', 'IN_TRANSIT'].includes(row.status)">标记为已送达</el-dropdown-item>
+                        <el-dropdown-item command="receive" v-if="row.status === 'DELIVERED'">确认收货</el-dropdown-item>
+                        <el-dropdown-item command="cancel" v-if="!['COMPLETED', 'CANCELLED_BY_PHARMACY', 'CANCELLED_BY_SUPPLIER', 'EXPIRED_CANCELLED'].includes(row.status)">取消订单</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </template>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -350,6 +536,71 @@
       </template>
     </el-dialog>
 
+    <!-- 发货对话框 -->
+    <el-dialog
+      v-model="showShipDialog"
+      title="订单发货"
+      width="500px"
+      @closed="shipForm.tracking_number = ''; shipForm.notes = ''"
+    >
+      <div v-if="selectedOrder" class="ship-order-form">
+        <div class="order-info">
+          <h4>订单信息</h4>
+          <p><strong>订单号：</strong>{{ selectedOrder.order_number }}</p>
+          <p><strong>收货方：</strong>{{ selectedOrder.buyer_tenant?.name || '-' }}</p>
+        </div>
+        
+        <el-form :model="shipForm" label-width="100px" style="margin-top: 20px;">
+          <el-form-item label="物流公司" required>
+            <el-select
+              v-model="shipForm.logistics_tenant_id"
+              placeholder="请选择物流公司"
+              style="width: 100%"
+              clearable
+            >
+              <el-option
+                v-for="logistics in logisticsOptions"
+                :key="logistics.id"
+                :label="logistics.name"
+                :value="logistics.id"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="运单号" required>
+            <el-input
+              v-model="shipForm.tracking_number"
+              placeholder="请输入运单号"
+              maxlength="50"
+            />
+          </el-form-item>
+          
+          <el-form-item label="发货备注">
+            <el-input
+              v-model="shipForm.notes"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入发货备注（可选）"
+              maxlength="200"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showShipDialog = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="submitShipOrder"
+            :loading="submitLoading"
+          >
+            确认发货
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 订单详情对话框 -->
     <el-dialog
       v-model="showDetailDialog"
@@ -437,14 +688,14 @@
         <div class="dialog-footer">
           <el-button @click="showDetailDialog = false">关闭</el-button>
           <el-button 
-            v-if="selectedOrder && selectedOrder.status === 'PENDING'"
+            v-if="selectedOrder && selectedOrder.status === 'PENDING' && currentRole === 'pharmacy'"
             type="danger" 
-            @click="cancelOrder(selectedOrder)"
+            @click="cancelOrderByPharmacy(selectedOrder)"
           >
             取消订单
           </el-button>
           <el-button 
-            v-if="selectedOrder && selectedOrder.status === 'DELIVERED'"
+            v-if="selectedOrder && selectedOrder.status === 'DELIVERED' && currentRole === 'pharmacy'"
             type="success" 
             @click="confirmReceipt(selectedOrder)"
           >
@@ -460,10 +711,11 @@
 import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Search, Plus, Refresh
+  Search, Plus, Refresh, ArrowDown
 } from '@element-plus/icons-vue'
 import { orderApi } from '@/api/orders'
 import { supplyApi } from '@/api/supply'
+import api from '@/api/orders'  // 用于其他API调用
 import { formatDate } from '@/utils/date'
 import { getCurrentUser } from '@/utils/authSession'
 
@@ -473,12 +725,14 @@ const submitLoading = ref(false)
 const supplySearchLoading = ref(false)
 const showCreateDialog = ref(false)
 const showDetailDialog = ref(false)
+const showShipDialog = ref(false)
 const selectedOrder = ref(null)
 const createFormRef = ref(null)
 
 // 订单列表和统计
 const ordersList = ref([])
 const orderStats = ref({})
+const currentStatusFilter = ref('')  // 当前选中的状态过滤器
 
 // 筛选条件
 const filters = reactive({
@@ -502,6 +756,16 @@ const createForm = reactive({
   notes: ''
 })
 
+// 发货表单
+const shipForm = reactive({
+  logistics_tenant_id: null,
+  tracking_number: '',
+  notes: ''
+})
+
+// 物流公司选项
+const logisticsOptions = ref([])
+
 // 供应信息选项
 const supplyOptions = ref([])
 const selectedSupplyInfo = computed(() => {
@@ -512,15 +776,25 @@ const currentUser = ref(getCurrentUser())
 const currentRole = computed(() => currentUser.value?.role)
 const canUseRealApi = computed(() => {
   const role = currentRole.value
-  return role === 'pharmacy' || role === 'supplier' || role === 'admin'
+  const user = currentUser.value
+  console.log('canUseRealApi - 完整检查:')
+  console.log('  currentUser:', user)
+  console.log('  currentRole:', role)
+  console.log('  user?.role:', user?.role)
+  console.log('  localStorage token:', localStorage.getItem('token'))
+  console.log('  localStorage user:', localStorage.getItem('user'))
+  
+  const canUse = role === 'pharmacy' || role === 'supplier' || role === 'admin' || role === 'logistics'
+  console.log('  canUse result:', canUse)
+  return canUse
 })
 const orderRoleFilter = computed(() => {
-  const role = currentRole.value
-  if (role === 'supplier' || role === 'pharmacy') return 'my_purchases'
+  // 后端已根据用户角色自动过滤，无需前端指定role_filter
   return undefined
 })
 const syncUser = () => {
   currentUser.value = getCurrentUser()
+  console.log('MockOrder - syncUser called, new user:', getCurrentUser())
 }
 
 // 表单验证规则
@@ -536,18 +810,26 @@ const createFormRules = {
 
 // 方法
 const fetchOrders = async () => {
+  console.log('fetchOrders - canUseRealApi:', canUseRealApi.value)
+  console.log('fetchOrders - currentUser:', currentUser.value)
+  console.log('fetchOrders - currentRole:', currentRole.value)
+  
   if (!canUseRealApi.value) {
+    console.log('fetchOrders - canUseRealApi is false, clearing orders')
     ordersList.value = []
     pagination.total = 0
     return
   }
   loading.value = true
   try {
+    // 处理状态过滤：如果是CANCELLED，需要获取所有取消状态的订单
+    let statusParam = currentStatusFilter.value || filters.status || undefined
+    
     const params = {
       page: pagination.page,
       per_page: pagination.perPage,
       order_number: filters.orderNumber || undefined,
-      status: filters.status || undefined,
+      status: statusParam === 'CANCELLED' ? undefined : statusParam, // 如果是CANCELLED，先不传status，在前端过滤
       drug_name: filters.drugName || undefined,
       role_filter: orderRoleFilter.value
     }
@@ -555,11 +837,28 @@ const fetchOrders = async () => {
       delete params.role_filter
     }
     
+    console.log('fetchOrders - 请求参数:', params)
+    
     const response = await orderApi.getOrders(params)
     
+    console.log('fetchOrders - API响应:', response)
+    console.log('fetchOrders - 响应数据:', response.data)
+    
     if (response.data && response.data.data) {
-      ordersList.value = response.data.data.items || []
+      let items = response.data.data.items || []
+      
+      // 如果用户选择了"已取消"过滤器，在前端过滤出所有取消状态的订单
+      if (currentStatusFilter.value === 'CANCELLED') {
+        const cancelledStatuses = ['CANCELLED_BY_PHARMACY', 'CANCELLED_BY_SUPPLIER', 'EXPIRED_CANCELLED']
+        items = items.filter(order => cancelledStatuses.includes(order.status))
+        console.log('fetchOrders - 已取消状态过滤后的订单:', items)
+      }
+      
+      ordersList.value = items
       pagination.total = response.data.data.pagination?.total || 0
+      
+      console.log('fetchOrders - 设置订单列表:', ordersList.value)
+      console.log('fetchOrders - 总数:', pagination.total)
     }
   } catch (error) {
     console.error('获取订单列表失败:', error)
@@ -599,10 +898,19 @@ const handleFilter = () => {
   fetchOrders()
 }
 
+const filterByStatus = (status) => {
+  console.log('filterByStatus:', status)
+  currentStatusFilter.value = status
+  filters.status = ''  // 清空筛选工具栏的状态选择
+  pagination.page = 1
+  fetchOrders()
+}
+
 const resetFilters = () => {
   filters.orderNumber = ''
   filters.status = ''
   filters.drugName = ''
+  currentStatusFilter.value = ''
   handleFilter()
 }
 
@@ -704,6 +1012,288 @@ const viewOrderDetail = (order) => {
   showDetailDialog.value = true
 }
 
+// 供应商确认订单
+const confirmOrder = async (order) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要确认订单 ${order.order_number} 吗？`,
+      '确认订单',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'success',
+      }
+    )
+
+    const response = await orderApi.confirmOrder(order.id, {
+      action: 'accept',
+      notes: '供应商确认接受订单'
+    })
+
+    if (response.data) {
+      ElMessage.success('订单确认成功')
+      refreshOrders()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('确认订单失败:', error)
+      ElMessage.error('确认订单失败，请稍后重试')
+    }
+  }
+}
+
+// 供应商拒绝订单
+const rejectOrder = async (order) => {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      `拒绝订单 ${order.order_number}，请输入拒绝原因：`,
+      '拒绝订单',
+      {
+        confirmButtonText: '确认拒绝',
+        cancelButtonText: '取消',
+        inputPattern: /.{1,}/,
+        inputErrorMessage: '请输入拒绝原因',
+        inputPlaceholder: '请输入拒绝原因'
+      }
+    )
+
+    const response = await orderApi.confirmOrder(order.id, {
+      action: 'reject',
+      reason: reason,
+      notes: `供应商拒绝订单：${reason}`
+    })
+
+    if (response.data) {
+      ElMessage.success('订单拒绝成功')
+      refreshOrders()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('拒绝订单失败:', error)
+      ElMessage.error('拒绝订单失败，请稍后重试')
+    }
+  }
+}
+
+// 供应商发货
+const shipOrder = async (order) => {
+  selectedOrder.value = order
+  // 重置发货表单
+  shipForm.logistics_tenant_id = null
+  shipForm.tracking_number = ''
+  shipForm.notes = ''
+  
+  // 获取物流公司列表
+  await fetchLogisticsCompanies()
+  
+  showShipDialog.value = true
+}
+
+// 获取物流公司列表
+const fetchLogisticsCompanies = async () => {
+  try {
+    // 假设有一个获取租户列表的API
+    const response = await api.get('/api/tenants?type=LOGISTICS')
+    if (response.data && Array.isArray(response.data)) {
+      logisticsOptions.value = response.data
+    }
+  } catch (error) {
+    console.error('获取物流公司列表失败:', error)
+    // 如果API不存在，使用静态数据
+    logisticsOptions.value = [
+      { id: 11, name: '顺丰速运' },
+      { id: 12, name: '申通快递' },
+      { id: 13, name: '圆通速递' },
+      { id: 14, name: '中通快递' }
+    ]
+  }
+}
+
+// 提交发货信息
+const submitShipOrder = async () => {
+  if (!shipForm.logistics_tenant_id) {
+    ElMessage.error('请选择物流公司')
+    return
+  }
+  
+  if (!shipForm.tracking_number.trim()) {
+    ElMessage.error('请输入运单号')
+    return
+  }
+
+  try {
+    submitLoading.value = true
+    
+    const response = await orderApi.shipOrder(selectedOrder.value.id, {
+      logistics_tenant_id: shipForm.logistics_tenant_id,
+      tracking_number: shipForm.tracking_number.trim(),
+      notes: shipForm.notes
+    })
+
+    if (response.data) {
+      ElMessage.success('发货成功')
+      showShipDialog.value = false
+      refreshOrders()
+    }
+  } catch (error) {
+    console.error('发货失败:', error)
+    ElMessage.error('发货失败，请稍后重试')
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+// 药店取消订单
+const cancelOrderByPharmacy = async (order) => {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      `确定要取消订单 ${order.order_number} 吗？请输入取消原因：`,
+      '取消订单',
+      {
+        confirmButtonText: '确认取消',
+        cancelButtonText: '不取消',
+        inputPattern: /.{1,}/,
+        inputErrorMessage: '请输入取消原因',
+        inputPlaceholder: '请输入取消原因'
+      }
+    )
+
+    const response = await orderApi.cancelOrder(order.id, {
+      reason: reason
+    })
+
+    if (response.data) {
+      ElMessage.success('订单取消成功')
+      refreshOrders()
+      if (showDetailDialog.value) {
+        showDetailDialog.value = false
+      }
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消订单失败:', error)
+      ElMessage.error('取消订单失败，请稍后重试')
+    }
+  }
+}
+
+// 管理员操作处理
+const handleAdminAction = async (command, order) => {
+  switch (command) {
+    case 'confirm':
+      await confirmOrder(order)
+      break
+    case 'reject':
+      await rejectOrder(order)
+      break
+    case 'ship':
+      await shipOrder(order)
+      break
+    case 'deliver':
+      await markAsDelivered(order)
+      break
+    case 'receive':
+      await confirmReceipt(order)
+      break
+    case 'cancel':
+      await cancelOrderByPharmacy(order)
+      break
+  }
+}
+
+// 物流公司标记为运输中
+const markAsInTransit = async (order) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要将订单 ${order.order_number} 标记为运输中吗？`,
+      '标记运输中',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'info',
+      }
+    )
+
+    // 调用后端API更新订单状态
+    const response = await orderApi.updateOrderStatus(order.id, 'IN_TRANSIT')
+
+    if (response.data && response.data.success) {
+      ElMessage.success(response.data.message || '订单已标记为运输中')
+      
+      // 立即更新本地订单状态，避免等待刷新
+      const orderIndex = ordersList.value.findIndex(o => o.id === order.id)
+      if (orderIndex !== -1) {
+        ordersList.value[orderIndex].status = 'IN_TRANSIT'
+        ordersList.value[orderIndex].updated_at = new Date().toISOString()
+      }
+      
+      // 然后刷新整个列表确保数据同步
+      refreshOrders()
+    } else {
+      throw new Error(response.data?.message || '更新失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('标记运输中失败:', error)
+      const message = error.response?.data?.message || error.response?.data?.msg || error.message || '操作失败，请稍后重试'
+      ElMessage.error(message)
+    }
+  }
+}
+
+// 标记订单为已送达（管理员和物流用户）
+const markAsDelivered = async (order) => {
+  try {
+    const title = currentRole.value === 'logistics' ? '确认送达' : '标记为已送达'
+    const message = currentRole.value === 'logistics' 
+      ? `确定要将订单 ${order.order_number} 标记为已送达吗？`
+      : `确定要将订单 ${order.order_number} 标记为已送达吗？\n注意：这是临时功能，实际应用中由物流系统自动更新。`
+    
+    await ElMessageBox.confirm(
+      message,
+      title,
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'success',
+      }
+    )
+
+    if (currentRole.value === 'logistics') {
+      // 物流用户调用真正的API
+      const response = await orderApi.updateOrderStatus(order.id, 'DELIVERED')
+
+      if (response.data && response.data.success) {
+        ElMessage.success(response.data.message || '订单已标记为已送达')
+        
+        // 立即更新本地订单状态，避免等待刷新
+        const orderIndex = ordersList.value.findIndex(o => o.id === order.id)
+        if (orderIndex !== -1) {
+          ordersList.value[orderIndex].status = 'DELIVERED'
+          ordersList.value[orderIndex].updated_at = new Date().toISOString()
+        }
+        
+        // 然后刷新整个列表确保数据同步
+        refreshOrders()
+      } else {
+        throw new Error(response.data?.message || '更新失败')
+      }
+    } else {
+      // 管理员的临时解决方案
+      ElMessage.warning('这是一个模拟操作。在实际应用中，订单状态由物流系统自动更新。请手动刷新页面查看最新状态。')
+      refreshOrders()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('标记为已送达失败:', error)
+      const message = currentRole.value === 'logistics' 
+        ? error.response?.data?.message || error.response?.data?.msg || '操作失败，请稍后重试'
+        : '操作失败，请稍后重试'
+      ElMessage.error(message)
+    }
+  }
+}
+
 const cancelOrder = async (order) => {
   try {
     await ElMessageBox.confirm(
@@ -745,19 +1335,45 @@ const confirmReceipt = async (order) => {
       }
     )
 
+    console.log('confirmReceipt - 开始确认收货，订单ID:', order.id)
+    console.log('confirmReceipt - 订单详情:', order)
+
     const response = await orderApi.receiveOrder(order.id, {
       notes: '药店确认收货'
     })
 
+    console.log('confirmReceipt - API响应:', response)
+
     if (response.data) {
       ElMessage.success('确认收货成功，订单已完成')
       refreshOrders()
-      showDetailDialog.value = false
+      if (showDetailDialog.value) {
+        showDetailDialog.value = false
+      }
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('确认收货失败:', error)
-      ElMessage.error('确认收货失败，请稍后重试')
+      console.error('错误详情:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config,
+        url: error.config?.url
+      })
+      
+      let errorMessage = '确认收货失败，请稍后重试'
+      if (error.response?.data?.msg) {
+        errorMessage = `确认收货失败：${error.response.data.msg}`
+      } else if (error.response?.status === 404) {
+        errorMessage = '订单不存在或已被删除'
+      } else if (error.response?.status === 403) {
+        errorMessage = '权限不足，无法确认收货'
+      } else if (error.response?.status === 400) {
+        errorMessage = '订单状态不允许确认收货'
+      }
+      
+      ElMessage.error(errorMessage)
     }
   }
 }
@@ -774,6 +1390,34 @@ const calculatePreviewTotal = () => {
   return (selectedSupplyInfo.value.unit_price * createForm.quantity).toFixed(2)
 }
 
+const getStatusText = (status) => {
+  const role = currentRole.value
+  
+  // 物流用户看到的状态描述
+  if (role === 'logistics') {
+    const logisticsStatusMap = {
+      'SHIPPED': '待揽收',
+      'IN_TRANSIT': '运输中',
+      'DELIVERED': '已送达'
+    }
+    return logisticsStatusMap[status] || status
+  }
+  
+  // 药店和供应商用户看到的状态描述
+  const statusMap = {
+    'PENDING': '待确认',
+    'CONFIRMED': '已确认',
+    'SHIPPED': '已发货',
+    'IN_TRANSIT': '运输中',
+    'DELIVERED': '已送达',
+    'COMPLETED': '已完成',
+    'CANCELLED_BY_PHARMACY': '药店取消',
+    'CANCELLED_BY_SUPPLIER': '供应商取消',
+    'EXPIRED_CANCELLED': '超时取消'
+  }
+  return statusMap[status] || status
+}
+
 const getStatusType = (status) => {
   const statusMap = {
     'PENDING': 'warning',
@@ -787,21 +1431,6 @@ const getStatusType = (status) => {
     'EXPIRED_CANCELLED': 'danger'
   }
   return statusMap[status] || 'info'
-}
-
-const getStatusText = (status) => {
-  const statusMap = {
-    'PENDING': '待确认',
-    'CONFIRMED': '已确认',
-    'SHIPPED': '已发货',
-    'IN_TRANSIT': '运输中',
-    'DELIVERED': '已送达',
-    'COMPLETED': '已完成',
-    'CANCELLED_BY_PHARMACY': '药店取消',
-    'CANCELLED_BY_SUPPLIER': '供应商取消',
-    'EXPIRED_CANCELLED': '超时取消'
-  }
-  return statusMap[status] || status
 }
 
 const disabledDeliveryDate = (time) => {
@@ -879,29 +1508,96 @@ onBeforeUnmount(() => {
   transition: all 0.3s ease;
 }
 
+.stats-card.compact {
+  /* 紧凑型样式：适用于单行8列布局 */
+  min-height: 80px;
+}
+
+.stats-card.compact .stats-content {
+  padding: 8px 4px;
+}
+
+.stats-card.compact .stats-number {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.stats-card.compact .stats-label {
+  font-size: 13px;
+}
+
 .stats-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stats-card.active {
+  border: 2px solid #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
 .stats-card.pending {
   border-left: 4px solid #e6a23c;
 }
 
+.stats-card.pending.active {
+  border: 2px solid #e6a23c;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+}
+
 .stats-card.confirmed {
   border-left: 4px solid #409eff;
+}
+
+.stats-card.confirmed.active {
+  border: 2px solid #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
 .stats-card.shipped {
   border-left: 4px solid #909399;
 }
 
+.stats-card.shipped.active {
+  border: 2px solid #909399;
+  box-shadow: 0 4px 12px rgba(144, 147, 153, 0.3);
+}
+
+.stats-card.in-transit {
+  border-left: 4px solid #409eff;
+}
+
+.stats-card.in-transit.active {
+  border: 2px solid #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.stats-card.delivered {
+  border-left: 4px solid #e6a23c;
+}
+
+.stats-card.delivered.active {
+  border: 2px solid #e6a23c;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+}
+
 .stats-card.completed {
   border-left: 4px solid #67c23a;
 }
 
+.stats-card.completed.active {
+  border: 2px solid #67c23a;
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.3);
+}
+
 .stats-card.cancelled {
   border-left: 4px solid #f56c6c;
+}
+
+.stats-card.cancelled.active {
+  border: 2px solid #f56c6c;
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.3);
 }
 
 .stats-content {
@@ -1062,6 +1758,40 @@ onBeforeUnmount(() => {
   border-left: 4px solid #409eff;
 }
 
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.action-buttons .el-button {
+  margin: 0;
+}
+
+/* 发货表单 */
+.ship-order-form {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.order-info {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.order-info h4 {
+  margin: 0 0 8px 0;
+  color: #303133;
+}
+
+.order-info p {
+  margin: 4px 0;
+  color: #606266;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .filter-toolbar {
@@ -1073,13 +1803,62 @@ onBeforeUnmount(() => {
     width: 100%;
   }
   
-  .stats-panel .el-row {
-    margin: 0 -4px;
+  /* 移动端统计卡片间距调整 */
+  .stats-row-normal {
+    margin: 0 -6px !important;
   }
   
-  .stats-panel .el-col {
-    padding: 0 4px;
-    margin-bottom: 8px;
+  .stats-row-normal .el-col {
+    padding: 0 6px;
+    margin-bottom: 12px;
+  }
+  
+  /* 移动端紧凑型布局：优化显示 */
+  .stats-card.compact {
+    min-height: 75px;
+  }
+  
+  .stats-card.compact .stats-content {
+    padding: 8px 4px;
+  }
+  
+  .stats-card.compact .stats-number {
+    font-size: 16px;
+  }
+  
+  .stats-card.compact .stats-label {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+}
+
+@media (max-width: 992px) and (min-width: 769px) {
+  /* 平板端：调整间距 */
+  .stats-card.compact .stats-content {
+    padding: 6px 2px;
+  }
+  
+  .stats-card.compact .stats-number {
+    font-size: 18px;
+  }
+  
+  .stats-card.compact .stats-label {
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  /* 大屏幕：恢复正常尺寸 */
+  .stats-card.compact .stats-content {
+    padding: 10px 6px;
+  }
+  
+  .stats-card.compact .stats-number {
+    font-size: 22px;
+  }
+  
+  .stats-card.compact .stats-label {
+    font-size: 13px;
   }
 }
 

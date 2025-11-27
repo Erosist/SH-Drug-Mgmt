@@ -14,11 +14,23 @@ bp = Blueprint('orders', __name__, url_prefix='/api/orders')
 def get_authenticated_user():
     """获取当前认证用户"""
     identity = get_jwt_identity()
+    if not identity:
+        return None
     try:
+        # Flask-JWT-Extended 返回的 identity 可能是字符串或整数
         user_id = int(identity)
     except (TypeError, ValueError):
+        # 如果转换失败，记录错误并返回 None
+        current_app.logger.error(f'无法解析 JWT identity: {identity}, type: {type(identity)}')
         return None
-    return User.query.get(user_id)
+    
+    user = User.query.get(user_id)
+    if not user:
+        current_app.logger.error(f'用户ID {user_id} 不存在')
+        return None
+        
+    current_app.logger.info(f'成功获取用户: ID={user.id}, 用户名={user.username}, 角色={user.role}')
+    return user
 
 
 def require_buyer_role(f):
@@ -58,6 +70,10 @@ def can_access_order(user, order):
     
     # 供应商用户只能访问自己的供应订单
     if user.role == 'supplier' and order.supplier_tenant_id == user.tenant_id:
+        return True
+    
+    # 物流用户只能访问分配给自己的订单
+    if user.role == 'logistics' and order.logistics_tenant_id == user.tenant_id:
         return True
     
     return False
@@ -215,16 +231,29 @@ def get_orders():
         query = db.session.query(Order)
         
         # 权限控制
+        current_app.logger.info(f'get_orders - 用户权限检查: 用户ID={current_user.id}, 角色={current_user.role}, 租户ID={current_user.tenant_id}')
+        
         if current_user.role == 'pharmacy':
             # 药店用户只能看到自己的采购订单
             query = query.filter(Order.buyer_tenant_id == current_user.tenant_id)
+            current_app.logger.info(f'get_orders - 药店用户过滤: buyer_tenant_id={current_user.tenant_id}')
         elif current_user.role == 'supplier':
             # 供应商用户只能看到自己的供应订单
             query = query.filter(Order.supplier_tenant_id == current_user.tenant_id)
+            current_app.logger.info(f'get_orders - 供应商用户过滤: supplier_tenant_id={current_user.tenant_id}')
+        elif current_user.role == 'logistics':
+            # 物流用户只能看到分配给自己的订单，且状态为SHIPPED, IN_TRANSIT, DELIVERED
+            query = query.filter(
+                Order.logistics_tenant_id == current_user.tenant_id,
+                Order.status.in_(['SHIPPED', 'IN_TRANSIT', 'DELIVERED'])
+            )
+            current_app.logger.info(f'get_orders - 物流用户过滤: logistics_tenant_id={current_user.tenant_id}, 允许状态=[SHIPPED, IN_TRANSIT, DELIVERED]')
         elif current_user.role == 'admin':
             # 管理员可以看到所有订单
+            current_app.logger.info('get_orders - 管理员用户，无过滤')
             pass
         else:
+            current_app.logger.warning(f'get_orders - 权限不足: 角色={current_user.role}')
             return jsonify({'msg': '权限不足'}), 403
         
         # 角色筛选 - 注意：pharmacy用户已经在上面过滤了buyer_tenant_id，这里的my_purchases实际上是多余的
@@ -576,13 +605,25 @@ def get_order_stats():
             return jsonify({'msg': '用户未关联企业'}), 400
         
         # 根据角色统计不同的数据
+        current_app.logger.info(f'get_order_stats - 用户权限检查: 用户ID={current_user.id}, 角色={current_user.role}, 租户ID={current_user.tenant_id}')
+        
         if current_user.role == 'pharmacy':
             # 药店统计采购订单
             query = Order.query.filter_by(buyer_tenant_id=current_user.tenant_id)
+            current_app.logger.info(f'get_order_stats - 药店统计: buyer_tenant_id={current_user.tenant_id}')
         elif current_user.role == 'supplier':
             # 供应商统计供应订单
             query = Order.query.filter_by(supplier_tenant_id=current_user.tenant_id)
+            current_app.logger.info(f'get_order_stats - 供应商统计: supplier_tenant_id={current_user.tenant_id}')
+        elif current_user.role == 'logistics':
+            # 物流公司统计分配给自己的订单，且只统计物流相关状态
+            query = Order.query.filter(
+                Order.logistics_tenant_id == current_user.tenant_id,
+                Order.status.in_(['SHIPPED', 'IN_TRANSIT', 'DELIVERED'])
+            )
+            current_app.logger.info(f'get_order_stats - 物流统计: logistics_tenant_id={current_user.tenant_id}')
         else:
+            current_app.logger.warning(f'get_order_stats - 权限不足: 角色={current_user.role}')
             return jsonify({'msg': '权限不足'}), 403
         
         # 统计各状态订单数量
@@ -612,3 +653,218 @@ def get_order_stats():
     except Exception as e:
         current_app.logger.error(f'获取订单统计失败: {str(e)}')
         return jsonify({'msg': '获取订单统计失败', 'error': str(e)}), 500
+
+
+@bp.route('/status/<int:order_id>', methods=['PATCH'])
+@jwt_required()
+def update_order_status(order_id):
+    """
+    更新订单状态
+    用于物流公司更新配送状态
+    """
+    try:
+        current_user = get_authenticated_user()
+        if not current_user:
+            return jsonify({'msg': '用户未登录'}), 401
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({'msg': '订单不存在'}), 404
+        
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if not new_status:
+            return jsonify({'msg': '状态参数缺失'}), 400
+        
+        # 验证状态转换的合法性
+        valid_transitions = {
+            'SHIPPED': ['IN_TRANSIT'],
+            'IN_TRANSIT': ['DELIVERED'],
+            'DELIVERED': ['COMPLETED']
+        }
+        
+        # 如果订单已经是目标状态，直接返回成功（幂等操作）
+        if order.status == new_status:
+            return jsonify({
+                'success': True,
+                'message': f'订单状态已经是 {new_status}',
+                'data': {
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'old_status': order.status,
+                    'new_status': new_status
+                }
+            })
+        
+        if order.status not in valid_transitions:
+            return jsonify({'success': False, 'message': f'当前状态 {order.status} 不允许更新'}), 400
+        
+        if new_status not in valid_transitions[order.status]:
+            return jsonify({'success': False, 'message': f'无效的状态转换: {order.status} -> {new_status}'}), 400
+        
+        # 权限检查：只有物流公司和管理员可以更新配送状态
+        if current_user.role == 'logistics':
+            # 物流公司只能更新分配给自己的订单，或者未分配物流公司的订单
+            if order.logistics_tenant_id is not None and order.logistics_tenant_id != current_user.tenant_id:
+                return jsonify({'success': False, 'message': '权限不足，只能更新分配给本公司的订单'}), 403
+            # 如果订单还没有分配物流公司，则将当前物流公司分配给该订单
+            if order.logistics_tenant_id is None:
+                order.logistics_tenant_id = current_user.tenant_id
+        elif current_user.role != 'admin':
+            return jsonify({'success': False, 'message': '权限不足，需要物流公司或管理员角色'}), 403
+        
+        # 更新订单状态
+        old_status = order.status
+        order.status = new_status
+        order.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        current_app.logger.info(
+            f'用户 {current_user.username} 将订单 {order_id} 状态从 {old_status} 更新为 {new_status}'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'订单状态已更新为 {new_status}',
+            'data': {
+                'order_id': order.id,
+                'order_number': order.order_number,
+                'old_status': old_status,
+                'new_status': new_status
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'更新订单状态失败: {str(e)}')
+        return jsonify({'success': False, 'message': '更新订单状态失败', 'error': str(e)}), 500
+
+
+# 物流相关路由
+from flask import Blueprint as FlaskBlueprint
+logistics_bp = FlaskBlueprint('logistics', __name__, url_prefix='/api/logistics')
+
+@logistics_bp.route('/companies', methods=['GET'])
+@jwt_required()
+def get_logistics_companies():
+    """
+    获取物流公司列表
+    """
+    try:
+        current_user = get_authenticated_user()
+        if not current_user:
+            return jsonify({'msg': '用户未登录'}), 401
+        
+        # 查询所有物流公司
+        logistics_companies = Tenant.query.filter_by(type='LOGISTICS').all()
+        
+        companies_data = []
+        for company in logistics_companies:
+            companies_data.append({
+                'id': company.id,
+                'name': company.name,
+                'type': company.type,
+                'created_at': company.created_at.isoformat() if company.created_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'message': '获取物流公司列表成功',
+            'data': companies_data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'获取物流公司列表失败: {str(e)}')
+        return jsonify({'success': False, 'message': '获取物流公司列表失败', 'error': str(e)}), 500
+
+
+@logistics_bp.route('/orders', methods=['GET'])
+@jwt_required()
+def get_logistics_orders():
+    """
+    获取物流公司的订单列表
+    物流公司只能看到分配给自己的订单，且状态为 SHIPPED, IN_TRANSIT, DELIVERED
+    """
+    try:
+        current_user = get_authenticated_user()
+        if not current_user:
+            return jsonify({'msg': '用户未登录'}), 401
+        
+        if current_user.role not in ['logistics', 'admin']:
+            return jsonify({'msg': '权限不足，需要物流公司或管理员角色'}), 403
+        
+        # 构建查询
+        query = db.session.query(Order)
+        
+        # 如果是物流公司用户，只显示分配给该公司的订单
+        if current_user.role == 'logistics':
+            query = query.filter(Order.logistics_tenant_id == current_user.tenant_id)
+        
+        # 只显示物流相关的订单状态
+        query = query.filter(Order.status.in_(['SHIPPED', 'IN_TRANSIT', 'DELIVERED']))
+        
+        # 按创建时间倒序排列
+        query = query.order_by(desc(Order.created_at))
+        
+        orders = query.all()
+        
+        orders_data = []
+        for order in orders:
+            # 获取药房名称
+            pharmacy = Tenant.query.get(order.buyer_tenant_id)
+            pharmacy_name = pharmacy.name if pharmacy else 'Unknown'
+            
+            # 获取供应商名称
+            supplier = Tenant.query.get(order.supplier_tenant_id)
+            supplier_name = supplier.name if supplier else 'Unknown'
+            
+            # 获取药品信息（从订单明细中获取）
+            drug_names = []
+            total_quantity = 0
+            for item in order.items:
+                drug = Drug.query.get(item.drug_id)
+                if drug:
+                    drug_names.append(f"{drug.generic_name or drug.brand_name}")
+                total_quantity += item.quantity
+            
+            drug_name = ', '.join(drug_names) if drug_names else 'Unknown'
+            
+            # 获取物流公司名称
+            logistics_company_name = None
+            if order.logistics_tenant_id:
+                logistics_company = Tenant.query.get(order.logistics_tenant_id)
+                if logistics_company:
+                    logistics_company_name = logistics_company.name
+            
+            orders_data.append({
+                'id': order.id,
+                'order_id': order.id,
+                'order_number': order.order_number,
+                'pharmacy_name': pharmacy_name,
+                'supplier_name': supplier_name,
+                'drug_name': drug_name,
+                'quantity': total_quantity,
+                'total_amount': str(order.total_amount),
+                'status': order.status,
+                'logistics_company_id': order.logistics_tenant_id,
+                'logistics_company_name': logistics_company_name,
+                'created_at': order.created_at.isoformat() if order.created_at else None,
+                'updated_at': order.updated_at.isoformat() if order.updated_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'message': '获取物流订单列表成功',
+            'data': orders_data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'获取物流订单列表失败: {str(e)}')
+        return jsonify({'success': False, 'message': '获取物流订单列表失败', 'error': str(e)}), 500
+
+
+def register_logistics_blueprint(app):
+    """注册物流蓝图"""
+    app.register_blueprint(logistics_bp)

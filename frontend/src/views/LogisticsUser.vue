@@ -7,129 +7,145 @@
       <aside class="sider">
         <div class="sider-title">管理目录</div>
         <ul class="menu">
-          <li class="menu-item active">运输任务概览</li>
-          <li class="menu-item">在途监控</li>
-          <li class="menu-item">冷链设备</li>
-          <li class="menu-item">路线规划</li>
+          <li class="menu-item" :class="{ active: activeTab === 'orders' }" @click="activeTab = 'orders'">
+            订单管理
+          </li>
+          <li class="menu-item" :class="{ active: activeTab === 'tracking' }" @click="activeTab = 'tracking'">
+            在途监控
+          </li>
+          <li class="menu-item" :class="{ active: activeTab === 'equipment' }" @click="activeTab = 'equipment'">
+            冷链设备
+          </li>
+          <li class="menu-item" :class="{ active: activeTab === 'route' }" @click="activeTab = 'route'">
+            路线规划
+          </li>
         </ul>
       </aside>
 
       <!-- 主内容 -->
       <main class="main">
-        <section class="cards-row">
-          <el-card class="panel">
-            <div class="panel-head">
-              <span>智能调度中心</span>
-              <el-button size="small" type="primary">新建任务</el-button>
-            </div>
-            <div class="kpis">
-              <div class="kpi">
-                <div class="kpi-title">待分配任务</div>
-                <div class="kpi-value">3</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-title">运输中任务</div>
-                <div class="kpi-value">12</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-title">准时率</div>
-                <div class="kpi-value">98%</div>
-              </div>
-            </div>
-            <div class="table-mini">
-              <div class="table-row table-head">
-                <span>任务编号</span><span>状态</span><span>车辆</span><span>司机</span><span>操作</span>
-              </div>
-              <div class="table-row">
-                <span>YD-2025-1001</span><span><em class="dot dot-info"></em>在途</span><span>沪A·12345</span><span>刘强</span><a href="#">轨迹</a>
-              </div>
-              <div class="table-row">
-                <span>YD-2025-0996</span><span><em class="dot dot-success"></em>已送达</span><span>沪B·53210</span><span>王凯</span><a href="#">详情</a>
-              </div>
-              <div class="table-row">
-                <span>YD-2025-0992</span><span><em class="dot dot-warn"></em>异常</span><span>沪C·98761</span><span>赵云</span><a href="#">处理</a>
-              </div>
-            </div>
-          </el-card>
+        <!-- 订单管理标签页 -->
+        <div v-if="activeTab === 'orders'" class="tab-content">
+          <LogisticsOrderManagement />
+        </div>
 
-          <el-card class="panel">
-            <div class="panel-head">
-              <span>运力与统计</span>
-              <div class="panel-actions">
-                <el-button size="small" plain>导出</el-button>
-                <el-button size="small" type="primary">同步</el-button>
+        <!-- 其他标签页保持原有内容 -->
+        <div v-else class="tab-content">
+          <section class="cards-row">
+            <el-card class="panel">
+              <div class="panel-head">
+                <span>智能调度中心</span>
+                <el-button size="small" type="primary">新建任务</el-button>
               </div>
-            </div>
-            <div class="stats-tiles">
-              <div class="tile"><div class="num">68</div><div class="label">车辆总数</div></div>
-              <div class="tile"><div class="num">24</div><div class="label">在途车辆</div></div>
-              <div class="tile"><div class="num">18</div><div class="label">冷链车</div></div>
-              <div class="tile"><div class="num">9</div><div class="label">异常告警</div></div>
-            </div>
-          </el-card>
-        </section>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="kpi-title">待分配任务</div>
+                  <div class="kpi-value">3</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-title">运输中任务</div>
+                  <div class="kpi-value">12</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-title">准时率</div>
+                  <div class="kpi-value">98%</div>
+                </div>
+              </div>
+              <div class="table-mini">
+                <div class="table-row table-head">
+                  <span>任务编号</span><span>状态</span><span>车辆</span><span>司机</span><span>操作</span>
+                </div>
+                <div class="table-row">
+                  <span>YD-2025-1001</span><span><em class="dot dot-info"></em>在途</span><span>沪A·12345</span><span>刘强</span><a href="#">轨迹</a>
+                </div>
+                <div class="table-row">
+                  <span>YD-2025-0996</span><span><em class="dot dot-success"></em>已送达</span><span>沪B·53210</span><span>王凯</span><a href="#">详情</a>
+                </div>
+                <div class="table-row">
+                  <span>YD-2025-0992</span><span><em class="dot dot-warn"></em>异常</span><span>沪C·98761</span><span>赵云</span><a href="#">处理</a>
+                </div>
+              </div>
+            </el-card>
 
-        <section class="cards-row">
-          <el-card class="panel full">
-            <div class="panel-head">
-              <span>货物与温控</span>
-              <el-input class="search" placeholder="输入运单号/车牌号" size="small" clearable />
-              <el-button size="small" type="primary">查询</el-button>
-            </div>
-            <div class="grid2">
-              <div class="list">
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">运单号 #YW202510016</div>
-                    <div class="item-desc">温度恢复正常，冷机已重启</div>
-                  </div>
-                  <div class="item-date">2025-10-26</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">运单号 #YW202510028</div>
-                    <div class="item-desc">预计晚到 15 分钟，原因：道路拥堵</div>
-                  </div>
-                  <div class="item-date">2025-10-24</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">车辆巡检 #CAR202509782</div>
-                    <div class="item-desc">冷链车 A 类保养完成</div>
-                  </div>
-                  <div class="item-date">2025-10-23</div>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <div class="item-title">运单号 #YW202501056</div>
-                    <div class="item-desc">到达签收，温控全程合规</div>
-                  </div>
-                  <div class="item-date">2025-10-22</div>
+            <el-card class="panel">
+              <div class="panel-head">
+                <span>运力与统计</span>
+                <div class="panel-actions">
+                  <el-button size="small" plain>导出</el-button>
+                  <el-button size="small" type="primary">同步</el-button>
                 </div>
               </div>
-              <div class="chart">
-                <div ref="donutRef" class="chart-box"></div>
+              <div class="stats-tiles">
+                <div class="tile"><div class="num">68</div><div class="label">车辆总数</div></div>
+                <div class="tile"><div class="num">24</div><div class="label">在途车辆</div></div>
+                <div class="tile"><div class="num">18</div><div class="label">冷链车</div></div>
+                <div class="tile"><div class="num">9</div><div class="label">异常告警</div></div>
               </div>
-            </div>
-          </el-card>
-        </section>
+            </el-card>
+          </section>
+
+          <section class="cards-row">
+            <el-card class="panel full">
+              <div class="panel-head">
+                <span>货物与温控</span>
+                <el-input class="search" placeholder="输入运单号/车牌号" size="small" clearable />
+                <el-button size="small" type="primary">查询</el-button>
+              </div>
+              <div class="grid2">
+                <div class="list">
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">运单号 #YW202510016</div>
+                      <div class="item-desc">温度恢复正常，冷机已重启</div>
+                    </div>
+                    <div class="item-date">2025-10-26</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">运单号 #YW202510028</div>
+                      <div class="item-desc">预计晚到 15 分钟，原因：道路拥堵</div>
+                    </div>
+                    <div class="item-date">2025-10-24</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">车辆巡检 #CAR202509782</div>
+                      <div class="item-desc">冷链车 A 类保养完成</div>
+                    </div>
+                    <div class="item-date">2025-10-23</div>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <div class="item-title">运单号 #YW202501056</div>
+                      <div class="item-desc">到达签收，温控全程合规</div>
+                    </div>
+                    <div class="item-date">2025-10-22</div>
+                  </div>
+                </div>
+                <div class="chart">
+                  <div ref="donutRef" class="chart-box"></div>
+                </div>
+              </div>
+            </el-card>
+          </section>
+        </div>
       </main>
 
       <!-- 右侧资料卡 -->
       <aside class="sidebar">
         <div class="profile-card">
           <div class="profile-head">
-            <img :src="user.avatar" alt="avatar" class="avatar" />
+            <img :src="currentUser.avatar || defaultAvatar" alt="avatar" class="avatar" />
             <div class="info">
-              <div class="name">{{ user.name }}</div>
-              <div class="role">{{ user.role }}</div>
+              <div class="name">{{ currentUser.username || currentUser.name || '物流用户' }}</div>
+              <div class="role">{{ currentUser.tenant_name || '物流公司' }}</div>
             </div>
           </div>
           <div class="kv">
-            <div class="row"><span class="k">用户ID</span><span class="v">{{ user.id }}</span></div>
-            <div class="row"><span class="k">联系电话</span><span class="v">{{ user.phone }}</span></div>
-            <div class="row"><span class="k">所属公司</span><span class="v">{{ user.company }}</span></div>
-            <div class="row"><span class="k">注册时间</span><span class="v">{{ user.registeredAt }}</span></div>
+            <div class="row"><span class="k">用户ID</span><span class="v">{{ currentUser.id || 'N/A' }}</span></div>
+            <div class="row"><span class="k">联系电话</span><span class="v">{{ currentUser.phone || 'N/A' }}</span></div>
+            <div class="row"><span class="k">所属公司</span><span class="v">{{ currentUser.tenant_name || 'N/A' }}</span></div>
+            <div class="row"><span class="k">注册时间</span><span class="v">{{ formatDate(currentUser.created_at) || 'N/A' }}</span></div>
             <div class="row"><span class="k">状态</span><span class="v status"><i class="dot-online" />在线</span></div>
           </div>
           <div class="actions"><a href="#" @click.prevent="editProfile" class="edit">编辑信息</a></div>
@@ -140,62 +156,81 @@
 </template>
 
 <script>
+import { ref, onMounted } from 'vue'
 import * as echarts from 'echarts'
 import UserHeader from '../component/UserHeader.vue'
+import LogisticsOrderManagement from './LogisticsOrderManagement.vue'
 
 export default {
   name: 'LogisticsUser',
-  components: { UserHeader },
-  data() {
-    return {
-      chart: null,
-      user: {
-        name: '李强',
-        role: '运输部管理员',
-        id: 'SH_LG_20220045',
-        phone: '159****1234',
-        company: '上海药通医药配送公司',
-        registeredAt: '2022-08-15',
-        avatar:
-          'https://fastly.jsdelivr.net/gh/aleen42/PersonalWiki/images/emoji/others/man.png',
-      },
+  components: { 
+    UserHeader,
+    LogisticsOrderManagement
+  },
+  setup() {
+    const activeTab = ref('orders')
+    const chart = ref(null)
+    const donutRef = ref(null)
+    const currentUser = ref(JSON.parse(localStorage.getItem('user') || '{}'))
+    const defaultAvatar = 'https://fastly.jsdelivr.net/gh/aleen42/PersonalWiki/images/emoji/others/man.png'
+
+    const initChart = () => {
+      const el = donutRef.value
+      if (!el) return
+      chart.value = echarts.init(el)
+      chart.value.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { top: 'bottom' },
+        series: [
+          {
+            name: '运力分布',
+            type: 'pie',
+            radius: ['45%', '70%'],
+            itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+            label: { show: false },
+            labelLine: { show: false },
+            data: [
+              { value: 26, name: '在途' },
+              { value: 18, name: '空闲' },
+              { value: 12, name: '冷链维护' },
+              { value: 9, name: '异常处理' },
+              { value: 3, name: '其他' },
+            ],
+          },
+        ],
+      })
+      
+      const handleResize = () => {
+        chart.value && chart.value.resize()
+      }
+      window.addEventListener('resize', handleResize)
     }
-  },
-  mounted() {
-    const el = this.$refs.donutRef
-    if (!el) return
-    this.chart = echarts.init(el)
-    this.chart.setOption({
-      tooltip: { trigger: 'item' },
-      legend: { top: 'bottom' },
-      series: [
-        {
-          name: '运力分布',
-          type: 'pie',
-          radius: ['45%', '70%'],
-          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-          label: { show: false },
-          labelLine: { show: false },
-          data: [
-            { value: 26, name: '在途' },
-            { value: 18, name: '空闲' },
-            { value: 12, name: '冷链维护' },
-            { value: 9, name: '异常处理' },
-            { value: 3, name: '其他' },
-          ],
-        },
-      ],
+
+    const editProfile = () => {
+      // TODO: 实现编辑功能
+      console.log('编辑信息功能待实现')
+    }
+
+    const formatDate = (dateString) => {
+      if (!dateString) return ''
+      return new Date(dateString).toLocaleDateString('zh-CN')
+    }
+
+    onMounted(() => {
+      if (activeTab.value !== 'orders') {
+        initChart()
+      }
     })
-    window.addEventListener('resize', this.resize)
-  },
-  beforeUnmount() {
-    window.removeEventListener('resize', this.resize)
-    if (this.chart) { this.chart.dispose(); this.chart = null }
-  },
-  methods: {
-    resize() { this.chart && this.chart.resize() },
-    editProfile() { this.$message && this.$message.info('编辑信息功能待实现') },
-  },
+
+    return {
+      activeTab,
+      donutRef,
+      currentUser,
+      defaultAvatar,
+      editProfile,
+      formatDate
+    }
+  }
 }
 </script>
 
@@ -211,6 +246,10 @@ export default {
 .menu-item.active { background: #ecf5ff; color: #409eff; font-weight: 600; }
 
 .main { display: flex; flex-direction: column; gap: 16px; }
+
+.tab-content {
+  min-height: 100%;
+}
 .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cards-row .full { grid-column: 1 / span 2; }
 .panel { border-radius: 8px; }
