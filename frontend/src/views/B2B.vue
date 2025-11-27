@@ -19,6 +19,7 @@
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
               <span class="user-name">{{ userDisplayName }}</span>
+              <span class="user-role">{{ userRoleLabel }}</span>
             </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
@@ -36,10 +37,15 @@
 
       <!-- 标签切换（增加“查看供应信息”为第三个选项，点击只切换下方内容） -->
       <div class="tabs" @click="onTabsClick">
-        <div class="tab-item" :class="{ active: activeTab === 'supply' }" @click="setActiveTab('supply')">供给信息发布</div>
-        <div class="tab-item" :class="{ active: activeTab === 'demand' }" @click="setActiveTab('demand')">需求信息发布</div>
-        <div class="tab-item" :class="{ active: activeTab === 'list' }" @click="setActiveTab('list')">查看供应信息</div>
-        <div class="tab-item" :class="{ active: activeTab === 'order' }" @click="setActiveTab('order')">模拟下单</div>
+        <div
+          v-for="tab in visibleTabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ active: activeTab === tab.key }"
+          @click="setActiveTab(tab.key)"
+        >
+          {{ tab.label }}
+        </div>
       </div>
 
       <div class="form-sections">
@@ -134,7 +140,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 // 引入 SupplierList 以支持路由跳转到组件视图
 import SupplierList from '@/component/SupplierList.vue'
@@ -142,6 +148,7 @@ import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
 import MockOrder from '@/views/MockOrder.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
+import { getRoleLabel } from '@/utils/roleLabel'
 
 export default {
   name: 'B2BPlatform',
@@ -152,6 +159,27 @@ export default {
     const activeTab = ref('supply')
   const currentUser = ref(getCurrentUser())
   const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+  const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
+  const userRole = computed(() => currentUser.value?.role || '')
+
+  const canAccessSupply = computed(() => userRole.value !== 'pharmacy')
+  const canAccessDemand = computed(() => userRole.value !== 'supplier')
+  const canAccessSupplyList = computed(() => userRole.value !== 'supplier')
+
+  const tabMatrix = [
+    { key: 'supply', label: '供给信息发布', guard: canAccessSupply },
+    { key: 'demand', label: '需求信息发布', guard: canAccessDemand },
+    { key: 'list', label: '查看供应信息', guard: canAccessSupplyList },
+    { key: 'order', label: '模拟下单', guard: computed(() => true) }
+  ]
+
+  const visibleTabs = computed(() => tabMatrix.filter(tab => tab.guard.value))
+
+  watch(visibleTabs, (tabs) => {
+    if (!tabs.some(tab => tab.key === activeTab.value)) {
+      activeTab.value = tabs[0]?.key || ''
+    }
+  }, { immediate: true })
 
     const currentDate = computed(() => {
       const now = new Date()
@@ -281,6 +309,7 @@ export default {
     }
 
     function setActiveTab(tab) {
+      if (!visibleTabs.value.some(t => t.key === tab)) return
       activeTab.value = tab
     }
 
@@ -292,7 +321,7 @@ export default {
     onMounted(() => { window.addEventListener('storage', refreshUser) })
     onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
 
-  return { activeNav, activeTab, currentUser, userDisplayName, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+  return { activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
   }
 }
 </script>
@@ -311,8 +340,9 @@ export default {
 .nav-item:hover { color:#1a73e8; }
 .nav-item.active { color:#1a73e8; border-bottom:2px solid #1a73e8; }
 .user-actions { display:flex; align-items:center; }
-.user-info { display:flex; align-items:center; padding:6px 16px; border-radius:999px; background-color:#f0f5ff; color:#1a73e8; font-size:14px; font-weight:600; margin-right:10px; }
+.user-info { display:flex; align-items:center; padding:6px 12px; border-radius:999px; background-color:#f0f5ff; color:#1a73e8; font-size:14px; font-weight:600; margin-right:10px; gap:8px; }
 .user-name { white-space:nowrap; }
+.user-role { padding:2px 10px; border-radius:999px; background-color:#fff; border:1px solid rgba(26,115,232,.2); font-size:12px; color:#1a73e8; }
 .auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
 .auth-btn:hover { background-color: rgba(26,115,232,0.06) }
 .review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
