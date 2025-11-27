@@ -43,6 +43,9 @@
           </div>
           
           <div class="user-actions">
+            <div v-if="currentUser" class="user-info">
+              <span class="user-name">{{ userDisplayName }}</span>
+            </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -379,6 +382,7 @@ export default {
     const router = useRouter()
   const activeNav = ref('analysis')
   const currentUser = ref(getCurrentUser())
+  const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     
     // 当前日期
     const currentDate = computed(() => {
@@ -521,7 +525,8 @@ export default {
       goToSystemStatus,
       goToAdminUsers,
       goToUserHome,
-      currentUser
+      currentUser,
+      userDisplayName
     }
   }
 }
@@ -654,8 +659,19 @@ export default {
 }
 
 .user-info {
-  color: #666;
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background-color: #f0f5ff;
+  color: #1a73e8;
   font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.user-name {
+  white-space: nowrap;
 }
 
 /* 主内容区域样式 */

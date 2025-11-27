@@ -7,7 +7,7 @@ from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import EnterpriseCertification, EnterpriseReviewLog, User, to_iso
+from models import EnterpriseCertification, EnterpriseReviewLog, User, Tenant, to_iso
 from auth import get_authenticated_user
 
 bp = Blueprint('enterprise', __name__, url_prefix='/api/enterprise')
@@ -18,6 +18,11 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 MAX_RESUBMIT = 3
 REVIEW_TARGET_DAYS = 3
 SUPPORTED_ROLES = {'pharmacy', 'supplier', 'logistics'}
+ROLE_TO_TENANT_TYPE = {
+    'pharmacy': 'PHARMACY',
+    'supplier': 'SUPPLIER',
+    'logistics': 'LOGISTICS'
+}
 
 ROLE_REQUIREMENTS = {
     'pharmacy': {
@@ -293,6 +298,43 @@ def _record_review_log(certification_id: int, reviewer_id: int, decision: str, r
     db.session.add(log)
 
 
+def _upsert_tenant_from_cert(record: EnterpriseCertification):
+    tenant_type = ROLE_TO_TENANT_TYPE.get(record.role)
+    if not tenant_type:
+        return None
+
+    tenant = Tenant.query.filter_by(unified_social_credit_code=record.unified_social_credit_code).first()
+    now = datetime.utcnow()
+
+    if tenant:
+        tenant.name = record.company_name
+        tenant.type = tenant_type
+        tenant.contact_person = record.contact_person
+        tenant.contact_phone = record.contact_phone
+        tenant.contact_email = record.contact_email
+        tenant.address = record.registered_address
+        tenant.business_scope = record.business_scope
+        tenant.legal_representative = record.contact_person or tenant.legal_representative
+        tenant.updated_at = now
+    else:
+        tenant = Tenant(
+            name=record.company_name,
+            type=tenant_type,
+            unified_social_credit_code=record.unified_social_credit_code,
+            legal_representative=record.contact_person or record.company_name,
+            contact_person=record.contact_person,
+            contact_phone=record.contact_phone,
+            contact_email=record.contact_email,
+            address=record.registered_address,
+            business_scope=record.business_scope,
+            is_active=True,
+        )
+        db.session.add(tenant)
+        db.session.flush()
+
+    return tenant
+
+
 @bp.route('/review/<int:cert_id>', methods=['POST'])
 @jwt_required()
 def review_certification(cert_id):
@@ -334,6 +376,13 @@ def review_certification(cert_id):
         user = User.query.get(record.user_id)
         if user and user.role != target_role:
             user.role = target_role
+        if user:
+            tenant = _upsert_tenant_from_cert(record)
+            if tenant:
+                user.tenant_id = tenant.id
+            user.company_name = record.company_name
+            user.is_authenticated = True
+            user.updated_at = datetime.utcnow()
 
     _record_review_log(record.id, reviewer.id, decision, reason_code if decision == 'rejected' else None, reject_reason)
     db.session.commit()
