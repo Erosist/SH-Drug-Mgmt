@@ -7,7 +7,7 @@ from supply import bp as supply_bp
 from catalog import bp as catalog_bp
 from enterprise import bp as enterprise_bp
 from admin import bp as admin_bp
-from orders import bp as orders_bp
+from orders import bp as orders_bp, register_logistics_blueprint
 from inventory_warning import bp as inventory_warning_bp
 from circulation import bp as circulation_bp
 
@@ -35,6 +35,9 @@ def create_app(config_object=DevelopmentConfig):
     app.register_blueprint(orders_bp)
     app.register_blueprint(inventory_warning_bp)
     app.register_blueprint(circulation_bp)
+    
+    # register logistics blueprint
+    register_logistics_blueprint(app)
 
     @app.route('/')
     def index():

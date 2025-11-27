@@ -15,5 +15,12 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
 
+class TestingConfig(Config):
+    TESTING = True
+    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    JWT_SECRET_KEY = 'test-secret-key'
+    WTF_CSRF_ENABLED = False
+
 class ProductionConfig(Config):
     DEBUG = False

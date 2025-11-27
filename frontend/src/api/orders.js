@@ -65,6 +65,7 @@ export const orderApi = {
 
   /**
    * 供应商确认/拒绝订单
+   * action: 'accept' | 'reject'
    */
   confirmOrder: (orderId, data) => {
     return apiClient.post(`/api/orders/${orderId}/confirm`, data)
@@ -96,6 +97,27 @@ export const orderApi = {
    */
   getOrderStats: () => {
     return apiClient.get('/api/orders/stats')
+  },
+
+  /**
+   * 更新订单状态（物流公司和管理员功能）
+   */
+  updateOrderStatus: (orderId, status) => {
+    return apiClient.patch(`/api/orders/status/${orderId}`, { status })
+  },
+
+  /**
+   * 获取物流公司列表
+   */
+  getLogisticsCompanies: () => {
+    return apiClient.get('/api/logistics/companies')
+  },
+
+  /**
+   * 获取物流公司的订单列表
+   */
+  getLogisticsOrders: (params = {}) => {
+    return apiClient.get('/api/logistics/orders', { params })
   }
 }
 
