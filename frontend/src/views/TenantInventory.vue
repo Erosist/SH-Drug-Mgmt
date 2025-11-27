@@ -17,6 +17,9 @@
             <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
+            <div v-if="currentUser" class="user-info">
+              <span class="user-name">{{ userDisplayName }}</span>
+            </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -170,6 +173,7 @@ export default {
     const route = useRoute()
     const activeNav = ref('inventory')
     const currentUser = ref(getCurrentUser())
+    const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
 
     const tenant = ref(null)
     const stats = ref({ total_batches: 0, unique_drugs: 0, total_quantity: 0, latest_update: null })
@@ -358,6 +362,7 @@ export default {
     return {
       activeNav,
       currentUser,
+      userDisplayName,
       goToLogin,
       goToEnterpriseAuth,
       goToEnterpriseReview,
@@ -467,6 +472,22 @@ export default {
 .user-actions {
   display: flex;
   align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.user-name {
+  white-space: nowrap;
 }
 
 .auth-btn {

@@ -21,6 +21,8 @@ import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
 import { getCurrentUser } from '@/utils/authSession'
 
+const UNAUDITED_ALLOWED_ROUTE_NAMES = new Set(['enterprise-auth', 'unauth'])
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -49,19 +51,30 @@ const router = createRouter({
   ],
 })
 
-// 简单的前置守卫：访问需要认证的页面时，检查是否已登录（真实后端会话）
+// 简单的前置守卫：包含登录校验与未认证用户强制跳转
 router.beforeEach((to, from, next) => {
-  if (to.meta && to.meta.requiresAuth) {
-    const user = getCurrentUser()
-    if (!user) {
-      next({ name: 'login', query: { redirect: to.fullPath } })
-      return
-    }
-    if (to.meta.requiresRole && user.role !== to.meta.requiresRole) {
-      next({ name: 'home' })
-      return
+  const user = getCurrentUser()
+
+  if (user?.role === 'unauth') {
+    const allowName = to?.name && UNAUDITED_ALLOWED_ROUTE_NAMES.has(to.name)
+    if (!allowName) {
+      if (to.name !== 'unauth') {
+        next({ name: 'unauth' })
+        return
+      }
     }
   }
+
+  if (to.meta?.requiresAuth && !user) {
+    next({ name: 'login', query: { redirect: to.fullPath } })
+    return
+  }
+
+  if (to.meta?.requiresRole && user?.role !== to.meta.requiresRole) {
+    next({ name: 'home' })
+    return
+  }
+
   next()
 })
 

@@ -17,6 +17,9 @@
             <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
+            <div v-if="currentUser" class="user-info">
+              <span class="user-name">{{ userDisplayName }}</span>
+            </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -148,6 +151,7 @@ export default {
   const activeNav = ref('b2b')
     const activeTab = ref('supply')
   const currentUser = ref(getCurrentUser())
+  const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
 
     const currentDate = computed(() => {
       const now = new Date()
@@ -288,7 +292,7 @@ export default {
     onMounted(() => { window.addEventListener('storage', refreshUser) })
     onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
 
-  return { activeNav, activeTab, currentUser, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
+  return { activeNav, activeTab, currentUser, userDisplayName, setActiveTab, onTabsClick, navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records }
   }
 }
 </script>
@@ -306,6 +310,9 @@ export default {
 .nav-item { font-size:16px; color:#333; cursor:pointer; padding:5px 0; transition:color .3s; }
 .nav-item:hover { color:#1a73e8; }
 .nav-item.active { color:#1a73e8; border-bottom:2px solid #1a73e8; }
+.user-actions { display:flex; align-items:center; }
+.user-info { display:flex; align-items:center; padding:6px 16px; border-radius:999px; background-color:#f0f5ff; color:#1a73e8; font-size:14px; font-weight:600; margin-right:10px; }
+.user-name { white-space:nowrap; }
 .auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
 .auth-btn:hover { background-color: rgba(26,115,232,0.06) }
 .review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }

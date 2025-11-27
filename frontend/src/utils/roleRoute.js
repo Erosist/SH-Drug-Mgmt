@@ -1,6 +1,9 @@
 // 角色到路由的映射
 export function roleToRoute(role) {
-  // 现在所有角色登录后统一跳转到平台首页
+  if (role === 'unauth') {
+    return '/unauth'
+  }
+  // 其他角色默认跳转首页
   return '/'
 }
 

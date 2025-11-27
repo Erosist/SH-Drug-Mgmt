@@ -43,6 +43,9 @@
           </div>
           
           <div class="user-actions">
+            <div v-if="currentUser" class="user-info">
+              <span class="user-name">{{ userDisplayName }}</span>
+            </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -318,6 +321,7 @@ export default {
     const selectedSupplier = ref('renji')
     const within5km = ref(true)
     const currentUser = ref(getCurrentUser())
+    const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
 
     const queryType = ref('tenants')
     const queryKeyword = ref('')
@@ -525,6 +529,7 @@ export default {
       within5km,
       currentDate,
       currentUser,
+      userDisplayName,
       queryType,
       queryKeyword,
       queryPlaceholder,
@@ -626,6 +631,22 @@ export default {
 .user-actions {
   display: flex;
   align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.user-name {
+  white-space: nowrap;
 }
 
 .auth-btn {
