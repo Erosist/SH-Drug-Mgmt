@@ -45,6 +45,7 @@
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
               <span class="user-name">{{ userDisplayName }}</span>
+              <span class="user-role">{{ userRoleLabel }}</span>
             </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
@@ -59,80 +60,146 @@
 
     <!-- 库存管理主内容区域 -->
     <div class="main-content">
-      <div class="section data-query">
-        <div class="data-query-header">
+      <div v-if="myTenantId" class="section my-tenant-overview">
+        <div class="section-header">
           <div>
-            <h2 class="section-title">真实数据查询</h2>
-            <p class="section-subtitle">直连后端数据库，支持药品、药店与库存批次的关键字检索</p>
+            <h2 class="section-title">我的企业库存概览</h2>
+            <p class="section-subtitle">聚焦当前登录用户所在企业的主体信息与库存统计</p>
           </div>
-          <div class="tag">实时数据</div>
+          <button class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
         </div>
-        <div class="query-controls">
-          <div class="query-field">
-            <label>查询类型</label>
-            <select v-model="queryType">
-              <option value="drugs">药品</option>
-              <option value="tenants">药店/机构</option>
-            </select>
+        <div v-if="myTenantLoading" class="info-placeholder">正在加载企业信息...</div>
+        <div v-else-if="myTenantError" class="info-placeholder error">
+          {{ myTenantError }}
+          <button class="ghost-btn retry-btn" @click="reloadMyTenant">重新加载</button>
+        </div>
+        <div v-else-if="myTenantDetail" class="tenant-overview-content">
+          <div class="tenant-header">
+            <div>
+              <h3>{{ myTenantDetail.name }}</h3>
+              <p class="tenant-address">{{ myTenantDetail.address }}</p>
+            </div>
+            <div class="tenant-tags">
+              <span class="tag">{{ myTenantDetail.type }}</span>
+              <span class="status" :class="{ active: myTenantDetail.is_active }">
+                {{ myTenantDetail.is_active ? '在营' : '停业' }}
+              </span>
+            </div>
           </div>
-          <div class="query-field flex-1">
-            <label>关键字</label>
-            <div class="query-input-group">
-              <input
-                type="text"
-                :placeholder="queryPlaceholder"
-                v-model="queryKeyword"
-                @keyup.enter="performQuery"
-              />
-              <button class="search-btn" :disabled="dataLoading" @click="performQuery">查询</button>
-              <button class="ghost-btn" :disabled="!queryKeyword || dataLoading" @click="resetQuery">重置</button>
+          <div class="tenant-details-grid">
+            <div>
+              <span class="info-label">统一社会信用代码</span>
+              <strong>{{ myTenantDetail.unified_social_credit_code }}</strong>
+            </div>
+            <div>
+              <span class="info-label">法人代表</span>
+              <strong>{{ myTenantDetail.legal_representative }}</strong>
+            </div>
+            <div>
+              <span class="info-label">联系人</span>
+              <strong>{{ myTenantDetail.contact_person }}</strong>
+            </div>
+            <div>
+              <span class="info-label">联系电话</span>
+              <strong>{{ myTenantDetail.contact_phone }}</strong>
+            </div>
+          </div>
+          <div class="tenant-contact-grid">
+            <div>业务范围：{{ myTenantDetail.business_scope }}</div>
+            <div>邮箱：{{ myTenantDetail.contact_email }}</div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">库存批次</span>
+              <span class="stat-value">{{ myTenantStats.total_batches }}</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">药品种类</span>
+              <span class="stat-value">{{ myTenantStats.unique_drugs }}</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">总库存量</span>
+              <span class="stat-value">{{ myTenantStats.total_quantity }}</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">最近更新</span>
+              <span class="stat-value">{{ myLatestUpdateText }}</span>
             </div>
           </div>
         </div>
-        <div class="query-results">
-          <div v-if="dataLoading" class="query-feedback">正在查询...</div>
-          <div v-else-if="dataError" class="query-feedback error">{{ dataError }}</div>
-          <div v-else-if="!results.length" class="query-feedback">暂无数据，请调整筛选条件</div>
-          <div v-else class="table-wrapper">
-            <table class="result-table">
-              <thead>
-                <tr>
-                  <th v-for="col in activeColumns" :key="col.key">{{ col.label }}</th>
-                  <th v-if="queryType === 'tenants'">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in results" :key="`${queryType}-${row.id}`">
-                  <td v-for="col in activeColumns" :key="col.key">{{ formatCell(row, col.key) }}</td>
-                  <td v-if="queryType === 'tenants'">
-                    <button class="link-btn" @click="viewTenantInventory(row.id)">查看库存</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="queryType === 'tenants'" class="hint-text">
-              点击“查看库存”即可进入该药店的库存明细（二级页面）
-            </div>
-            <div class="pagination" v-if="pagination.total > pagination.per_page">
-              <button
-                class="ghost-btn"
-                :disabled="pagination.page === 1 || dataLoading"
-                @click="goToPage(pagination.page - 1)"
-              >
-                上一页
-              </button>
-              <span>第 {{ pagination.page }} / {{ totalPages }} 页 · 共 {{ pagination.total }} 条</span>
-              <button
-                class="ghost-btn"
-                :disabled="pagination.page >= totalPages || dataLoading"
-                @click="goToPage(pagination.page + 1)"
-              >
-                下一页
-              </button>
-            </div>
+        <div v-else class="info-placeholder">暂无企业信息</div>
+      </div>
+
+      <div v-if="myTenantId" class="section my-tenant-inventory">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">企业库存明细</h2>
+            <p class="section-subtitle">仅展示当前企业的库存批次</p>
+          </div>
+          <div class="search-controls">
+            <input
+              type="text"
+              placeholder="输入批次号、药品或供应商"
+              v-model="myInventoryKeyword"
+              @keyup.enter="searchMyInventory"
+            />
+            <button class="search-btn" :disabled="myInventoryLoading" @click="searchMyInventory">搜索</button>
+            <button
+              class="ghost-btn"
+              :disabled="!myInventoryKeyword || myInventoryLoading"
+              @click="resetMyInventorySearch"
+            >
+              重置
+            </button>
+          </div>
+        </div>
+        <div v-if="myInventoryLoading" class="info-placeholder">正在加载库存...</div>
+        <div v-else-if="myInventoryError" class="info-placeholder error">{{ myInventoryError }}</div>
+        <div v-else-if="!myInventory.length" class="info-placeholder">暂无库存数据</div>
+        <div v-else class="table-wrapper">
+          <table class="result-table my-inventory-table">
+            <thead>
+              <tr>
+                <th>批次号</th>
+                <th>药品</th>
+                <th>数量</th>
+                <th>单价</th>
+                <th>生产日期</th>
+                <th>有效期</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in myInventory" :key="item.id">
+                <td>{{ item.batch_number }}</td>
+                <td>
+                  <div class="drug-name">{{ item.drug_name || '—' }}</div>
+                  <div class="drug-brand">{{ item.drug_brand }}</div>
+                </td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ formatPrice(item.unit_price) }}</td>
+                <td>{{ formatDate(item.production_date) }}</td>
+                <td>{{ formatDate(item.expiry_date) }}</td>
+                <td>{{ formatDateTime(item.updated_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pagination" v-if="myInventoryPagination.total > myInventoryPagination.per_page">
+            <button class="ghost-btn" :disabled="myInventoryPagination.page === 1" @click="changeMyInventoryPage(myInventoryPagination.page - 1)">
+              上一页
+            </button>
+            <span>第 {{ myInventoryPagination.page }} / {{ myInventoryTotalPages }} 页 · 共 {{ myInventoryPagination.total }} 条</span>
+            <button
+              class="ghost-btn"
+              :disabled="myInventoryPagination.page >= myInventoryTotalPages"
+              @click="changeMyInventoryPage(myInventoryPagination.page + 1)"
+            >
+              下一页
+            </button>
           </div>
         </div>
       </div>
+
       <div class="content-wrapper">
         <!-- 左侧主要内容 -->
         <div class="left-content">
@@ -308,8 +375,9 @@
 import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
+import { getRoleLabel } from '@/utils/roleLabel'
 import { roleToRoute } from '@/utils/roleRoute'
-import { fetchDrugs, fetchTenants } from '@/api/catalog'
+import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
 import InventoryWarning from '@/component/InventoryWarning.vue'
 
 export default {
@@ -322,108 +390,128 @@ export default {
     const within5km = ref(true)
     const currentUser = ref(getCurrentUser())
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+    const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
+    const myTenantId = computed(() => currentUser.value?.tenant_id || null)
+    const createDefaultStats = () => ({
+      total_batches: 0,
+      unique_drugs: 0,
+      total_quantity: 0,
+      latest_update: null
+    })
+    const myTenantDetail = ref(null)
+    const myTenantStats = ref(createDefaultStats())
+    const myTenantLoading = ref(false)
+    const myTenantError = ref('')
+    const myInventory = ref([])
+    const myInventoryKeyword = ref('')
+    const myInventoryPagination = ref({ page: 1, per_page: 10, total: 0 })
+    const myInventoryLoading = ref(false)
+    const myInventoryError = ref('')
 
-    const queryType = ref('tenants')
-    const queryKeyword = ref('')
-    const results = ref([])
-    const dataLoading = ref(false)
-    const dataError = ref('')
-    const pagination = ref({ page: 1, per_page: 10, total: 0 })
-
-    const queryConfigs = {
-      drugs: {
-        placeholder: '输入通用名、商品名或批准文号',
-        fetcher: fetchDrugs,
-        columns: [
-          { key: 'generic_name', label: '通用名' },
-          { key: 'brand_name', label: '商品名' },
-          { key: 'dosage_form', label: '剂型' },
-          { key: 'specification', label: '规格' },
-          { key: 'manufacturer', label: '生产企业' }
-        ]
-      },
-      tenants: {
-        placeholder: '输入药店名称、地址或统一社会信用代码',
-        fetcher: fetchTenants,
-        columns: [
-          { key: 'name', label: '药店名称' },
-          { key: 'type', label: '类型' },
-          { key: 'contact_person', label: '联系人' },
-          { key: 'contact_phone', label: '联系电话' },
-          { key: 'address', label: '地址' },
-          { key: 'is_active', label: '状态' }
-        ]
-      }
-    }
-
-    const activeColumns = computed(() => queryConfigs[queryType.value].columns)
-    const queryPlaceholder = computed(() => queryConfigs[queryType.value].placeholder)
-
-    const totalPages = computed(() => {
-      const total = pagination.value.total || 0
-      const size = pagination.value.per_page || 1
+    const myInventoryTotalPages = computed(() => {
+      const total = myInventoryPagination.value.total || 0
+      const size = myInventoryPagination.value.per_page || 1
       return Math.max(1, Math.ceil(total / size))
     })
 
-    const fetchCurrentData = async () => {
-      const config = queryConfigs[queryType.value]
-      if (!config) return
-      dataLoading.value = true
-      dataError.value = ''
+    const fetchMyTenantInfo = async () => {
+      if (!myTenantId.value) return
+      myTenantLoading.value = true
+      myTenantError.value = ''
       try {
-        const response = await config.fetcher({
-          keyword: queryKeyword.value.trim(),
-          page: pagination.value.page,
-          perPage: pagination.value.per_page
+        const response = await fetchTenantDetail(myTenantId.value)
+        myTenantDetail.value = response.tenant
+        myTenantStats.value = response.stats || createDefaultStats()
+      } catch (error) {
+        myTenantError.value = error.message || '企业信息加载失败'
+        myTenantDetail.value = null
+        myTenantStats.value = createDefaultStats()
+      } finally {
+        myTenantLoading.value = false
+      }
+    }
+
+    const fetchMyInventoryData = async () => {
+      if (!myTenantId.value) return
+      myInventoryLoading.value = true
+      myInventoryError.value = ''
+      try {
+        const response = await fetchInventory({
+          tenantId: myTenantId.value,
+          keyword: myInventoryKeyword.value.trim(),
+          page: myInventoryPagination.value.page,
+          perPage: myInventoryPagination.value.per_page
         })
-        results.value = response.items || []
-        pagination.value = {
-          page: response.page ?? pagination.value.page,
-          per_page: response.per_page ?? pagination.value.per_page,
+        myInventory.value = response.items || []
+        myInventoryPagination.value = {
+          page: response.page ?? myInventoryPagination.value.page,
+          per_page: response.per_page ?? myInventoryPagination.value.per_page,
           total: typeof response.total === 'number' ? response.total : (response.items || []).length
         }
       } catch (error) {
-        dataError.value = error.message || '查询失败，请稍后重试'
-        results.value = []
+        myInventoryError.value = error.message || '库存加载失败'
+        myInventory.value = []
       } finally {
-        dataLoading.value = false
+        myInventoryLoading.value = false
       }
     }
 
-    const performQuery = () => {
-      pagination.value = { ...pagination.value, page: 1 }
-      fetchCurrentData()
+    const searchMyInventory = () => {
+      myInventoryPagination.value = { ...myInventoryPagination.value, page: 1, total: 0 }
+      fetchMyInventoryData()
     }
 
-    const resetQuery = () => {
-      queryKeyword.value = ''
-      pagination.value = { ...pagination.value, page: 1, total: 0 }
-      fetchCurrentData()
+    const resetMyInventorySearch = () => {
+      myInventoryKeyword.value = ''
+      myInventoryPagination.value = { ...myInventoryPagination.value, page: 1, total: 0 }
+      fetchMyInventoryData()
     }
 
-    const goToPage = (page) => {
-      const maxPage = totalPages.value
-      if (page < 1 || page > maxPage || page === pagination.value.page) return
-      pagination.value = { ...pagination.value, page }
-      fetchCurrentData()
+    const changeMyInventoryPage = (page) => {
+      const total = Math.max(1, myInventoryTotalPages.value)
+      if (page < 1 || page > total || page === myInventoryPagination.value.page) return
+      myInventoryPagination.value = { ...myInventoryPagination.value, page }
+      fetchMyInventoryData()
     }
 
-    const formatCell = (row, key) => {
-      const value = row[key]
+    const formatDate = (value) => {
+      if (!value) return '—'
+      return String(value).slice(0, 10)
+    }
+
+    const formatPrice = (value) => {
       if (value === null || value === undefined || value === '') return '—'
-      if (typeof value === 'boolean') return value ? '在营' : '停业'
-      if (typeof value === 'number') {
-        if (key.includes('price')) return `¥${value.toFixed(2)}`
-        return value
-      }
-      return value
+      return `¥${Number(value).toFixed(2)}`
     }
 
-    watch(queryType, () => {
-      queryKeyword.value = ''
-      pagination.value = { ...pagination.value, page: 1, total: 0 }
-      fetchCurrentData()
+    const formatDateTime = (value) => {
+      if (!value) return '—'
+      return String(value).replace('T', ' ').replace('Z', '')
+    }
+
+    const myLatestUpdateText = computed(() => {
+      if (!myTenantStats.value.latest_update) return '—'
+      return formatDateTime(myTenantStats.value.latest_update)
     })
+
+    const reloadMyTenant = () => {
+      if (!myTenantId.value) return
+      fetchMyTenantInfo()
+      fetchMyInventoryData()
+    }
+
+    watch(myTenantId, (tenantId) => {
+      if (!tenantId) {
+        myTenantDetail.value = null
+        myTenantError.value = ''
+        myTenantStats.value = createDefaultStats()
+        myInventory.value = []
+        return
+      }
+      myInventoryPagination.value = { ...myInventoryPagination.value, page: 1, total: 0 }
+      fetchMyTenantInfo()
+      fetchMyInventoryData()
+    }, { immediate: true })
 
     const currentDate = computed(() => {
       const now = new Date()
@@ -502,14 +590,13 @@ export default {
       selectedSupplier.value = supplier
     }
 
-    const viewTenantInventory = (tenantId) => {
-      if (!tenantId) return
-      router.push({ name: 'tenant-inventory', params: { tenantId } })
+    const goToMyTenantInventory = () => {
+      if (!myTenantId.value) return
+      router.push({ name: 'tenant-inventory', params: { tenantId: myTenantId.value } })
     }
 
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
-      fetchCurrentData()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -530,20 +617,27 @@ export default {
       currentDate,
       currentUser,
       userDisplayName,
-      queryType,
-      queryKeyword,
-      queryPlaceholder,
-      results,
-      dataLoading,
-      dataError,
-      pagination,
-      activeColumns,
-      totalPages,
-      performQuery,
-      resetQuery,
-      goToPage,
-      formatCell,
-      viewTenantInventory
+      userRoleLabel,
+      myTenantId,
+      myTenantDetail,
+      myTenantStats,
+      myTenantLoading,
+      myTenantError,
+      myLatestUpdateText,
+      reloadMyTenant,
+      myInventory,
+      myInventoryKeyword,
+      myInventoryPagination,
+      myInventoryLoading,
+      myInventoryError,
+      myInventoryTotalPages,
+      searchMyInventory,
+      resetMyInventorySearch,
+      changeMyInventoryPage,
+      goToMyTenantInventory,
+      formatDate,
+      formatPrice,
+      formatDateTime
     }
   }
 }
@@ -636,17 +730,27 @@ export default {
 .user-info {
   display: flex;
   align-items: center;
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 999px;
   background-color: #f0f5ff;
   color: #1a73e8;
   font-size: 14px;
   font-weight: 600;
   margin-right: 10px;
+  gap: 8px;
 }
 
 .user-name {
   white-space: nowrap;
+}
+
+.user-role {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: #fff;
+  border: 1px solid rgba(26, 115, 232, 0.2);
+  font-size: 12px;
+  color: #1a73e8;
 }
 
 .auth-btn {
@@ -748,13 +852,6 @@ export default {
   font-size: 14px;
 }
 
-.data-query-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-}
-
 .tag {
   padding: 4px 12px;
   border-radius: 999px;
@@ -762,55 +859,6 @@ export default {
   color: #1a73e8;
   font-size: 13px;
   height: fit-content;
-}
-
-.query-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 15px;
-  align-items: flex-end;
-}
-
-.query-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 220px;
-}
-
-.query-field label {
-  font-size: 14px;
-  color: #555;
-}
-
-.query-field select,
-.query-field input {
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.query-field select:focus,
-.query-field input:focus {
-  border-color: #1a73e8;
-}
-
-.query-field.flex-1 {
-  flex: 1;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-.query-input-group {
-  display: flex;
-  gap: 10px;
-  align-items: center;
 }
 
 .ghost-btn {
@@ -830,39 +878,6 @@ export default {
 
 .ghost-btn:not(:disabled):hover {
   background-color: #e8f2ff;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: #1a73e8;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
-}
-
-.hint-text {
-  margin-top: 8px;
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.query-results {
-  min-height: 180px;
-}
-
-.query-feedback {
-  text-align: center;
-  color: #666;
-  padding: 20px 0;
-}
-
-.query-feedback.error {
-  color: #d93025;
 }
 
 .table-wrapper {
@@ -885,6 +900,106 @@ export default {
 .result-table th {
   background-color: #f7f9fc;
   color: #555;
+}
+
+.info-placeholder {
+  text-align: center;
+  color: #6b7280;
+  padding: 20px 0;
+}
+
+.info-placeholder.error {
+  color: #d93025;
+}
+
+.retry-btn {
+  margin-left: 12px;
+}
+
+.tenant-overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tenant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.tenant-address {
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.tenant-tags {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.status {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+.status.active {
+  background-color: #e6f4ea;
+  color: #1e8e3e;
+}
+
+.tenant-details-grid,
+.tenant-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.info-label {
+  display: block;
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 15px;
+}
+
+.stat-card {
+  background-color: #f7f9fc;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1a73e8;
+}
+
+.my-inventory-table .drug-name {
+  font-weight: 600;
+}
+
+.my-inventory-table .drug-brand {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .pagination {
