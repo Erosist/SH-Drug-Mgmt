@@ -1,55 +1,31 @@
 <template>
   <div class="analysis-container">
-    <!-- 顶部导航栏 -->
     <div class="header">
       <div class="header-content">
         <div class="platform-info">
           <h1 class="platform-title">上海药品监管信息平台</h1>
           <div class="current-date">{{ currentDate }}</div>
         </div>
-        
+
         <div class="nav-section">
           <div class="nav-menu">
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'home' }"
-              @click="navigateTo('home')"
-            >首页</div>
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'inventory' }"
-              @click="navigateTo('inventory')"
-            >库存管理</div>
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'b2b' }"
-              @click="navigateTo('b2b')"
-            >B2B供求平台</div>
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'circulation' }"
-              @click="navigateTo('circulation')"
-            >流通监管</div>
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'analysis' }"
-              @click="navigateTo('analysis')"
-            >监管分析</div>
-            <div 
-              class="nav-item" 
-              :class="{ active: activeNav === 'service' }"
-              @click="navigateTo('service')"
-            >智能调度</div>
+            <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
+            <div class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
+            <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
+            <div class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
+            <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
-          
+
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
               <span class="user-name">{{ userDisplayName }}</span>
+              <span class="user-role">{{ userRoleLabel }}</span>
             </div>
-            <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
-            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
-            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+            <button v-if="!currentUser || currentUser.role === 'unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="currentUser && currentUser.role === 'admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
+            <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -57,14 +33,12 @@
       </div>
     </div>
 
-    <!-- 监管分析主内容区域 -->
     <div class="main-content">
       <div class="content-wrapper">
-        <!-- 左侧窄侧边栏：筛选 -->
         <aside class="sidebar">
           <div class="section filter-section">
             <h3 class="section-title">应用筛选</h3>
-            
+
             <div class="filter-groups">
               <div class="filter-group">
                 <label class="filter-label">药品类型</label>
@@ -91,7 +65,7 @@
                   </label>
                 </div>
               </div>
-              
+
               <div class="filter-group">
                 <label class="filter-label">企业类型</label>
                 <div class="checkbox-group">
@@ -107,7 +81,7 @@
                   </label>
                 </div>
               </div>
-              
+
               <div class="filter-group">
                 <label class="filter-label">合规状态</label>
                 <div class="checkbox-group">
@@ -128,7 +102,7 @@
                   </label>
                 </div>
               </div>
-              
+
               <div class="filter-group">
                 <label class="filter-label">经营企业</label>
                 <div class="percentage-bars">
@@ -156,214 +130,209 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="filter-actions">
               <button class="reset-btn">重置</button>
             </div>
           </div>
         </aside>
-        
-        <div class="main-area">
-          <!-- 数据概览卡片 -->
-          <div class="data-overview">
-          <div class="data-card">
-            <div class="data-header">
-              <div class="data-title">合规率</div>
-              <div class="data-source">数据来源：易观数据库</div>
-            </div>
-            <div class="data-value">94.7%</div>
-            <div class="data-trend">
-              <span class="trend-up">↑ 24%</span>
-              <span class="trend-text">线上服务</span>
-            </div>
-          </div>
-          
-          <div class="data-card">
-            <div class="data-header">
-              <div class="data-title">预警数量</div>
-              <div class="data-source">数据来源：易观数据库</div>
-            </div>
-            <div class="data-value">86.3%</div>
-            <div class="data-trend">
-              <span class="trend-up">↑ 31.8%</span>
-              <span class="trend-text">线上服务</span>
-            </div>
-          </div>
-          
-          <div class="data-card">
-            <div class="data-header">
-              <div class="data-title">投放效率</div>
-              <div class="data-source">数据来源：易观数据库</div>
-            </div>
-            <div class="data-value">248</div>
-            <div class="data-trend">
-              <span class="trend-down">↓ 4%</span>
-              <span class="trend-text">与上期服务</span>
-            </div>
-          </div>
-          
-          <div class="data-card">
-            <div class="data-header">
-              <div class="data-title">企业概况</div>
-              <div class="data-source">数据来源：易观数据库</div>
-            </div>
-            <div class="data-value">78.4%</div>
-            <div class="data-trend">
-              <span class="trend-up">↑ 19.1%</span>
-              <span class="trend-text">线上服务</span>
-            </div>
-            <div class="data-tag">全额归档</div>
-          </div>
-        </div>
 
-        <div class="analysis-content">
-          <div class="left-content">
-            <!-- 监管趋势分析 -->
-            <div class="section trend-analysis">
-              <h3 class="section-title">监管趋势分析</h3>
-              
-              <div class="trend-chart">
-                <div class="chart-placeholder">
-                  <div class="chart-lines">
-                    <div class="chart-line" style="height: 80%"></div>
-                    <div class="chart-line" style="height: 60%"></div>
-                    <div class="chart-line" style="height: 40%"></div>
-                    <div class="chart-line" style="height: 20%"></div>
-                    <div class="chart-line" style="height: 10%"></div>
-                  </div>
-                  <div class="chart-bars">
-                    <div class="chart-bar" style="height: 70%"></div>
-                    <div class="chart-bar" style="height: 85%"></div>
-                    <div class="chart-bar" style="height: 60%"></div>
-                    <div class="chart-bar" style="height: 90%"></div>
-                  </div>
-                </div>
-                <div class="chart-labels">
-                  <span>2016 Q1</span>
-                  <span>2015 Q2</span>
-                  <span>2016 Q3</span>
-                  <span>2016 Q4</span>
-                </div>
-              </div>
-              
-              <div class="coverage-info">
-                <span>非覆盖率</span>
-                <span>- 0% - 0% - 0% - 0%</span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 右侧图表和表格 -->
-          <div class="right-content">
-            <!-- 区域热力对比 -->
-            <div class="section regional-comparison">
-              <h3 class="section-title">区域热力对比</h3>
-              
-              <div class="comparison-chart">
-                <div class="chart-bars-horizontal">
-                  <div class="bar-item">
-                    <span class="city-name">北京</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 90%"></div>
-                    </div>
-                    <span class="bar-value">140</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">上海</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 80%"></div>
-                    </div>
-                    <span class="bar-value">120</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">广州</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 70%"></div>
-                    </div>
-                    <span class="bar-value">100</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">深圳</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 60%"></div>
-                    </div>
-                    <span class="bar-value">80</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">杭州</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 50%"></div>
-                    </div>
-                    <span class="bar-value">60</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">南京</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 40%"></div>
-                    </div>
-                    <span class="bar-value">40</span>
-                  </div>
-                  <div class="bar-item">
-                    <span class="city-name">成都</span>
-                    <div class="bar-container">
-                      <div class="bar-fill" style="width: 20%"></div>
-                    </div>
-                    <span class="bar-value">20</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="chart-footer">
-                <span>区域能力分布</span>
-              </div>
-            </div>
-            
-            <!-- 数据表格 -->
-            <div class="section data-table">
-              <div class="table-header">
-                <h3 class="section-title">企业监管数据</h3>
+        <div class="main-area">
+          <div class="data-overview">
+            <div class="data-card">
+              <div class="data-header">
+                <div class="data-title">合规率</div>
                 <div class="data-source">数据来源：易观数据库</div>
               </div>
-              
-              <div class="table-container">
-                <table class="analysis-table">
-                  <thead>
-                    <tr>
-                      <th>企业名称</th>
-                      <th>药品类型</th>
-                      <th>药品类别</th>
-                      <th>销售范围</th>
-                      <th>合规状态</th>
-                      <th>标签数量</th>
-                      <th>二级机构</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(item, index) in tableData" :key="index">
-                      <td>{{ item.companyName }}</td>
-                      <td>{{ item.drugType }}</td>
-                      <td>{{ item.drugCategory }}</td>
-                      <td>{{ item.salesScope }}</td>
-                      <td>
-                        <span :class="['status', item.complianceStatus]">
-                          {{ item.complianceStatus }}
-                        </span>
-                      </td>
-                      <td>{{ item.labelCount }}</td>
-                      <td>{{ item.secondaryOrg }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="data-value">94.7%</div>
+              <div class="data-trend">
+                <span class="trend-up">↑ 24%</span>
+                <span class="trend-text">线上服务</span>
               </div>
-              
-              <div class="table-footer">
-                <div class="pagination-info">
-                  显示 1-{{ tableData.length }} 条，共 258 条
+            </div>
+
+            <div class="data-card">
+              <div class="data-header">
+                <div class="data-title">预警数量</div>
+                <div class="data-source">数据来源：易观数据库</div>
+              </div>
+              <div class="data-value">86.3%</div>
+              <div class="data-trend">
+                <span class="trend-up">↑ 31.8%</span>
+                <span class="trend-text">线上服务</span>
+              </div>
+            </div>
+
+            <div class="data-card">
+              <div class="data-header">
+                <div class="data-title">投放效率</div>
+                <div class="data-source">数据来源：易观数据库</div>
+              </div>
+              <div class="data-value">248</div>
+              <div class="data-trend">
+                <span class="trend-down">↓ 4%</span>
+                <span class="trend-text">与上期服务</span>
+              </div>
+            </div>
+
+            <div class="data-card">
+              <div class="data-header">
+                <div class="data-title">企业概况</div>
+                <div class="data-source">数据来源：易观数据库</div>
+              </div>
+              <div class="data-value">78.4%</div>
+              <div class="data-trend">
+                <span class="trend-up">↑ 19.1%</span>
+                <span class="trend-text">线上服务</span>
+              </div>
+              <div class="data-tag">全额归档</div>
+            </div>
+          </div>
+
+          <div class="analysis-content">
+            <div class="left-content">
+              <div class="section trend-analysis">
+                <h3 class="section-title">监管趋势分析</h3>
+
+                <div class="trend-chart">
+                  <div class="chart-placeholder">
+                    <div class="chart-lines">
+                      <div class="chart-line" style="height: 80%"></div>
+                      <div class="chart-line" style="height: 60%"></div>
+                      <div class="chart-line" style="height: 40%"></div>
+                      <div class="chart-line" style="height: 20%"></div>
+                      <div class="chart-line" style="height: 10%"></div>
+                    </div>
+                    <div class="chart-bars">
+                      <div class="chart-bar" style="height: 70%"></div>
+                      <div class="chart-bar" style="height: 85%"></div>
+                      <div class="chart-bar" style="height: 60%"></div>
+                      <div class="chart-bar" style="height: 90%"></div>
+                    </div>
+                  </div>
+                  <div class="chart-labels">
+                    <span>2016 Q1</span>
+                    <span>2015 Q2</span>
+                    <span>2016 Q3</span>
+                    <span>2016 Q4</span>
+                  </div>
+                </div>
+
+                <div class="coverage-info">
+                  <span>非覆盖率</span>
+                  <span>- 0% - 0% - 0% - 0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="right-content">
+              <div class="section regional-comparison">
+                <h3 class="section-title">区域热力对比</h3>
+
+                <div class="comparison-chart">
+                  <div class="chart-bars-horizontal">
+                    <div class="bar-item">
+                      <span class="city-name">北京</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 90%"></div>
+                      </div>
+                      <span class="bar-value">140</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">上海</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 80%"></div>
+                      </div>
+                      <span class="bar-value">120</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">广州</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 70%"></div>
+                      </div>
+                      <span class="bar-value">100</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">深圳</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 60%"></div>
+                      </div>
+                      <span class="bar-value">80</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">杭州</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 50%"></div>
+                      </div>
+                      <span class="bar-value">60</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">南京</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 40%"></div>
+                      </div>
+                      <span class="bar-value">40</span>
+                    </div>
+                    <div class="bar-item">
+                      <span class="city-name">成都</span>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: 20%"></div>
+                      </div>
+                      <span class="bar-value">20</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="chart-footer">
+                  <span>区域能力分布</span>
+                </div>
+              </div>
+
+              <div class="section data-table">
+                <div class="table-header">
+                  <h3 class="section-title">企业监管数据</h3>
+                  <div class="data-source">数据来源：易观数据库</div>
+                </div>
+
+                <div class="table-container">
+                  <table class="analysis-table">
+                    <thead>
+                      <tr>
+                        <th>企业名称</th>
+                        <th>药品类型</th>
+                        <th>药品类别</th>
+                        <th>销售范围</th>
+                        <th>合规状态</th>
+                        <th>标签数量</th>
+                        <th>二级机构</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(item, index) in tableData" :key="index">
+                        <td>{{ item.companyName }}</td>
+                        <td>{{ item.drugType }}</td>
+                        <td>{{ item.drugCategory }}</td>
+                        <td>{{ item.salesScope }}</td>
+                        <td>
+                          <span :class="['status', item.complianceStatus]">
+                            {{ item.complianceStatus }}
+                          </span>
+                        </td>
+                        <td>{{ item.labelCount }}</td>
+                        <td>{{ item.secondaryOrg }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="table-footer">
+                  <div class="pagination-info">
+                    显示 1-{{ tableData.length }} 条，共 258 条
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </div>
@@ -375,14 +344,16 @@ import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
+import { getRoleLabel } from '@/utils/roleLabel'
 
 export default {
   name: 'Analysis',
   setup() {
     const router = useRouter()
-  const activeNav = ref('analysis')
-  const currentUser = ref(getCurrentUser())
-  const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+    const activeNav = ref('analysis')
+    const currentUser = ref(getCurrentUser())
+    const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+    const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     
     // 当前日期
     const currentDate = computed(() => {
@@ -526,7 +497,8 @@ export default {
       goToAdminUsers,
       goToUserHome,
       currentUser,
-      userDisplayName
+      userDisplayName,
+      userRoleLabel
     }
   }
 }
@@ -666,12 +638,21 @@ export default {
   background-color: #f0f5ff;
   color: #1a73e8;
   font-size: 14px;
-  font-weight: 600;
   margin-right: 10px;
+  gap: 8px;
 }
 
 .user-name {
   white-space: nowrap;
+}
+
+.user-role {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: #fff;
+  border: 1px solid rgba(26, 115, 232, 0.2);
+  font-size: 12px;
+  color: #1a73e8;
 }
 
 /* 主内容区域样式 */

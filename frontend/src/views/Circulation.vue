@@ -45,6 +45,7 @@
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
               <span class="user-name">{{ userDisplayName }}</span>
+              <span class="user-role">{{ userRoleLabel }}</span>
             </div>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
@@ -208,6 +209,7 @@ import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
+import { getRoleLabel } from '@/utils/roleLabel'
 
 export default {
   name: 'Circulation',
@@ -216,6 +218,7 @@ export default {
   const activeNav = ref('circulation')
   const currentUser = ref(getCurrentUser())
   const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+  const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     
     // 当前日期和时间
     const currentDate = computed(() => {
@@ -383,7 +386,8 @@ export default {
       useCurrentLocation,
       submitProcess,
       currentUser,
-      userDisplayName
+      userDisplayName,
+      userRoleLabel
     }
   }
 }
@@ -438,17 +442,21 @@ export default {
   font-size: 16px;
 }
 
+
 .nav-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #eee;
   padding-top: 15px;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
 .nav-menu {
   display: flex;
   gap: 30px;
+  flex-wrap: wrap;
 }
 
 .nav-item {
@@ -468,6 +476,14 @@ export default {
   border-bottom: 2px solid #1a73e8;
 }
 
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -477,17 +493,22 @@ export default {
   color: #1a73e8;
   font-size: 14px;
   font-weight: 600;
-  margin-right: 10px;
+  gap: 8px;
 }
 
 .user-name {
   white-space: nowrap;
 }
 
-.user-actions {
-  display: flex;
-  align-items: center;
+.user-role {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: #fff;
+  border: 1px solid rgba(26, 115, 232, 0.2);
+  font-size: 12px;
+  color: #1a73e8;
 }
+
 
 .auth-btn {
   background-color: #fff;
@@ -496,12 +517,12 @@ export default {
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
-  margin-right: 10px;
 }
 
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
+
 
 .review-btn {
   background-color: #fff7e6;
@@ -510,12 +531,12 @@ export default {
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
-  margin-right: 10px;
 }
 
 .review-btn:hover {
   background-color: #ffeccc;
 }
+
 
 .admin-btn {
   background-color: #f0f5ff;
@@ -524,7 +545,6 @@ export default {
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
-  margin-right: 10px;
 }
 
 .admin-btn:hover {
