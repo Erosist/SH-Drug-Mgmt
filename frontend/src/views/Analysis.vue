@@ -34,305 +34,89 @@
     </div>
 
     <div class="main-content">
-      <div class="content-wrapper">
-        <aside class="sidebar">
-          <div class="section filter-section">
-            <h3 class="section-title">应用筛选</h3>
+      <div class="filters-card section">
+        <div class="filters-left">
+          <div class="filter-item">
+            <label>时间范围</label>
+            <select v-model="filters.range" @change="handleFiltersChange">
+              <option value="7d">近7天</option>
+              <option value="30d">近30天</option>
+              <option value="90d">近90天</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label>区域范围</label>
+            <select v-model="filters.region" @change="handleFiltersChange">
+              <option value="all">全部区域</option>
+              <option v-for="region in regionOptions" :key="region" :value="region">
+                {{ region }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="filters-right">
+          <div class="refresh-info">
+            <span>上次更新：{{ lastUpdatedText }}</span>
+            <span class="auto-refresh">自动刷新：5分钟</span>
+          </div>
+          <button class="refresh-btn" :disabled="loading" @click="refreshDashboard">
+            {{ loading ? '刷新中...' : '手动刷新' }}
+          </button>
+        </div>
+      </div>
 
-            <div class="filter-groups">
-              <div class="filter-group">
-                <label class="filter-label">药品类型</label>
-                <div class="checkbox-group">
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.drugTypes" value="prescription">
-                    <span class="checkmark"></span>
-                    处方药
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.drugTypes" value="nonPrescription">
-                    <span class="checkmark"></span>
-                    单处方药
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.drugTypes" value="traditional">
-                    <span class="checkmark"></span>
-                    中药制剂
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.drugTypes" value="biological">
-                    <span class="checkmark"></span>
-                    生物制品
-                  </label>
-                </div>
-              </div>
+      <div class="metrics-grid">
+        <div class="metric-card primary">
+          <div class="metric-title">当前药品总库存量</div>
+          <div class="metric-value">{{ formatNumber(metrics.total_inventory) }}</div>
+          <div class="metric-subtitle">来自库存中心</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">在途药品数量</div>
+          <div class="metric-value">{{ formatNumber(metrics.in_transit) }}</div>
+          <div class="metric-trend up">运输中</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">异常上报数量</div>
+          <div class="metric-value">{{ formatNumber(metrics.abnormal_reports) }}</div>
+          <div class="metric-trend down">需要复核</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">覆盖区域数</div>
+          <div class="metric-value">{{ formatNumber(metrics.regions) }}</div>
+          <div class="metric-subtitle">统计范围：省级行政区</div>
+        </div>
+      </div>
 
-              <div class="filter-group">
-                <label class="filter-label">企业类型</label>
-                <div class="checkbox-group">
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.companyTypes" value="producer">
-                    <span class="checkmark"></span>
-                    生产企业
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.companyTypes" value="user">
-                    <span class="checkmark"></span>
-                    使用单位
-                  </label>
-                </div>
-              </div>
-
-              <div class="filter-group">
-                <label class="filter-label">合规状态</label>
-                <div class="checkbox-group">
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.complianceStatus" value="compliant">
-                    <span class="checkmark"></span>
-                    合规
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.complianceStatus" value="limited">
-                    <span class="checkmark"></span>
-                    限量中
-                  </label>
-                  <label class="checkbox-item">
-                    <input type="checkbox" v-model="filters.complianceStatus" value="violation">
-                    <span class="checkmark"></span>
-                    违规
-                  </label>
-                </div>
-              </div>
-
-              <div class="filter-group">
-                <label class="filter-label">经营企业</label>
-                <div class="percentage-bars">
-                  <div class="percentage-item">
-                    <span class="percentage-label">生产企业</span>
-                    <div class="percentage-bar">
-                      <div class="percentage-fill" style="width: 36%"></div>
-                    </div>
-                    <span class="percentage-value">36%</span>
-                  </div>
-                  <div class="percentage-item">
-                    <span class="percentage-label">流通企业</span>
-                    <div class="percentage-bar">
-                      <div class="percentage-fill" style="width: 9%"></div>
-                    </div>
-                    <span class="percentage-value">9%</span>
-                  </div>
-                  <div class="percentage-item">
-                    <span class="percentage-label">使用单位</span>
-                    <div class="percentage-bar">
-                      <div class="percentage-fill" style="width: 5%"></div>
-                    </div>
-                    <span class="percentage-value">5%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="filter-actions">
-              <button class="reset-btn">重置</button>
+      <div class="charts-grid">
+        <div class="section chart-card">
+          <div class="chart-header">
+            <div>
+              <h3>药品状态时间序列</h3>
+              <p>近 {{ rangeLabel }} 状态变化趋势</p>
             </div>
           </div>
-        </aside>
+          <div ref="trendChart" class="chart"></div>
+        </div>
 
-        <div class="main-area">
-          <div class="data-overview">
-            <div class="data-card">
-              <div class="data-header">
-                <div class="data-title">合规率</div>
-                <div class="data-source">数据来源：易观数据库</div>
-              </div>
-              <div class="data-value">94.7%</div>
-              <div class="data-trend">
-                <span class="trend-up">↑ 24%</span>
-                <span class="trend-text">线上服务</span>
-              </div>
-            </div>
-
-            <div class="data-card">
-              <div class="data-header">
-                <div class="data-title">预警数量</div>
-                <div class="data-source">数据来源：易观数据库</div>
-              </div>
-              <div class="data-value">86.3%</div>
-              <div class="data-trend">
-                <span class="trend-up">↑ 31.8%</span>
-                <span class="trend-text">线上服务</span>
-              </div>
-            </div>
-
-            <div class="data-card">
-              <div class="data-header">
-                <div class="data-title">投放效率</div>
-                <div class="data-source">数据来源：易观数据库</div>
-              </div>
-              <div class="data-value">248</div>
-              <div class="data-trend">
-                <span class="trend-down">↓ 4%</span>
-                <span class="trend-text">与上期服务</span>
-              </div>
-            </div>
-
-            <div class="data-card">
-              <div class="data-header">
-                <div class="data-title">企业概况</div>
-                <div class="data-source">数据来源：易观数据库</div>
-              </div>
-              <div class="data-value">78.4%</div>
-              <div class="data-trend">
-                <span class="trend-up">↑ 19.1%</span>
-                <span class="trend-text">线上服务</span>
-              </div>
-              <div class="data-tag">全额归档</div>
+        <div class="section chart-card">
+          <div class="chart-header">
+            <div>
+              <h3>区域流通量对比</h3>
+              <p>按省份统计的流通数量</p>
             </div>
           </div>
+          <div ref="regionChart" class="chart"></div>
+        </div>
 
-          <div class="analysis-content">
-            <div class="left-content">
-              <div class="section trend-analysis">
-                <h3 class="section-title">监管趋势分析</h3>
-
-                <div class="trend-chart">
-                  <div class="chart-placeholder">
-                    <div class="chart-lines">
-                      <div class="chart-line" style="height: 80%"></div>
-                      <div class="chart-line" style="height: 60%"></div>
-                      <div class="chart-line" style="height: 40%"></div>
-                      <div class="chart-line" style="height: 20%"></div>
-                      <div class="chart-line" style="height: 10%"></div>
-                    </div>
-                    <div class="chart-bars">
-                      <div class="chart-bar" style="height: 70%"></div>
-                      <div class="chart-bar" style="height: 85%"></div>
-                      <div class="chart-bar" style="height: 60%"></div>
-                      <div class="chart-bar" style="height: 90%"></div>
-                    </div>
-                  </div>
-                  <div class="chart-labels">
-                    <span>2016 Q1</span>
-                    <span>2015 Q2</span>
-                    <span>2016 Q3</span>
-                    <span>2016 Q4</span>
-                  </div>
-                </div>
-
-                <div class="coverage-info">
-                  <span>非覆盖率</span>
-                  <span>- 0% - 0% - 0% - 0%</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="right-content">
-              <div class="section regional-comparison">
-                <h3 class="section-title">区域热力对比</h3>
-
-                <div class="comparison-chart">
-                  <div class="chart-bars-horizontal">
-                    <div class="bar-item">
-                      <span class="city-name">北京</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 90%"></div>
-                      </div>
-                      <span class="bar-value">140</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">上海</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 80%"></div>
-                      </div>
-                      <span class="bar-value">120</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">广州</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 70%"></div>
-                      </div>
-                      <span class="bar-value">100</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">深圳</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 60%"></div>
-                      </div>
-                      <span class="bar-value">80</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">杭州</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 50%"></div>
-                      </div>
-                      <span class="bar-value">60</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">南京</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 40%"></div>
-                      </div>
-                      <span class="bar-value">40</span>
-                    </div>
-                    <div class="bar-item">
-                      <span class="city-name">成都</span>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: 20%"></div>
-                      </div>
-                      <span class="bar-value">20</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="chart-footer">
-                  <span>区域能力分布</span>
-                </div>
-              </div>
-
-              <div class="section data-table">
-                <div class="table-header">
-                  <h3 class="section-title">企业监管数据</h3>
-                  <div class="data-source">数据来源：易观数据库</div>
-                </div>
-
-                <div class="table-container">
-                  <table class="analysis-table">
-                    <thead>
-                      <tr>
-                        <th>企业名称</th>
-                        <th>药品类型</th>
-                        <th>药品类别</th>
-                        <th>销售范围</th>
-                        <th>合规状态</th>
-                        <th>标签数量</th>
-                        <th>二级机构</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(item, index) in tableData" :key="index">
-                        <td>{{ item.companyName }}</td>
-                        <td>{{ item.drugType }}</td>
-                        <td>{{ item.drugCategory }}</td>
-                        <td>{{ item.salesScope }}</td>
-                        <td>
-                          <span :class="['status', item.complianceStatus]">
-                            {{ item.complianceStatus }}
-                          </span>
-                        </td>
-                        <td>{{ item.labelCount }}</td>
-                        <td>{{ item.secondaryOrg }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div class="table-footer">
-                  <div class="pagination-info">
-                    显示 1-{{ tableData.length }} 条，共 258 条
-                  </div>
-                </div>
-              </div>
+        <div class="section chart-card full-width">
+          <div class="chart-header">
+            <div>
+              <h3>流通热点地图</h3>
+              <p>按地区的流通热度分布</p>
             </div>
           </div>
+          <div ref="mapChart" class="chart map-chart"></div>
         </div>
       </div>
     </div>
@@ -341,86 +125,88 @@
 
 <script>
 import { useRouter } from 'vue-router'
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
+import { getCurrentUser, isAuthenticated } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 import { getRoleLabel } from '@/utils/roleLabel'
+import { getDashboard } from '@/api/circulation'
 
 export default {
   name: 'Analysis',
   setup() {
     const router = useRouter()
-    const activeNav = ref('analysis')
     const currentUser = ref(getCurrentUser())
+    const activeNav = ref('analysis')
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     
-    // 当前日期
     const currentDate = computed(() => {
       const now = new Date()
       return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`
     })
-    
-    // 筛选条件
-    const filters = ref({
-      drugTypes: ['prescription', 'nonPrescription', 'traditional', 'biological'],
-      companyTypes: ['producer', 'user'],
-      complianceStatus: ['compliant', 'limited', 'violation']
+
+    const filters = reactive({
+      range: '7d',
+      region: 'all'
     })
-    
-    // 表格数据
-    const tableData = ref([
-      {
-        companyName: '北京市朝阳区第一药业公司',
-        drugType: '处方药',
-        drugCategory: '抗生素',
-        salesScope: '全国',
-        complianceStatus: '通过',
-        labelCount: '15',
-        secondaryOrg: '北京市药品监督管理局'
-      },
-      {
-        companyName: '上海市浦东新区第二药业公司',
-        drugType: '非处方药',
-        drugCategory: '维生素',
-        salesScope: '华东地区',
-        complianceStatus: '违规',
-        labelCount: '8',
-        secondaryOrg: '上海市药品监督管理局'
-      },
-      {
-        companyName: '广州市天河区第三药业公司',
-        drugType: '中药制剂',
-        drugCategory: '感冒药',
-        salesScope: '华南地区',
-        complianceStatus: '未通过',
-        labelCount: '20',
-        secondaryOrg: '广东省药品监督管理局'
-      },
-      {
-        companyName: '杭州市西湖区第四药业公司',
-        drugType: '生物制品',
-        drugCategory: '疫苗',
-        salesScope: '华东地区',
-        complianceStatus: '通过',
-        labelCount: '12',
-        secondaryOrg: '浙江省药品监督管理局'
-      },
-      {
-        companyName: '成都市高新区第五药业公司',
-        drugType: '处方药',
-        drugCategory: '抗癌药',
-        salesScope: '西南地区',
-        complianceStatus: '违规',
-        labelCount: '5',
-        secondaryOrg: '四川省药品监督管理局'
+    const regionOptions = ['北京', '上海', '广东', '浙江', '江苏', '四川', '湖北', '湖南', '山东']
+
+    const metrics = reactive({
+      total_inventory: 0,
+      in_transit: 0,
+      abnormal_reports: 0,
+      regions: 0
+    })
+
+    const lastUpdated = ref('')
+    const loading = ref(false)
+    const autoRefreshTimer = ref(null)
+
+    const dashboardData = ref({
+      trend: [],
+      region_flow: [],
+      map: []
+    })
+
+    const trendChart = ref(null)
+    const regionChart = ref(null)
+    const mapChart = ref(null)
+    let chinaMapRegistered = false
+    let chinaMapData = null
+    let trendChartInstance = null
+    let regionChartInstance = null
+    let mapChartInstance = null
+
+    const rangeLabel = computed(() => {
+      switch (filters.range) {
+        case '30d':
+          return '30天'
+        case '90d':
+          return '90天'
+        default:
+          return '7天'
       }
-    ])
+    })
+
+    const lastUpdatedText = computed(() => {
+      if (!lastUpdated.value) return '尚未获取数据'
+      const date = new Date(lastUpdated.value)
+      return date.toLocaleString('zh-CN')
+    })
+
+    const formatNumber = (value) => {
+      if (value === null || value === undefined) return '--'
+      if (value > 10000) {
+        return `${(value / 10000).toFixed(1)} 万`
+      }
+      return value.toLocaleString()
+    }
     
     const navigateTo = (page) => {
       activeNav.value = page
-      
-      switch(page) {
+      switch (page) {
         case 'home':
           router.push('/')
           break
@@ -444,7 +230,14 @@ export default {
       }
     }
 
-    const goToLogin = () => { router.push('/login') }
+    const goToLogin = () => router.push('/login')
+    const goToUserHome = () => {
+      const user = currentUser.value
+      if (!user) return router.push('/login')
+      router.push(roleToRoute(user.role))
+    }
+
+    const refreshUser = () => { currentUser.value = getCurrentUser() }
 
     const goToEnterpriseAuth = () => {
       if (!currentUser.value) {
@@ -473,30 +266,226 @@ export default {
       router.push('/admin/users')
     }
 
-    const refreshUser = () => { currentUser.value = getCurrentUser() }
-
-    const goToUserHome = () => {
-      const u = currentUser.value
-      if (!u) return router.push('/login')
-      router.push(roleToRoute(u.role))
+    const handleFiltersChange = () => {
+      refreshDashboard()
     }
-    
-    onMounted(() => { window.addEventListener('storage', refreshUser) })
-    onBeforeUnmount(() => { window.removeEventListener('storage', refreshUser) })
+
+    const resizeHandler = () => {
+      trendChartInstance?.resize()
+      regionChartInstance?.resize()
+      mapChartInstance?.resize()
+    }
+
+    const refreshDashboard = async () => {
+      if (!isAuthenticated()) {
+        ElMessage.warning('请先登录后查看监管看板')
+        return router.push({ name: 'login', query: { redirect: '/analysis' } })
+      }
+      if (currentUser.value?.role !== 'regulator') {
+        ElMessage.error('仅监管用户可以查看监管看板')
+        return
+      }
+
+      loading.value = true
+      try {
+        const data = await getDashboard({
+          range: filters.range,
+          region: filters.region
+        })
+        dashboardData.value = data
+        metrics.total_inventory = data.metrics.total_inventory
+        metrics.in_transit = data.metrics.in_transit
+        metrics.abnormal_reports = data.metrics.abnormal_reports
+        metrics.regions = data.metrics.regions
+        lastUpdated.value = data.last_updated
+
+        await nextTick()
+        renderTrendChart()
+        renderRegionChart()
+        renderMapChart()
+      } catch (error) {
+        console.error('加载看板数据失败:', error)
+        ElMessage.error(error.message || '加载看板数据失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const disposeCharts = () => {
+      if (trendChartInstance) {
+        trendChartInstance.dispose()
+        trendChartInstance = null
+      }
+      if (regionChartInstance) {
+        regionChartInstance.dispose()
+        regionChartInstance = null
+      }
+      if (mapChartInstance) {
+        mapChartInstance.dispose()
+        mapChartInstance = null
+      }
+    }
+
+    const renderTrendChart = () => {
+      if (!trendChart.value) return
+      if (trendChartInstance) trendChartInstance.dispose()
+      trendChartInstance = echarts.init(trendChart.value)
+
+      const trend = dashboardData.value.trend || []
+      const dates = trend.map(item => item.date)
+      const shipped = trend.map(item => item.shipped)
+      const inTransit = trend.map(item => item.in_transit)
+      const delivered = trend.map(item => item.delivered)
+
+      trendChartInstance.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['已发货', '运输中', '已送达'] },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: dates },
+        yAxis: { type: 'value' },
+        series: [
+          { name: '已发货', type: 'line', smooth: true, data: shipped },
+          { name: '运输中', type: 'line', smooth: true, data: inTransit },
+          { name: '已送达', type: 'line', smooth: true, data: delivered }
+        ]
+      })
+    }
+
+    const renderRegionChart = () => {
+      if (!regionChart.value) return
+      if (regionChartInstance) regionChartInstance.dispose()
+      regionChartInstance = echarts.init(regionChart.value)
+
+      const regionFlow = (dashboardData.value.region_flow || []).slice(0, 10)
+      regionChartInstance.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'value' },
+        yAxis: {
+          type: 'category',
+          data: regionFlow.map(item => item.region),
+          inverse: true
+        },
+        series: [
+          {
+            name: '流通量',
+            type: 'bar',
+            data: regionFlow.map(item => item.count),
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                { offset: 0, color: '#5B8FF9' },
+                { offset: 1, color: '#61D9A3' }
+              ])
+            }
+          }
+        ]
+      })
+    }
+
+    const loadChinaMap = async () => {
+      if (chinaMapRegistered) return
+      if (!chinaMapData) {
+        const response = await fetch('/maps/china.json')
+        if (!response.ok) {
+          throw new Error('加载中国地图数据失败')
+        }
+        chinaMapData = await response.json()
+      }
+      echarts.registerMap('china', chinaMapData)
+      chinaMapRegistered = true
+    }
+
+    const renderMapChart = async () => {
+      if (!mapChart.value) return
+      if (mapChartInstance) mapChartInstance.dispose()
+      mapChartInstance = echarts.init(mapChart.value)
+
+      if (!chinaMapRegistered) {
+        try {
+          await loadChinaMap()
+        } catch (error) {
+          console.warn('地图数据加载失败，使用简化版本:', error)
+          // 如果地图数据加载失败，可以显示一个提示
+          return
+        }
+      }
+
+      mapChartInstance.setOption({
+        tooltip: { trigger: 'item' },
+        visualMap: {
+          type: 'continuous',
+          min: 0,
+          max: Math.max(...(dashboardData.value.map || []).map(item => item.value), 10),
+          left: 'left',
+          bottom: '10%',
+          text: ['高', '低'],
+          inRange: {
+            color: ['#cfe8ff', '#1a73e8']
+          }
+        },
+        series: [{
+          name: '流通热度',
+          type: 'map',
+          map: 'china',
+          roam: true,
+          label: { show: false },
+          data: dashboardData.value.map || []
+        }]
+      })
+    }
+
+    const setupAutoRefresh = () => {
+      if (autoRefreshTimer.value) clearInterval(autoRefreshTimer.value)
+      autoRefreshTimer.value = setInterval(() => {
+        refreshDashboard()
+      }, 5 * 60 * 1000)
+    }
+
+    onMounted(() => {
+      window.addEventListener('storage', refreshUser)
+      window.addEventListener('resize', resizeHandler)
+      refreshDashboard()
+      setupAutoRefresh()
+    })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('storage', refreshUser)
+      window.removeEventListener('resize', resizeHandler)
+      if (autoRefreshTimer.value) clearInterval(autoRefreshTimer.value)
+      disposeCharts()
+    })
 
     return {
-      navigateTo,
+      navItems: [
+        { key: 'home', label: '首页' },
+        { key: 'inventory', label: '库存管理' },
+        { key: 'b2b', label: 'B2B供求平台' },
+        { key: 'circulation', label: '流通监管' },
+        { key: 'analysis', label: '监管分析' },
+        { key: 'service', label: '智能调度' }
+      ],
       activeNav,
       currentDate,
+      currentUser,
       filters,
-      tableData,
+      regionOptions,
+      metrics,
+      lastUpdatedText,
+      loading,
+      trendChart,
+      regionChart,
+      mapChart,
+      rangeLabel,
+      navigateTo,
       goToLogin,
       goToEnterpriseAuth,
       goToEnterpriseReview,
       goToSystemStatus,
       goToAdminUsers,
       goToUserHome,
-      currentUser,
+      handleFiltersChange,
+      refreshDashboard,
+      formatNumber,
       userDisplayName,
       userRoleLabel
     }
@@ -657,19 +646,155 @@ export default {
 
 /* 主内容区域样式 */
 .main-content {
+  padding: 24px;
   flex: 1;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
+}
+
+.section {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
   padding: 20px;
 }
 
-.content-wrapper {
-  display: grid;
-  /* 左侧为窄侧栏用于筛选，右侧为宽主区用于图表与表格 */
-  grid-template-columns: 260px 1fr;
+.filters-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.filters-left {
+  display: flex;
   gap: 20px;
-  height: 100%;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-item label {
+  font-size: 14px;
+  color: #666;
+}
+
+.filter-item select {
+  width: 160px;
+  padding: 8px;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+}
+
+.filters-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.refresh-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: #666;
+}
+
+.auto-refresh {
+  color: #1a73e8;
+}
+
+.refresh-btn {
+  padding: 10px 20px;
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+}
+
+.metric-card.primary {
+  background: linear-gradient(135deg, #1a73e8 0%, #4facfe 100%);
+  color: #fff;
+}
+
+.metric-title {
+  font-size: 14px;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 12px 0;
+}
+
+.metric-subtitle {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.metric-trend {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.metric-trend.up {
+  color: #16a34a;
+}
+
+.metric-trend.down {
+  color: #dc2626;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.chart-card h3 {
+  font-size: 18px;
+  margin-bottom: 4px;
+  color: #1f2937;
+}
+
+.chart-header p {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.chart {
+  width: 100%;
+  height: 320px;
+}
+
+.map-chart {
+  height: 420px;
+}
+
+.chart-card.full-width {
+  grid-column: 1 / -1;
 }
 
 /* 登录按钮样式（与 Home.vue 对齐） */
@@ -688,101 +813,6 @@ export default {
   background-color: #0d62d9;
 }
 
-/* 数据概览卡片 */
-.data-overview {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.data-card {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.data-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-}
-
-.data-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-}
-
-.data-source {
-  font-size: 12px;
-  color: #999;
-}
-
-.data-value {
-  font-size: 32px;
-  font-weight: bold;
-  color: #1a73e8;
-  margin-bottom: 10px;
-}
-
-.data-trend {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.trend-up {
-  color: #52c41a;
-  font-weight: bold;
-}
-
-.trend-down {
-  color: #f5222d;
-  font-weight: bold;
-}
-
-.trend-text {
-  color: #666;
-  font-size: 14px;
-}
-
-.data-tag {
-  background-color: #f0f7ff;
-  color: #1a73e8;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  align-self: flex-start;
-  margin-top: 10px;
-}
-
-/* 分析内容布局 */
-.analysis-content {
-  display: grid;
-  /* 主区内部：左侧大图 右侧窄栏（对比图 + 表格） */
-  grid-template-columns: 1fr 920px;
-  gap: 20px;
-}
-
-.sidebar {
-  /* 让侧栏在滚动时保持可见 */
-  align-self: start;
-}
-
-.sidebar .filter-section {
-  position: sticky;
-  top: 20px;
-}
-
-.main-area {
-  display: flex;
-  flex-direction: column;
-}
 
 /* 区块样式 */
 .section {

@@ -500,13 +500,13 @@ class InventoryTransaction(db.Model):
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    
     # 关联关系
     inventory_item = db.relationship('InventoryItem', backref='transactions')
     source_tenant = db.relationship('Tenant')
     related_order = db.relationship('Order')
     created_by_user = db.relationship('User')
-
+    
     def to_dict(self, include_relations=False):
         result = {
             'id': self.id,
@@ -527,5 +527,51 @@ class InventoryTransaction(db.Model):
                 'related_order': self.related_order.to_dict() if self.related_order else None,
                 'created_by_user': self.created_by_user.to_dict() if self.created_by_user else None
             })
+        
+        return result
+
+
+class CirculationRecord(db.Model):
+    """流通记录模型 - 用于记录药品在运输过程中的状态变化"""
+    __tablename__ = 'circulation_records'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tracking_number = db.Column(db.String(100), nullable=False, index=True)  # 运单号（订单运单号）
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True, index=True)
+    batch_number = db.Column(db.String(60), nullable=True, index=True)  # 药品批号（用于追溯，冗余字段）
+    transport_status = db.Column(db.String(20), nullable=False)  # SHIPPED, IN_TRANSIT, DELIVERED
+    reported_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # 上报用户
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    current_location = db.Column(db.String(500), nullable=True)  # GPS坐标或文字地址
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    remarks = db.Column(db.Text, nullable=True)  # 备注信息
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # 关联关系
+    order = db.relationship('Order', backref='circulation_records')
+    reporter = db.relationship('User', backref='reported_circulation_records')
+    
+    def to_dict(self, include_relations=False):
+        result = {
+            'id': self.id,
+            'tracking_number': self.tracking_number,
+            'order_id': self.order_id,
+            'batch_number': self.batch_number,
+            'transport_status': self.transport_status,
+            'reported_by': self.reported_by,
+            'timestamp': to_iso(self.timestamp) if self.timestamp else None,
+            'current_location': self.current_location,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'remarks': self.remarks,
+            'created_at': to_iso(self.created_at) if self.created_at else None
+        }
+        
+        if include_relations:
+            if self.order:
+                result['order'] = self.order.to_dict()
+            if self.reporter:
+                result['reporter'] = self.reporter.to_dict()
         
         return result
