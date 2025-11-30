@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="inventory-container">
-    <!-- 顶部导航栏 - 与Home.vue保持一致 -->
+    <!-- 顶部导航栏 - 直接复制自 Home.vue，确保结构与样式完全一致 -->
     <div class="header">
       <div class="header-content">
         <div class="platform-info">
@@ -16,11 +16,13 @@
               @click="navigateTo('home')"
             >首页</div>
             <div 
+              v-if="!isLogistics && !isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
             <div 
+              v-if="!isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'b2b' }"
               @click="navigateTo('b2b')"
@@ -31,11 +33,12 @@
               @click="navigateTo('circulation')"
             >流通监管</div>
             <div 
+              v-if="canViewAnalysis"
               class="nav-item" 
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
-            <div 
+            <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
@@ -52,7 +55,7 @@
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
-            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
+            <button v-else class="login-btn" @click="handleLogout">退出登录</button>
           </div>
         </div>
       </div>
@@ -66,7 +69,7 @@
             <h2 class="section-title">我的企业库存概览</h2>
             <p class="section-subtitle">聚焦当前登录用户所在企业的主体信息与库存统计</p>
           </div>
-          <button class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
+          <button v-if="!isLogistics" class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
         </div>
         <div v-if="myTenantLoading" class="info-placeholder">正在加载企业信息...</div>
         <div v-else-if="myTenantError" class="info-placeholder error">
@@ -86,27 +89,55 @@
               </span>
             </div>
           </div>
-          <div class="tenant-details-grid">
+            <div class="tenant-details-grid">
             <div>
-              <span class="info-label">统一社会信用代码</span>
-              <strong>{{ myTenantDetail.unified_social_credit_code }}</strong>
+              <div class="tuple-box">
+                <span class="info-label">统一社会信用代码</span>
+                <strong>
+                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.unified_social_credit_code }}</template>
+                  <template v-else>需认证后查看</template>
+                </strong>
+              </div>
             </div>
             <div>
-              <span class="info-label">法人代表</span>
-              <strong>{{ myTenantDetail.legal_representative }}</strong>
+              <div class="tuple-box">
+                <span class="info-label">法人代表</span>
+                <strong>
+                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.legal_representative }}</template>
+                  <template v-else>—</template>
+                </strong>
+              </div>
             </div>
             <div>
-              <span class="info-label">联系人</span>
-              <strong>{{ myTenantDetail.contact_person }}</strong>
+              <div class="tuple-box">
+                <span class="info-label">联系人</span>
+                <strong>
+                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_person }}</template>
+                  <template v-else>需认证后查看</template>
+                </strong>
+              </div>
             </div>
             <div>
-              <span class="info-label">联系电话</span>
-              <strong>{{ myTenantDetail.contact_phone }}</strong>
+              <div class="tuple-box">
+                <span class="info-label">联系电话</span>
+                <strong>
+                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_phone }}</template>
+                  <template v-else>需认证后查看</template>
+                </strong>
+              </div>
             </div>
           </div>
           <div class="tenant-contact-grid">
-            <div>业务范围：{{ myTenantDetail.business_scope }}</div>
-            <div>邮箱：{{ myTenantDetail.contact_email }}</div>
+            <div>
+              <div class="tuple-box">
+                业务范围：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
+              </div>
+            </div>
+            <div>
+              <div class="tuple-box">
+                邮箱：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
+              </div>
+            </div>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
@@ -171,16 +202,39 @@
             </thead>
             <tbody>
               <tr v-for="item in myInventory" :key="item.id">
-                <td>{{ item.batch_number }}</td>
                 <td>
-                  <div class="drug-name">{{ item.drug_name || '—' }}</div>
-                  <div class="drug-brand">{{ item.drug_brand }}</div>
+                  <div class="tuple-box small">
+                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.batch_number }}</template>
+                    <template v-else>—</template>
+                  </div>
                 </td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ formatPrice(item.unit_price) }}</td>
-                <td>{{ formatDate(item.production_date) }}</td>
-                <td>{{ formatDate(item.expiry_date) }}</td>
-                <td>{{ formatDateTime(item.updated_at) }}</td>
+                <td>
+                  <div class="tuple-box">
+                    <div class="drug-name">{{ item.drug_name || '—' }}</div>
+                    <div class="drug-brand">{{ item.drug_brand }}</div>
+                  </div>
+                </td>
+                <td>
+                  <div class="tuple-box small">
+                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.quantity }}</template>
+                    <template v-else>需认证后查看</template>
+                  </div>
+                </td>
+                <td>
+                  <div class="tuple-box small">
+                    <template v-if="currentUser && currentUser.is_authenticated">{{ formatPrice(item.unit_price) }}</template>
+                    <template v-else>—</template>
+                  </div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDate(item.production_date) }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDate(item.expiry_date) }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDateTime(item.updated_at) }}</div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -287,7 +341,7 @@
         </div>
         
         <!-- 右侧供应商详情 -->
-        <div class="right-content">
+        <div v-if="!isLogistics" class="right-content">
           <!-- 供应商详情 -->
           <div class="section supplier-detail">
             <h2 class="section-title">供应商详情</h2>
@@ -372,9 +426,9 @@
 </template>
 
 <script>
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { roleToRoute } from '@/utils/roleRoute'
 import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
@@ -386,9 +440,36 @@ export default {
   setup() {
     const router = useRouter()
     const activeNav = ref('inventory')
+    const route = useRoute()
+
+    const mapRouteToNav = (name) => {
+      switch (name) {
+        case 'home':
+          return 'home'
+        case 'inventory':
+        case 'tenant-inventory':
+          return 'inventory'
+        case 'b2b':
+          return 'b2b'
+        case 'circulation':
+          return 'circulation'
+        case 'analysis':
+          return 'analysis'
+        case 'service':
+          return 'service'
+        default:
+          return 'home'
+      }
+    }
     const selectedSupplier = ref('renji')
     const within5km = ref(true)
     const currentUser = ref(getCurrentUser())
+    const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     const myTenantId = computed(() => currentUser.value?.tenant_id || null)
@@ -522,6 +603,12 @@ export default {
       router.push('/login')
     }
 
+    const handleLogout = () => {
+      clearAuth()
+      currentUser.value = null
+      router.push('/login')
+    }
+
     const goToEnterpriseAuth = () => {
       if (!currentUser.value) {
         router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
@@ -560,25 +647,65 @@ export default {
     }
 
     const navigateTo = (page) => {
-      activeNav.value = page
-
       switch (page) {
         case 'home':
           router.push('/')
           break
         case 'inventory':
+          // 已登录但未认证用户：若关联企业则跳转企业明细页，否则去企业认证页；未登录跳登录
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/inventory' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            // 显示未认证提示页，但保留用户的点击意图（active=inventory）用于 nav 高亮
+            router.push({ name: 'unauth', query: { active: 'inventory' } })
+            break
+          }
           router.push('/inventory')
           break
         case 'b2b':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/b2b' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'b2b' } })
+            break
+          }
           router.push('/b2b')
           break
         case 'circulation':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/circulation' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'circulation' } })
+            break
+          }
           router.push('/circulation')
           break
         case 'analysis':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/analysis' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'analysis' } })
+            break
+          }
           router.push('/analysis')
           break
         case 'service':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/service' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'service' } })
+            break
+          }
           router.push('/service')
           break
         default:
@@ -596,14 +723,20 @@ export default {
     }
 
     onMounted(() => {
+      activeNav.value = mapRouteToNav(route.name)
       window.addEventListener('storage', refreshUser)
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
     })
 
+    watch(() => route.name, (name) => {
+      activeNav.value = mapRouteToNav(name)
+    })
+
     return {
       goToLogin,
+      handleLogout,
       goToUserHome,
       goToEnterpriseAuth,
       goToEnterpriseReview,
@@ -616,6 +749,12 @@ export default {
       within5km,
       currentDate,
       currentUser,
+      isLogistics,
+      isSupplier,
+      isRegulator,
+      isAdmin,
+      isPharmacy,
+      canViewAnalysis,
       userDisplayName,
       userRoleLabel,
       myTenantId,
@@ -656,6 +795,7 @@ export default {
   font-family: "Microsoft YaHei", Arial, sans-serif;
   display: flex;
   flex-direction: column;
+  line-height: 1.6;
 }
 
 /* 顶部导航栏样式 - 与Home.vue保持一致 */
@@ -664,6 +804,11 @@ export default {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 15px 0;
   width: 100%;
+}
+
+/* 确保 header 内部不受父容器 line-height 影响 */
+.header {
+  line-height: normal;
 }
 
 .header-content {
@@ -730,6 +875,18 @@ export default {
 .user-info {
   display: flex;
   align-items: center;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
   padding: 6px 12px;
   border-radius: 999px;
   background-color: #f0f5ff;
@@ -739,11 +896,9 @@ export default {
   margin-right: 10px;
   gap: 8px;
 }
-
 .user-name {
   white-space: nowrap;
 }
-
 .user-role {
   padding: 2px 10px;
   border-radius: 999px;
@@ -752,17 +907,6 @@ export default {
   font-size: 12px;
   color: #1a73e8;
 }
-
-.auth-btn {
-  background-color: #fff;
-  color: #1a73e8;
-  border: 1px solid #1a73e8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
@@ -810,40 +954,76 @@ export default {
   background-color: #0d62d9;
 }
 
+/* 精确覆盖：确保库存页面顶栏行距与 Home.vue 完全一致 */
+.header .platform-title {
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1;
+  margin: 0;
+}
+.header .platform-info {
+  margin-bottom: 15px;
+}
+.header {
+  padding: 15px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.nav-section {
+  padding-top: 15px;
+}
+.nav-menu {
+  gap: 30px;
+}
+.nav-item {
+  padding: 5px 0;
+}
+
+/* 按钮垂直间距调整，增加上下呼吸感 */
+.user-actions button,
+.search-controls button,
+.filters > button,
+.ghost-btn,
+.auth-btn,
+.review-btn,
+.admin-btn,
+.login-btn,
+.search-btn {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
 /* 主内容区域样式 */
 .main-content {
   flex: 1;
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 20px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .content-wrapper {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 16px;
   height: 100%;
 }
 
 .section {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 6px rgba(10, 20, 30, 0.04);
   padding: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .section-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  color: #333;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #222;
 }
 
 .section-subtitle {
@@ -886,15 +1066,25 @@ export default {
 
 .result-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 12px;
 }
 
 .result-table th,
 .result-table td {
   text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 0; /* 内边距由 .tuple-box 控制 */
+  border-bottom: none;
   font-size: 14px;
+  vertical-align: middle;
+}
+
+.result-table tbody tr .tuple-box {
+  width: 100%;
+}
+.result-table tbody tr:hover .tuple-box {
+  border-color: rgba(26, 115, 232, 0.22);
+  box-shadow: 0 6px 18px rgba(26,115,232,0.06);
 }
 
 .result-table th {
@@ -905,7 +1095,7 @@ export default {
 .info-placeholder {
   text-align: center;
   color: #6b7280;
-  padding: 20px 0;
+  padding: 28px 0;
 }
 
 .info-placeholder.error {
@@ -922,11 +1112,24 @@ export default {
   gap: 16px;
 }
 
+/* 无填充的区块框：用于将若干元组信息视觉分组 */
+.tuple-box {
+  border: 1px solid rgba(26, 115, 232, 0.12);
+  border-radius: 8px;
+  padding: 10px;
+  background-color: transparent;
+  display: block;
+}
+.tuple-box.small {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 .tenant-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
+  align-items: center;
+  gap: 16px;
 }
 
 .tenant-address {
@@ -936,7 +1139,7 @@ export default {
 
 .tenant-tags {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -957,7 +1160,7 @@ export default {
 .tenant-contact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .info-label {
@@ -969,17 +1172,17 @@ export default {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
 }
 
 .stat-card {
-  background-color: #f7f9fc;
-  border-radius: 8px;
+  background-color: #fbfdff;
+  border-radius: 6px;
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .stat-label {
@@ -1013,13 +1216,13 @@ export default {
 
 /* 搜索筛选区域样式 */
 .search-filters {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .filter-row {
   display: flex;
-  gap: 20px;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .filter-group {
@@ -1092,25 +1295,25 @@ export default {
 .supplier-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .supplier-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #eef2f6;
   border-radius: 6px;
-  padding: 15px;
+  padding: 14px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .supplier-card:hover {
-  border-color: #1a73e8;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.1);
+  border-color: #cfe7ff;
+  box-shadow: 0 6px 18px rgba(26, 115, 232, 0.06);
 }
 
 .supplier-card.active {
-  border-color: #1a73e8;
-  background-color: #f0f7ff;
+  border-color: #cfe7ff;
+  background-color: #fbfdff;
 }
 
 .supplier-name {
@@ -1144,15 +1347,15 @@ export default {
 }
 
 .supplier-title {
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
   color: #333;
 }
 
 .supplier-metrics {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
 }
 
 .metric-item {
@@ -1176,7 +1379,7 @@ export default {
 .no-supplier-selected {
   text-align: center;
   color: #999;
-  padding: 40px 0;
+  padding: 48px 0;
   font-style: italic;
 }
 
@@ -1207,8 +1410,8 @@ export default {
 }
 
 .order-info {
-  padding: 15px;
-  background-color: #f8f9fa;
+  padding: 12px;
+  background-color: #fbfbfb;
   border-radius: 6px;
   text-align: center;
 }

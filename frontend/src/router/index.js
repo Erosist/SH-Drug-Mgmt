@@ -21,7 +21,19 @@ import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
 import { getCurrentUser } from '@/utils/authSession'
 
-const UNAUDITED_ALLOWED_ROUTE_NAMES = new Set(['enterprise-auth', 'unauth'])
+// 允许未完成企业认证（role === 'unauth'）的登录用户仍可浏览的公共路由
+// 若以后需要更精细的控制，可改为基于 route.meta 来判断
+const UNAUDITED_ALLOWED_ROUTE_NAMES = new Set([
+  'enterprise-auth',
+  'unauth',
+  'home',
+  'inventory',
+  'b2b',
+  'circulation',
+  'analysis',
+  'service',
+  'tenant-inventory'
+])
 
 const router = createRouter({
   history: createWebHistory(),
@@ -32,11 +44,11 @@ const router = createRouter({
     { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword },
     { path: '/change-password', name: 'change-password', component: ChangePassword, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: inventory },
-    { path: '/tenants/:tenantId', name: 'tenant-inventory', component: TenantInventory, props: true },
-    { path: '/b2b', name: 'b2b', component: b2b },
+    { path: '/tenants/:tenantId', name: 'tenant-inventory', component: TenantInventory, props: true, meta: { requiresAuth: true, requiresVerified: true } },
+    { path: '/b2b', name: 'b2b', component: b2b, meta: { requiresAuth: true, requiresVerified: true } },
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },
-    { path: '/service', name: 'service', component: service },
+    { path: '/service', name: 'service', component: service, meta: { requiresAuth: true, requiresVerified: true } },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'admin' } },
@@ -51,30 +63,32 @@ const router = createRouter({
   ],
 })
 
-// 简单的前置守卫：包含登录校验与未认证用户强制跳转
+// 前置守卫：处理登录、基于角色的路由限制，以及“需要企业认证”的页面重定向
 router.beforeEach((to, from, next) => {
   const user = getCurrentUser()
 
-  if (user?.role === 'unauth') {
-    const allowName = to?.name && UNAUDITED_ALLOWED_ROUTE_NAMES.has(to.name)
-    if (!allowName) {
-      if (to.name !== 'unauth') {
-        next({ name: 'unauth' })
-        return
-      }
-    }
-  }
-
+  // 如果页面要求登录且用户未登录 -> 跳转登录
   if (to.meta?.requiresAuth && !user) {
     next({ name: 'login', query: { redirect: to.fullPath } })
     return
   }
 
+  // 如果页面要求特定角色且当前用户不满足 -> 回到首页
   if (to.meta?.requiresRole && user?.role !== to.meta.requiresRole) {
     next({ name: 'home' })
     return
   }
 
+  // 对于已登录但企业未认证的用户（role === 'unauth'），允许访问首页、未认证提示页和企业认证页
+  if (user?.role === 'unauth') {
+    const allowNames = new Set(['home', 'unauth', 'enterprise-auth'])
+    if (!allowNames.has(to.name)) {
+      next({ name: 'unauth' })
+      return
+    }
+  }
+
+  // 其它情况正常路由
   next()
 })
 

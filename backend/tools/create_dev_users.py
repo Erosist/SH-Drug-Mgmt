@@ -3,6 +3,14 @@
 创建开发环境用户账户
 包含管理员和药店用户账户，方便开发测试
 """
+from pathlib import Path
+import sys
+
+# Ensure backend folder is on sys.path so local imports (app, models) work
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from app import create_app
 from models import db, User, Tenant
 from werkzeug.security import generate_password_hash

@@ -4,6 +4,8 @@ from sqlalchemy.orm import joinedload
 
 from models import Drug, InventoryItem, Tenant
 from extensions import db
+from auth import get_authenticated_user
+from flask import abort
 
 bp = Blueprint('catalog', __name__, url_prefix='/api/catalog')
 
@@ -88,6 +90,17 @@ def list_tenants():
 @bp.route('/tenants/<int:tenant_id>', methods=['GET'])
 def tenant_detail(tenant_id):
     tenant = Tenant.query.get_or_404(tenant_id)
+    # 如果是已登录的药店/供应商用户，只允许访问与其关联的租户详情
+    try:
+        user = get_authenticated_user()
+    except Exception:
+        user = None
+    # 物流用户无权查看企业详情（不应该访问库存/企业管理相关数据）
+    if user and user.role == 'logistics':
+        abort(403, description='物流用户无权访问此企业信息')
+
+    if user and user.role in {'pharmacy', 'supplier'} and user.tenant_id and user.tenant_id != tenant_id:
+        abort(403, description='无权访问此企业信息')
     total_batches, total_drugs, total_quantity, latest_update = db.session.query(
         func.count(InventoryItem.id),
         func.count(func.distinct(InventoryItem.drug_id)),
@@ -111,6 +124,22 @@ def list_inventory():
     keyword = (request.args.get('keyword') or '').strip()
     tenant_id = parse_int(request.args.get('tenant_id'), None)
     drug_id = parse_int(request.args.get('drug_id'), None)
+
+    # 若为已登录的药店/供应商用户，强制限定 tenant_id 为其所属企业
+    try:
+        user = get_authenticated_user()
+    except Exception:
+        user = None
+    # 禁止物流用户访问库存管理接口
+    if user and user.role == 'logistics':
+        abort(403, description='权限不足：物流用户无法查看库存管理')
+
+    if user and user.role in {'pharmacy', 'supplier'}:
+        if not user.tenant_id:
+            abort(403, description='未关联企业，无法查看库存')
+        if tenant_id and tenant_id != user.tenant_id:
+            abort(403, description='无权查看其他企业库存')
+        tenant_id = user.tenant_id
 
     query = InventoryItem.query.options(
         joinedload(InventoryItem.drug),

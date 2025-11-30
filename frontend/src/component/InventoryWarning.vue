@@ -388,20 +388,20 @@ onMounted(() => {
 
 <style scoped>
 .inventory-warning {
-  padding: 20px;
+  padding: 12px;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .header h3 {
   margin: 0;
   color: #303133;
-  font-size: 20px;
+  font-size: 16px;
 }
 
 .header-actions {
@@ -411,7 +411,7 @@ onMounted(() => {
 
 /* 统计面板 */
 .stats-panel {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .stats-card {

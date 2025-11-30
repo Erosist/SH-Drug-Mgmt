@@ -10,11 +10,11 @@
         <div class="nav-section">
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
-            <div class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
-            <div class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
+            <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
-            <div class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
-            <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
+            <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
+            <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
@@ -178,12 +178,18 @@ export default {
   const activeNav = ref('b2b')
     const activeTab = ref('supply')
   const currentUser = ref(getCurrentUser())
+  const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+  const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+  const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+  const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+  const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+  const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
   const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
   const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
   const userRole = computed(() => currentUser.value?.role || '')
 
-  const canAccessSupply = computed(() => userRole.value !== 'pharmacy')
-  const canAccessDemand = computed(() => userRole.value !== 'supplier')
+  const canAccessSupply = computed(() => userRole.value !== 'pharmacy' && userRole.value !== 'regulator')
+  const canAccessDemand = computed(() => userRole.value !== 'supplier' && userRole.value !== 'regulator')
   const canAccessSupplyList = computed(() => userRole.value !== 'supplier')
 
   const tabMatrix = [
@@ -461,7 +467,8 @@ export default {
     navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, 
     goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, 
     resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
-    realRecords, recordsLoading, loadRecentRecords, getRecordStatusType
+    realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
+    isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis
   }
   }
 }

@@ -15,12 +15,12 @@
               :class="{ active: activeNav === 'home' }"
               @click="navigateTo('home')"
             >首页</div>
-            <div 
+            <div v-if="!isLogistics && !isRegulator" 
               class="nav-item" 
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
-            <div 
+            <div v-if="!isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'b2b' }"
               @click="navigateTo('b2b')"
@@ -30,12 +30,12 @@
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
             >流通监管</div>
-            <div 
+            <div v-if="canViewAnalysis"
               class="nav-item" 
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
-            <div 
+            <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
@@ -375,6 +375,12 @@ export default {
     const router = useRouter()
     const activeNav = ref('circulation')
     const currentUser = ref(getCurrentUser())
+    const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     const submitting = ref(false)
@@ -843,6 +849,12 @@ export default {
       handleTrace,
       formatTime,
       currentUser,
+      isLogistics,
+      isSupplier,
+      isPharmacy,
+      isRegulator,
+      isAdmin,
+      canViewAnalysis,
       userDisplayName,
       userRoleLabel
     }

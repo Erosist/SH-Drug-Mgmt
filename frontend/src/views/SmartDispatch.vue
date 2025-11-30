@@ -15,12 +15,12 @@
               :class="{ active: activeNav === 'home' }"
               @click="navigateTo('home')"
             >首页</div>
-            <div 
+            <div v-if="!isLogistics && !isRegulator" 
               class="nav-item" 
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
-            <div 
+            <div v-if="!isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'b2b' }"
               @click="navigateTo('b2b')"
@@ -30,12 +30,12 @@
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
             >流通监管</div>
-            <div 
+            <div v-if="canViewAnalysis"
               class="nav-item" 
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
-            <div 
+            <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
@@ -201,6 +201,12 @@ export default {
     const router = useRouter()
   const activeNav = ref('service')
   const currentUser = ref(getCurrentUser())
+  const isLogistics = computed(() => currentUser.value?.role === 'logistics')
+  const isSupplier = computed(() => currentUser.value?.role === 'supplier')
+  const isPharmacy = computed(() => currentUser.value?.role === 'pharmacy')
+  const isRegulator = computed(() => currentUser.value?.role === 'regulator')
+  const isAdmin = computed(() => currentUser.value?.role === 'admin')
+  const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
   const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
   const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     
@@ -356,6 +362,9 @@ export default {
     return {
       navigateTo,
       activeNav,
+      isLogistics,
+      isSupplier,
+      isPharmacy,
       currentDate,
       goToLogin,
       goToUserHome,

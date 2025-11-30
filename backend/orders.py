@@ -218,6 +218,9 @@ def get_orders():
         current_user = get_authenticated_user()
         if not current_user:
             return jsonify({'msg': '用户未登录'}), 401
+        # 物流用户不通过此通用接口获取订单，请使用 /api/logistics/orders
+        if current_user.role == 'logistics':
+            return jsonify({'msg': '权限不足：物流用户请使用物流专用订单接口'}), 403
         
         # 获取查询参数
         page = request.args.get('page', 1, type=int)
@@ -242,12 +245,8 @@ def get_orders():
             query = query.filter(Order.supplier_tenant_id == current_user.tenant_id)
             current_app.logger.info(f'get_orders - 供应商用户过滤: supplier_tenant_id={current_user.tenant_id}')
         elif current_user.role == 'logistics':
-            # 物流用户只能看到分配给自己的订单，且状态为SHIPPED, IN_TRANSIT, DELIVERED
-            query = query.filter(
-                Order.logistics_tenant_id == current_user.tenant_id,
-                Order.status.in_(['SHIPPED', 'IN_TRANSIT', 'DELIVERED'])
-            )
-            current_app.logger.info(f'get_orders - 物流用户过滤: logistics_tenant_id={current_user.tenant_id}, 允许状态=[SHIPPED, IN_TRANSIT, DELIVERED]')
+            # 物流用户不允许通过此接口查看订单（有专用接口 /api/logistics/orders）
+            return jsonify({'msg': '权限不足：物流用户不可通过此接口查看订单'}), 403
         elif current_user.role == 'admin':
             # 管理员可以看到所有订单
             current_app.logger.info('get_orders - 管理员用户，无过滤')
@@ -600,13 +599,16 @@ def get_order_stats():
         current_user = get_authenticated_user()
         if not current_user:
             return jsonify({'msg': '用户未登录'}), 401
-        
         if not current_user.tenant_id:
             return jsonify({'msg': '用户未关联企业'}), 400
-        
+
+        # 禁止物流用户访问订单统计（有专用物流接口）
+        if current_user.role == 'logistics':
+            return jsonify({'msg': '权限不足：物流用户无法访问订单统计'}), 403
+
         # 根据角色统计不同的数据
         current_app.logger.info(f'get_order_stats - 用户权限检查: 用户ID={current_user.id}, 角色={current_user.role}, 租户ID={current_user.tenant_id}')
-        
+
         if current_user.role == 'pharmacy':
             # 药店统计采购订单
             query = Order.query.filter_by(buyer_tenant_id=current_user.tenant_id)
