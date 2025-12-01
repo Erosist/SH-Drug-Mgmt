@@ -10,11 +10,11 @@
         <div class="nav-section">
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
-            <div class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
-            <div class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
+            <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
-            <div class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
-            <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
+            <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
+            <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
 
           <div class="user-actions">
@@ -46,8 +46,8 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 
@@ -55,8 +55,36 @@ export default {
   name: 'UnauthenticatedUser',
   setup() {
     const router = useRouter()
-    const activeNav = ref('home')
+    const route = useRoute()
+
+    const mapRouteToNav = (name) => {
+      if (!name) return 'home'
+      if (name === 'home') return 'home'
+      if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+      if (name === 'b2b') return 'b2b'
+      if (name === 'circulation') return 'circulation'
+      if (name === 'analysis') return 'analysis'
+      if (name === 'service') return 'service'
+      return 'home'
+    }
+
+    // activeNav 优先使用 route.query.active（由点击传入），否则根据 route.name 映射
+    const activeNav = ref(route.query?.active || mapRouteToNav(route.name))
+
+    // Keep activeNav in sync with route name or query.active changes so UI reflects click intent
+    watch([
+      () => route.name,
+      () => route.query?.active
+    ], ([name, active]) => {
+      activeNav.value = active || mapRouteToNav(name)
+    }, { immediate: true })
     const currentUser = ref(getCurrentUser())
+    const isLogistics = computed(() => currentUser.value?.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value?.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value?.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value?.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value?.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
 
     const currentDate = computed(() => {
       const now = new Date()
@@ -101,7 +129,7 @@ export default {
     }
 
     const navigateTo = (page) => {
-      activeNav.value = page
+      // Do not set activeNav here; rely on route change watcher to update UI after navigation/possible redirect
       switch (page) {
         case 'home':
           router.push('/'); break
@@ -136,6 +164,12 @@ export default {
       currentDate,
       activeNav,
       currentUser,
+      isLogistics,
+      isSupplier,
+      isPharmacy,
+      isRegulator,
+      isAdmin,
+      canViewAnalysis,
       userDisplayName,
       userRoleLabel,
       navigateTo,

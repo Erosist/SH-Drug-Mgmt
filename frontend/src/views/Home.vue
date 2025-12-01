@@ -16,11 +16,13 @@
               @click="navigateTo('home')"
             >首页</div>
             <div 
+              v-if="!isLogistics && !isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
             <div 
+              v-if="!isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'b2b' }"
               @click="navigateTo('b2b')"
@@ -31,11 +33,12 @@
               @click="navigateTo('circulation')"
             >流通监管</div>
             <div 
+              v-if="canViewAnalysis"
               class="nav-item" 
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
-            <div 
+            <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
@@ -164,8 +167,8 @@
 </template>
 
 <script>
-import { useRouter } from 'vue-router'
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 
@@ -173,8 +176,28 @@ export default {
   name: 'Home',
   setup() {
     const router = useRouter()
-    const activeNav = ref('home')
+    const route = useRoute()
+
+    const mapRouteToNav = (name) => {
+      if (!name) return 'home'
+      if (name === 'home') return 'home'
+      if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+      if (name === 'b2b') return 'b2b'
+      if (name === 'circulation') return 'circulation'
+      if (name === 'analysis') return 'analysis'
+      if (name === 'service') return 'service'
+      return 'home'
+    }
+
+    const activeNav = ref(mapRouteToNav(route.name))
+    watch(() => route.name, (n) => { activeNav.value = mapRouteToNav(n) }, { immediate: true })
     const currentUser = ref(getCurrentUser())
+    const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
 
@@ -229,30 +252,64 @@ export default {
     }
     
     const navigateTo = (page) => {
-      activeNav.value = page
-      
-      // 根据页面名称跳转到对应路由
+      // rely on route watcher to update activeNav after navigation/possible redirect
       switch(page) {
         case 'home':
-          router.push('/')
-          break
+          router.push('/'); break
         case 'inventory':
-          router.push('/inventory')
-          break
+          // 已登录但未认证用户：若关联企业则跳转企业明细页，否则去企业认证页；未登录跳登录
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/inventory' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            // 显示未认证提示页，但保留用户的点击意图（active=inventory）用于 nav 高亮
+            router.push({ name: 'unauth', query: { active: 'inventory' } })
+            break
+          }
+          router.push('/inventory'); break
         case 'b2b':
-          router.push('/b2b')
-          break
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/b2b' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'b2b' } })
+            break
+          }
+          router.push('/b2b'); break
         case 'circulation':
-          router.push('/circulation')
-          break
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/circulation' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'circulation' } })
+            break
+          }
+          router.push('/circulation'); break
         case 'analysis':
-          router.push('/analysis')
-          break
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/analysis' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'analysis' } })
+            break
+          }
+          router.push('/analysis'); break
         case 'service':
-          router.push('/service')
-          break
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/service' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'service' } })
+            break
+          }
+          router.push('/service'); break
         default:
-          router.push('/')
+          router.push('/');
       }
     }
     onMounted(() => {
@@ -272,6 +329,12 @@ export default {
       navigateTo,
       activeNav,
       currentUser,
+      isLogistics,
+      isSupplier,
+      isPharmacy,
+      isRegulator,
+      isAdmin,
+      canViewAnalysis,
       userDisplayName,
       userRoleLabel,
       currentDate

@@ -6,26 +6,53 @@
           <h1 class="platform-title">上海药品监管信息平台</h1>
           <div class="current-date">{{ currentDate }}</div>
         </div>
-
+        
         <div class="nav-section">
           <div class="nav-menu">
-            <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
-            <div class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
-            <div class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
-            <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
-            <div class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
-            <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
+            <div 
+              class="nav-item" 
+              :class="{ active: activeNav === 'home' }"
+              @click="navigateTo('home')"
+            >首页</div>
+            <div 
+              v-if="!isLogistics && !isRegulator"
+              class="nav-item" 
+              :class="{ active: activeNav === 'inventory' }"
+              @click="navigateTo('inventory')"
+            >库存管理</div>
+            <div 
+              v-if="!isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'b2b' }"
+              @click="navigateTo('b2b')"
+            >B2B供求平台</div>
+            <div 
+              class="nav-item" 
+              :class="{ active: activeNav === 'circulation' }"
+              @click="navigateTo('circulation')"
+            >流通监管</div>
+            <div 
+              v-if="canViewAnalysis"
+              class="nav-item" 
+              :class="{ active: activeNav === 'analysis' }"
+              @click="navigateTo('analysis')"
+            >监管分析</div>
+            <div v-if="isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'service' }"
+              @click="navigateTo('service')"
+            >智能调度</div>
           </div>
-
+          
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
-            <button v-if="!currentUser || currentUser.role === 'unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role === 'admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
-            <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
-            <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+            <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
           </div>
@@ -139,6 +166,12 @@ export default {
     const router = useRouter()
     const currentUser = ref(getCurrentUser())
     const activeNav = ref('analysis')
+    const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     
@@ -466,6 +499,12 @@ export default {
       ],
       activeNav,
       currentDate,
+      isLogistics,
+      isSupplier,
+      isPharmacy,
+      isRegulator,
+      isAdmin,
+      canViewAnalysis,
       currentUser,
       filters,
       regionOptions,

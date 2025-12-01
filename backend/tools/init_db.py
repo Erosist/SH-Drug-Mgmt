@@ -6,7 +6,13 @@
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from pathlib import Path
+
+# Ensure project root (backend/) is on sys.path so local modules (app, models, etc.)
+# are imported instead of any similarly-named packages in site-packages.
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from app import create_app
 from extensions import db

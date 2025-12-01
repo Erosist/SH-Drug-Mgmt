@@ -417,6 +417,16 @@ def get_circulation_records(tracking_number: str):
     
     if not records:
         return jsonify({'msg': f'未找到运单号 {tracking_number} 的流通记录'}), 404
+
+    # 仅允许监管用户或与订单相关的当事方查看记录
+    if user.role != 'regulator':
+        related = False
+        for r in records:
+            if r.order and (user.tenant_id == r.order.buyer_tenant_id or user.tenant_id == r.order.supplier_tenant_id):
+                related = True
+                break
+        if not related:
+            return jsonify({'msg': '权限不足：您不是该订单的相关方'}), 403
     
     return jsonify({
         'tracking_number': tracking_number,

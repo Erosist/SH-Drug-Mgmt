@@ -140,6 +140,9 @@ def get_supply_info_list():
         current_user = get_authenticated_user()
         if not current_user:
             return jsonify({'msg': '用户未登录'}), 401
+        # 物流用户禁止访问供应信息列表
+        if current_user.role == 'logistics':
+            return jsonify({'msg': '权限不足：物流用户无法查看供应信息'}), 403
         
         # 获取查询参数
         page = request.args.get('page', 1, type=int)
@@ -222,6 +225,9 @@ def get_supply_info_detail(supply_id):
         current_user = get_authenticated_user()
         if not current_user:
             return jsonify({'msg': '用户未登录'}), 401
+        # 物流用户禁止查看供应信息详情
+        if current_user.role == 'logistics':
+            return jsonify({'msg': '权限不足：物流用户无法查看供应信息详情'}), 403
         
         supply_info = SupplyInfo.query.get(supply_id)
         if not supply_info:
@@ -343,6 +349,9 @@ def get_drugs_list():
         current_user = get_authenticated_user()
         if not current_user:
             return jsonify({'msg': '用户未登录'}), 401
+        # 物流用户禁止访问药品列表用于发布/编辑供应信息
+        if current_user.role == 'logistics':
+            return jsonify({'msg': '权限不足：物流用户无法查看药品列表'}), 403
         
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 50, type=int), 100)

@@ -345,6 +345,7 @@ class Order(db.Model):
     order_number = db.Column(db.String(50), unique=True, nullable=False)  # 业务订单号
     buyer_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
     supplier_tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False, index=True)
+    supply_info_id = db.Column(db.Integer, db.ForeignKey('supply_info.id'), nullable=True, index=True)
     expected_delivery_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text)
     status = db.Column(db.String(30), nullable=False, default='PENDING')  # 订单状态
@@ -366,6 +367,7 @@ class Order(db.Model):
     # 关联关系
     buyer_tenant = db.relationship('Tenant', foreign_keys=[buyer_tenant_id], backref='buyer_orders')
     supplier_tenant = db.relationship('Tenant', foreign_keys=[supplier_tenant_id], backref='supplier_orders')
+    supply_info = db.relationship('SupplyInfo', foreign_keys=[supply_info_id])
     logistics_tenant = db.relationship('Tenant', foreign_keys=[logistics_tenant_id])
     created_by_user = db.relationship('User', foreign_keys=[created_by], backref='created_orders')
     confirmed_by_user = db.relationship('User', foreign_keys=[confirmed_by])

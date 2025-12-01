@@ -10,11 +10,11 @@
         <div class="nav-section">
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
-            <div class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
-            <div class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
+            <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监测</div>
-            <div class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
-            <div class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
+            <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
+            <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
             <div v-if="currentUser" class="user-info">
@@ -54,22 +54,34 @@
           </div>
           <div class="tenant-details">
             <div>
-              <span class="label">统一社会信用代码</span>
-              <strong>{{ tenant.unified_social_credit_code }}</strong>
+              <div class="tuple-box">
+                <span class="label">统一社会信用代码</span>
+                <strong>{{ tenant.unified_social_credit_code }}</strong>
+              </div>
             </div>
             <div>
-              <span class="label">法人代表</span>
-              <strong>{{ tenant.legal_representative }}</strong>
+              <div class="tuple-box">
+                <span class="label">法人代表</span>
+                <strong>{{ tenant.legal_representative }}</strong>
+              </div>
             </div>
             <div>
-              <span class="label">业务范围</span>
-              <strong>{{ tenant.business_scope }}</strong>
+              <div class="tuple-box">
+                <span class="label">业务范围</span>
+                <strong>{{ tenant.business_scope }}</strong>
+              </div>
             </div>
           </div>
           <div class="tenant-contact">
-            <div>联系人：{{ tenant.contact_person }}</div>
-            <div>电话：{{ tenant.contact_phone }}</div>
-            <div>邮箱：{{ tenant.contact_email }}</div>
+            <div>
+              <div class="tuple-box small">联系人：{{ tenant.contact_person }}</div>
+            </div>
+            <div>
+              <div class="tuple-box small">电话：{{ tenant.contact_phone }}</div>
+            </div>
+            <div>
+              <div class="tuple-box small">邮箱：{{ tenant.contact_email }}</div>
+            </div>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
@@ -128,16 +140,30 @@
             </thead>
             <tbody>
               <tr v-for="item in inventory" :key="item.id">
-                <td>{{ item.batch_number }}</td>
                 <td>
-                  <div class="drug-name">{{ item.drug_name || '-' }}</div>
-                  <div class="drug-brand">{{ item.drug_brand }}</div>
+                  <div class="tuple-box small">{{ item.batch_number }}</div>
                 </td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ formatPrice(item.unit_price) }}</td>
-                <td>{{ formatDate(item.production_date) }}</td>
-                <td>{{ formatDate(item.expiry_date) }}</td>
-                <td>{{ formatDateTime(item.updated_at) }}</td>
+                <td>
+                  <div class="tuple-box">
+                    <div class="drug-name">{{ item.drug_name || '-' }}</div>
+                    <div class="drug-brand">{{ item.drug_brand }}</div>
+                  </div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ item.quantity }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatPrice(item.unit_price) }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDate(item.production_date) }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDate(item.expiry_date) }}</div>
+                </td>
+                <td>
+                  <div class="tuple-box small">{{ formatDateTime(item.updated_at) }}</div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -174,6 +200,12 @@ export default {
     const route = useRoute()
     const activeNav = ref('inventory')
     const currentUser = ref(getCurrentUser())
+    const isLogistics = computed(() => currentUser.value?.role === 'logistics')
+    const isSupplier = computed(() => currentUser.value?.role === 'supplier')
+    const isPharmacy = computed(() => currentUser.value?.role === 'pharmacy')
+    const isRegulator = computed(() => currentUser.value?.role === 'regulator')
+    const isAdmin = computed(() => currentUser.value?.role === 'admin')
+    const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
 
@@ -364,6 +396,9 @@ export default {
     return {
       activeNav,
       currentUser,
+      isRegulator,
+      isAdmin,
+      canViewAnalysis,
       userDisplayName,
       userRoleLabel,
       goToLogin,
@@ -393,6 +428,9 @@ export default {
       formatDateTime,
       goBack,
       routeTenantId
+      , isLogistics,
+      isSupplier,
+      isPharmacy
     }
   }
 }
@@ -654,6 +692,19 @@ export default {
   margin-bottom: 16px;
 }
 
+/* 无填充的区块框：用于将若干元组信息视觉分组 */
+.tuple-box {
+  border: 1px solid rgba(26, 115, 232, 0.12);
+  border-radius: 8px;
+  padding: 10px;
+  background-color: transparent;
+  display: block;
+}
+.tuple-box.small {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 .tenant-details .label {
   display: block;
   font-size: 12px;
@@ -734,15 +785,27 @@ export default {
 
 .inventory-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  /* vertical spacing between logical rows */
+  border-spacing: 0 12px;
 }
 
 .inventory-table th,
 .inventory-table td {
   text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 0; /* td 内使用 .tuple-box 控制内边距 */
+  border-bottom: none;
   font-size: 14px;
+  vertical-align: middle;
+}
+
+/* 让每行的 tuple-box 占满单元格宽度，并在整行 hover 时强调 */
+.inventory-table tbody tr .tuple-box {
+  width: 100%;
+}
+.inventory-table tbody tr:hover .tuple-box {
+  border-color: rgba(26, 115, 232, 0.22);
+  box-shadow: 0 6px 18px rgba(26,115,232,0.06);
 }
 
 .drug-brand {
