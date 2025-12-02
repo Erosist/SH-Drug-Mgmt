@@ -22,7 +22,7 @@ test-backend:
     - Write-Host "=== Backend Test Completed ==="
   artifacts:
     reports:
-      cobertura: vue-project/backend/coverage.xml  # <--- 确认一下路径是否需要加 vue-project
+      coverage: backend/coverage.xml
     paths:
       - backend/htmlcov/
     expire_in: 1 week
