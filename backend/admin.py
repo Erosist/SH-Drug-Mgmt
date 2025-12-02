@@ -1,10 +1,13 @@
+import csv
+import io
 from datetime import datetime, timedelta
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func, or_
 
 from extensions import db
+from audit import record_admin_action
 from auth import (
     get_authenticated_user,
     normalize_email,
@@ -20,6 +23,7 @@ from models import (
     SupplyInfo,
     Tenant,
     to_iso,
+    AdminAuditLog,
 )
 
 bp = Blueprint('admin', __name__, url_prefix='/api/admin')
@@ -37,6 +41,15 @@ def _parse_bool(value, default=None):
     if isinstance(value, str):
         return value.strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
     return bool(value)
+
+
+def _parse_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _paginate(query):
@@ -74,6 +87,17 @@ def _build_user_payload(user: User, cert: EnterpriseCertification = None, includ
     data = user.to_dict(include_relations=include_relations)
     data['certification'] = _serialize_certification(cert, brief=brief_cert)
     return data
+
+
+USER_EXPORT_FIELDS = [
+    'id', 'username', 'email', 'phone', 'real_name', 'company_name',
+    'role', 'tenant_id', 'is_authenticated', 'is_active', 'created_at', 'updated_at'
+]
+
+
+def _build_export_row(user: User):
+    payload = user.to_dict()
+    return {field: payload.get(field) for field in USER_EXPORT_FIELDS}
 
 
 def _get_cert_map(user_ids):
@@ -141,6 +165,17 @@ def create_user():
     user.set_password(password)
 
     db.session.add(user)
+    db.session.flush()
+
+    record_admin_action(
+        admin,
+        'create_user',
+        target_user_id=user.id,
+        resource_type='user',
+        resource_id=user.id,
+        details={'username': user.username, 'role': user.role, 'tenant_id': user.tenant_id},
+    )
+
     db.session.commit()
 
     return jsonify({'msg': '用户创建成功', 'user': user.to_dict()}), 201
@@ -176,6 +211,19 @@ def list_users():
     user_ids = [u.id for u in pagination.items]
     cert_map = _get_cert_map(user_ids)
 
+    record_admin_action(
+        admin,
+        'list_users',
+        details={
+            'keyword': keyword,
+            'role': role,
+            'status': status,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+        },
+        commit=True,
+    )
+
     return jsonify({
         'items': [_build_user_payload(u, cert_map.get(u.id), brief_cert=True) for u in pagination.items],
         'page': pagination.page,
@@ -183,6 +231,41 @@ def list_users():
         'total': pagination.total,
         'pages': pagination.pages,
     })
+
+
+@bp.route('/users/export', methods=['GET'])
+@jwt_required()
+def export_users():
+    admin = get_authenticated_user()
+    if not _require_admin(admin):
+        return jsonify({'msg': '仅系统管理员可访问'}), 403
+
+    export_format = (request.args.get('format') or 'csv').strip().lower()
+    users = User.query.order_by(User.id.asc()).all()
+    rows = [_build_export_row(u) for u in users]
+
+    record_admin_action(
+        admin,
+        'export_users',
+        details={'format': export_format, 'count': len(rows)},
+        commit=True,
+    )
+
+    if export_format == 'json':
+        return jsonify({'items': rows, 'total': len(rows)})
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=USER_EXPORT_FIELDS)
+    writer.writeheader()
+    writer.writerows(rows)
+    buffer.seek(0)
+
+    filename = f"users-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    return Response(
+        buffer.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
+    )
 
 
 @bp.route('/users/<int:user_id>/status', methods=['POST'])
@@ -204,7 +287,16 @@ def update_user_status(user_id):
     user.is_active = action == 'enable'
     user.updated_at = datetime.utcnow()
 
-    # TODO: Add audit log persistence if needed
+    audit_action = 'enable_user' if user.is_active else 'disable_user'
+    record_admin_action(
+        admin,
+        audit_action,
+        target_user_id=user.id,
+        resource_type='user',
+        resource_id=user.id,
+        details={'action': action, 'is_active': user.is_active},
+    )
+
     db.session.commit()
 
     return jsonify({'msg': '状态已更新', 'user': user.to_dict()})
@@ -219,6 +311,16 @@ def get_user_detail(user_id):
 
     user = User.query.get_or_404(user_id)
     cert = EnterpriseCertification.query.filter_by(user_id=user.id).first()
+
+    record_admin_action(
+        admin,
+        'get_user_detail',
+        target_user_id=user.id,
+        resource_type='user',
+        resource_id=user.id,
+        commit=True,
+    )
+
     return jsonify({'user': _build_user_payload(user, cert, include_relations=True, brief_cert=False)})
 
 
@@ -250,6 +352,14 @@ def delete_user(user_id):
         return jsonify({'msg': '该用户有进行中的企业认证，无法删除'}), 400
 
     db.session.delete(user)
+    record_admin_action(
+        admin,
+        'delete_user',
+        target_user_id=user.id,
+        resource_type='user',
+        resource_id=user.id,
+        details={'username': user.username, 'role': user.role},
+    )
     db.session.commit()
 
     return jsonify({'msg': '用户已删除'})
@@ -275,10 +385,74 @@ def update_user_role(user_id):
     if 'mark_authenticated' in data:
         user.is_authenticated = bool(data.get('mark_authenticated'))
     user.updated_at = datetime.utcnow()
+    record_admin_action(
+        admin,
+        'update_user_role',
+        target_user_id=user.id,
+        resource_type='user',
+        resource_id=user.id,
+        details={'new_role': user.role, 'mark_authenticated': user.is_authenticated},
+    )
     db.session.commit()
 
     cert = EnterpriseCertification.query.filter_by(user_id=user.id).first()
     return jsonify({'msg': '角色已更新', 'user': _build_user_payload(user, cert, brief_cert=False)})
+
+
+@bp.route('/audit-logs', methods=['GET'])
+@jwt_required()
+def list_audit_logs():
+    admin = get_authenticated_user()
+    if not _require_admin(admin):
+        return jsonify({'msg': '仅系统管理员可访问'}), 403
+
+    query = AdminAuditLog.query
+
+    admin_id = request.args.get('admin_id')
+    action = (request.args.get('action') or '').strip()
+    target_user_id = request.args.get('target_user_id')
+    start = _parse_datetime(request.args.get('start'))
+    end = _parse_datetime(request.args.get('end'))
+
+    if admin_id:
+        try:
+            query = query.filter(AdminAuditLog.admin_id == int(admin_id))
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'admin_id 必须为整数'}), 400
+    if target_user_id:
+        try:
+            query = query.filter(AdminAuditLog.target_user_id == int(target_user_id))
+        except (TypeError, ValueError):
+            return jsonify({'msg': 'target_user_id 必须为整数'}), 400
+    if action:
+        query = query.filter(AdminAuditLog.action == action)
+    if start:
+        query = query.filter(AdminAuditLog.created_at >= start)
+    if end:
+        query = query.filter(AdminAuditLog.created_at <= end)
+
+    query = query.order_by(AdminAuditLog.created_at.desc())
+    pagination = _paginate(query)
+
+    record_admin_action(
+        admin,
+        'list_audit_logs',
+        details={
+            'admin_id': admin_id,
+            'action': action,
+            'target_user_id': target_user_id,
+            'page': pagination.page,
+        },
+        commit=True,
+    )
+
+    return jsonify({
+        'items': [log.to_dict(include_users=True) for log in pagination.items],
+        'page': pagination.page,
+        'per_page': pagination.per_page,
+        'total': pagination.total,
+        'pages': pagination.pages,
+    })
 
 
 @bp.route('/system/status', methods=['GET'])
@@ -325,11 +499,20 @@ def system_status():
         'inactive_supplies': db.session.query(func.count(SupplyInfo.id)).filter(SupplyInfo.status != 'ACTIVE').scalar() or 0,
     }
 
-    return jsonify({
+    payload = {
         'generated_at': now.isoformat(),
         'users': user_stats,
         'certifications': cert_stats,
         'orders': order_stats,
         'inventory': inventory_stats,
         'supply': supply_stats,
-    })
+    }
+
+    record_admin_action(
+        admin,
+        'system_status',
+        details={'snapshot_time': payload['generated_at']},
+        commit=True,
+    )
+
+    return jsonify(payload)

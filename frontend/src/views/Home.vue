@@ -54,6 +54,7 @@
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAuditLogs">审计日志</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
             <button v-else class="login-btn" @click="handleLogout">退出登录</button>
           </div>
@@ -241,6 +242,12 @@ export default {
       router.push('/admin/users')
     }
 
+    const goToAuditLogs = () => {
+      if (!currentUser.value) return router.push('/login')
+      if (currentUser.value.role !== 'admin') return
+      router.push('/admin/audit-logs')
+    }
+
     const refreshUser = () => {
       currentUser.value = getCurrentUser()
     }
@@ -326,6 +333,7 @@ export default {
       goToEnterpriseReview,
       goToSystemStatus,
       goToAdminUsers,
+      goToAuditLogs,
       navigateTo,
       activeNav,
       currentUser,
