@@ -27,6 +27,11 @@ class Tenant(db.Model):
     address = db.Column(db.String(255), nullable=False)
     business_scope = db.Column(db.Text, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    
+    # 地理位置信息（用于就近推荐）
+    latitude = db.Column(db.Float, nullable=True)  # 纬度
+    longitude = db.Column(db.Float, nullable=True)  # 经度
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -47,6 +52,8 @@ class Tenant(db.Model):
             'address': self.address,
             'business_scope': self.business_scope,
             'is_active': self.is_active,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
             'created_at': to_iso(self.created_at),
             'updated_at': to_iso(self.updated_at)
         }

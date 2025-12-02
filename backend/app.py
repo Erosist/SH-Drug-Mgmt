@@ -10,6 +10,7 @@ from admin import bp as admin_bp
 from orders import bp as orders_bp, register_logistics_blueprint
 from inventory_warning import bp as inventory_warning_bp
 from circulation import bp as circulation_bp
+from nearby import bp as nearby_bp
 
 def create_app(config_object=DevelopmentConfig):
     app = Flask(__name__)
@@ -35,6 +36,7 @@ def create_app(config_object=DevelopmentConfig):
     app.register_blueprint(orders_bp)
     app.register_blueprint(inventory_warning_bp)
     app.register_blueprint(circulation_bp)
+    app.register_blueprint(nearby_bp)
     
     # register logistics blueprint
     register_logistics_blueprint(app)
