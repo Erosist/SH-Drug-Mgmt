@@ -1,12 +1,81 @@
 <template>
   <div class="nearby-suppliers-container">
-    <!-- 顶部标题 -->
-    <div class="page-header">
-      <h2>就近供应商推荐</h2>
-      <p class="subtitle">根据您的位置查找最近的药品供应商</p>
+    <!-- 顶部导航栏 -->
+    <div class="header">
+      <div class="header-content">
+        <div class="platform-info">
+          <h1 class="platform-title">上海药品监管信息平台</h1>
+          <div class="current-date">{{ currentDate }}</div>
+        </div>
+        
+        <div class="nav-section">
+          <div class="nav-menu">
+            <div 
+              class="nav-item" 
+              :class="{ active: activeNav === 'home' }"
+              @click="navigateTo('home')"
+            >首页</div>
+            <div 
+              v-if="!isLogistics && !isRegulator"
+              class="nav-item" 
+              :class="{ active: activeNav === 'inventory' }"
+              @click="navigateTo('inventory')"
+            >库存管理</div>
+            <div 
+              v-if="isPharmacy"
+              class="nav-item" 
+              :class="{ active: activeNav === 'nearby' }"
+              @click="navigateTo('nearby')"
+            >就近推荐</div>
+            <div 
+              v-if="!isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'b2b' }"
+              @click="navigateTo('b2b')"
+            >B2B供求平台</div>
+            <div 
+              class="nav-item" 
+              :class="{ active: activeNav === 'circulation' }"
+              @click="navigateTo('circulation')"
+            >流通监管</div>
+            <div 
+              v-if="canViewAnalysis"
+              class="nav-item" 
+              :class="{ active: activeNav === 'analysis' }"
+              @click="navigateTo('analysis')"
+            >监管分析</div>
+            <div v-if="isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'service' }"
+              @click="navigateTo('service')"
+            >智能调度</div>
+          </div>
+          
+          <div class="user-actions">
+            <div v-if="currentUser" class="user-info">
+              <span class="user-name">{{ userDisplayName }}</span>
+              <span class="user-role">{{ userRoleLabel }}</span>
+            </div>
+            <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+            <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+            <button v-else class="login-btn" @click="handleLogout">退出登录</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 搜索区域 -->
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <h2>就近供应商推荐</h2>
+        <p class="subtitle">根据您的位置查找最近的药品供应商</p>
+      </div>
+
+      <!-- 搜索区域 -->
     <el-card class="search-card">
       <div class="search-section">
         <el-form :model="searchForm" label-width="100px">
@@ -279,14 +348,154 @@
         </el-descriptions>
       </div>
     </el-dialog>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch, computed, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Location, MapLocation } from '@element-plus/icons-vue'
 import { nearbyApi } from '@/api/nearby'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
+import { getRoleLabel } from '@/utils/roleLabel'
+
+const router = useRouter()
+
+// 用户信息
+const currentUser = ref(getCurrentUser())
+const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
+const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
+const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
+const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
+const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
+const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
+const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
+
+// 当前导航
+const activeNav = ref('nearby')
+
+// 动态日期
+const currentDate = computed(() => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  const d = now.getDate()
+  return `${y}年${m}月${d}日`
+})
+
+// 导航方法
+const navigateTo = (page) => {
+  switch(page) {
+    case 'home':
+      router.push('/'); break
+    case 'inventory':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/inventory' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'inventory' } })
+        break
+      }
+      router.push('/inventory'); break
+    case 'nearby':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'nearby' } })
+        break
+      }
+      router.push('/nearby-suppliers'); break
+    case 'b2b':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/b2b' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'b2b' } })
+        break
+      }
+      router.push('/b2b'); break
+    case 'circulation':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/circulation' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'circulation' } })
+        break
+      }
+      router.push('/circulation'); break
+    case 'analysis':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/analysis' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'analysis' } })
+        break
+      }
+      router.push('/analysis'); break
+    case 'service':
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/service' } })
+        break
+      }
+      if (currentUser.value.role === 'unauth') {
+        router.push({ name: 'unauth', query: { active: 'service' } })
+        break
+      }
+      router.push('/service'); break
+    default:
+      router.push('/');
+  }
+}
+
+const goToLogin = () => {
+  router.push('/login')
+}
+
+const goToEnterpriseAuth = () => {
+  if (!currentUser.value) {
+    router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
+    return
+  }
+  if (['regulator','admin'].includes(currentUser.value.role)) return
+  router.push('/enterprise-auth')
+}
+
+const goToEnterpriseReview = () => {
+  if (!currentUser.value) return router.push('/login')
+  if (currentUser.value.role !== 'admin') return
+  router.push('/enterprise-review')
+}
+
+const goToSystemStatus = () => {
+  if (!currentUser.value) return router.push('/login')
+  if (currentUser.value.role !== 'admin') return
+  router.push('/admin/status')
+}
+
+const goToAdminUsers = () => {
+  if (!currentUser.value) return router.push('/login')
+  if (currentUser.value.role !== 'admin') return
+  router.push('/admin/users')
+}
+
+const handleLogout = () => {
+  clearAuth()
+  currentUser.value = null
+  router.push('/login')
+}
+
+const refreshUser = () => {
+  currentUser.value = getCurrentUser()
+}
 
 // 地图相关
 let map = null
@@ -593,15 +802,189 @@ watch([showMap, searchResult], async ([newShowMap, newSearchResult]) => {
 
 // 页面加载时获取我的位置
 onMounted(() => {
+  window.addEventListener('storage', refreshUser)
   loadMyLocation()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', refreshUser)
 })
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .nearby-suppliers-container {
-  padding: 20px;
-  background-color: #f5f7fa;
   min-height: 100vh;
+  background-color: #f5f7fa;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部导航栏样式 */
+.header {
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 15px 0;
+  width: 100%;
+}
+
+.header-content {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.platform-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.platform-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1a73e8;
+  margin: 0;
+}
+
+.current-date {
+  color: #666;
+  font-size: 16px;
+}
+
+.nav-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 30px;
+}
+
+.nav-item {
+  font-size: 16px;
+  color: #333;
+  cursor: pointer;
+  padding: 5px 0;
+  transition: color 0.3s;
+}
+
+.nav-item:hover {
+  color: #1a73e8;
+}
+
+.nav-item.active {
+  color: #1a73e8;
+  border-bottom: 2px solid #1a73e8;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 10px;
+  gap: 8px;
+}
+
+.user-name {
+  white-space: nowrap;
+}
+
+.user-role {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background-color: #fff;
+  border: 1px solid rgba(26, 115, 232, 0.2);
+  font-size: 12px;
+  color: #1a73e8;
+}
+
+.auth-btn {
+  background-color: #fff;
+  color: #1a73e8;
+  border: 1px solid #1a73e8;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.auth-btn:hover {
+  background-color: rgba(26, 115, 232, 0.08);
+}
+
+.review-btn {
+  background-color: #fff7e6;
+  color: #b76c00;
+  border: 1px solid #f3e5b8;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.review-btn:hover {
+  background-color: #ffeccc;
+}
+
+.admin-btn {
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  border: 1px solid #d6e4ff;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.admin-btn:hover {
+  background-color: #e5edff;
+}
+
+.login-btn {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.login-btn:hover {
+  background-color: #0d62d9;
+}
+
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 20px;
 }
 
 .page-header {
