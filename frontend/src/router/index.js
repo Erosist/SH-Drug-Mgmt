@@ -16,6 +16,7 @@ import EnterpriseAuth from '../views/EnterpriseAuth.vue'
 import EnterpriseReview from '../views/EnterpriseReview.vue'
 import AdminUsers from '../views/AdminUsers.vue'
 import SystemStatus from '../views/SystemStatus.vue'
+import AdminAuditLogs from '../views/AdminAuditLogs.vue'
 import ChangePassword from '../views/ChangePassword.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
@@ -53,6 +54,7 @@ const router = createRouter({
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/status', name: 'admin-status', component: SystemStatus, meta: { requiresAuth: true, requiresRole: 'admin' } },
+  { path: '/admin/audit-logs', name: 'admin-audit-logs', component: AdminAuditLogs, meta: { requiresAuth: true, requiresRole: 'admin' } },
 
     // 基于角色的用户界面（无后端，使用前端mock登录）
     { path: '/pharmacy', name: 'pharmacy', component: PharmacyUser, meta: { requiresAuth: true } },
