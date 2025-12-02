@@ -81,6 +81,22 @@
         <el-form :model="searchForm" label-width="100px">
           <el-row :gutter="20">
             <el-col :span="12">
+              <el-form-item label="药品名称" required>
+                <el-input 
+                  v-model="searchForm.drugName" 
+                  placeholder="请输入药品名称，如：阿莫西林"
+                  clearable
+                >
+                  <template #prefix>
+                    <el-icon><Search /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="20">
+            <el-col :span="12">
               <el-form-item label="搜索方式">
                 <el-radio-group v-model="searchType">
                   <el-radio label="location">使用我的位置</el-radio>
@@ -215,7 +231,7 @@
     <el-card class="result-card" v-if="searchResult">
       <template #header>
         <div class="card-header">
-          <span>搜索结果</span>
+          <span>搜索结果 - {{ searchResult.drug_name }}</span>
           <div>
             <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
             <el-button 
@@ -233,12 +249,12 @@
 
       <div class="result-summary">
         <el-descriptions :column="4" border size="small">
+          <el-descriptions-item label="药品名称">
+            <el-tag type="primary">{{ searchResult.drug_name }}</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="搜索位置">
             {{ searchResult.pharmacy_location.longitude.toFixed(6) }}, 
             {{ searchResult.pharmacy_location.latitude.toFixed(6) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="总供应商数">
-            {{ searchResult.total }}
           </el-descriptions-item>
           <el-descriptions-item label="符合条件">
             {{ searchResult.filtered }}
@@ -260,7 +276,7 @@
           </div>
           <div class="legend-item">
             <span class="legend-icon supplier">🏭</span>
-            <span>供应商</span>
+            <span>有库存的供应商</span>
           </div>
         </div>
       </div>
@@ -274,8 +290,30 @@
           :default-sort="{ prop: 'distance', order: 'ascending' }"
         >
           <el-table-column type="index" label="排名" width="60" />
-          <el-table-column prop="name" label="供应商名称" min-width="200" />
-          <el-table-column prop="address" label="地址" min-width="250" />
+          <el-table-column prop="name" label="供应商名称" min-width="180" />
+          <el-table-column label="药品信息" min-width="200">
+            <template #default="{ row }">
+              <div v-if="row.inventory && row.inventory.drug_info">
+                <div><strong>{{ row.inventory.drug_info.generic_name }}</strong></div>
+                <div style="font-size: 12px; color: #666;">
+                  {{ row.inventory.drug_info.brand_name }} | {{ row.inventory.drug_info.specification }}
+                </div>
+                <div style="font-size: 12px; color: #999;">
+                  {{ row.inventory.drug_info.manufacturer }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="库存/价格" width="140" align="center">
+            <template #default="{ row }">
+              <div v-if="row.inventory">
+                <el-tag type="success">库存: {{ row.inventory.quantity }}</el-tag>
+                <div style="margin-top: 5px; color: #f56c6c; font-weight: bold;">
+                  ¥{{ row.inventory.unit_price }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column prop="distance_text" label="距离" width="100" align="center">
             <template #default="{ row }">
               <el-tag :type="getDistanceType(row.distance)">
@@ -283,6 +321,7 @@
               </el-tag>
             </template>
           </el-table-column>
+          <el-table-column prop="address" label="地址" min-width="220" />
           <el-table-column prop="contact_person" label="联系人" width="100" />
           <el-table-column prop="contact_phone" label="联系电话" width="130" />
           <el-table-column label="操作" width="180" fixed="right">
@@ -301,7 +340,7 @@
       <!-- 空状态 -->
       <el-empty 
         v-if="searchResult.suppliers.length === 0"
-        description="未找到符合条件的供应商"
+        :description="searchResult.message || '未找到符合条件的供应商'"
       >
         <el-button type="primary" @click="resetSearch">重新搜索</el-button>
       </el-empty>
@@ -311,11 +350,11 @@
     <el-dialog 
       v-model="detailDialogVisible" 
       title="供应商详情" 
-      width="600px"
+      width="700px"
     >
       <div v-if="currentSupplier">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="供应商名称">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="供应商名称" :span="2">
             {{ currentSupplier.name }}
           </el-descriptions-item>
           <el-descriptions-item label="类型">
@@ -324,10 +363,10 @@
           <el-descriptions-item label="距离">
             <el-tag type="success">{{ currentSupplier.distance_text }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="地址">
+          <el-descriptions-item label="地址" :span="2">
             {{ currentSupplier.address }}
           </el-descriptions-item>
-          <el-descriptions-item label="统一社会信用代码">
+          <el-descriptions-item label="统一社会信用代码" :span="2">
             {{ currentSupplier.unified_social_credit_code }}
           </el-descriptions-item>
           <el-descriptions-item label="法定代表人">
@@ -342,10 +381,43 @@
           <el-descriptions-item label="联系邮箱">
             {{ currentSupplier.contact_email }}
           </el-descriptions-item>
-          <el-descriptions-item label="经营范围">
+          <el-descriptions-item label="经营范围" :span="2">
             {{ currentSupplier.business_scope }}
           </el-descriptions-item>
         </el-descriptions>
+        
+        <!-- 库存信息 -->
+        <el-divider>库存信息</el-divider>
+        <div v-if="currentSupplier.inventory" class="inventory-info">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="药品通用名">
+              {{ currentSupplier.inventory.drug_info?.generic_name }}
+            </el-descriptions-item>
+            <el-descriptions-item label="商品名">
+              {{ currentSupplier.inventory.drug_info?.brand_name }}
+            </el-descriptions-item>
+            <el-descriptions-item label="规格">
+              {{ currentSupplier.inventory.drug_info?.specification }}
+            </el-descriptions-item>
+            <el-descriptions-item label="生产厂家">
+              {{ currentSupplier.inventory.drug_info?.manufacturer }}
+            </el-descriptions-item>
+            <el-descriptions-item label="库存数量">
+              <el-tag type="success" size="large">{{ currentSupplier.inventory.quantity }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="单价">
+              <span style="color: #f56c6c; font-size: 18px; font-weight: bold;">
+                ¥{{ currentSupplier.inventory.unit_price }}
+              </span>
+            </el-descriptions-item>
+            <el-descriptions-item label="最小订购量">
+              {{ currentSupplier.inventory.min_order_quantity }}
+            </el-descriptions-item>
+            <el-descriptions-item label="有效期至">
+              {{ currentSupplier.inventory.valid_until }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
       </div>
     </el-dialog>
     </div>
@@ -507,6 +579,7 @@ const searchType = ref('location') // location, address, coords
 
 // 搜索表单
 const searchForm = reactive({
+  drugName: '', // 药品名称
   address: '',
   city: '',
   longitude: null,
@@ -574,10 +647,17 @@ const updateMyLocation = async () => {
 
 // 搜索就近供应商
 const searchNearbySuppliers = async () => {
+  // 验证药品名称
+  if (!searchForm.drugName || searchForm.drugName.trim() === '') {
+    ElMessage.warning('请输入药品名称')
+    return
+  }
+
   loading.value = true
   
   try {
     let params = {
+      drug_name: searchForm.drugName.trim(),
       max_distance: searchForm.maxDistance,
       limit: searchForm.limit,
       use_api: searchForm.useApi
@@ -613,13 +693,14 @@ const searchNearbySuppliers = async () => {
       searchResult.value = response.data
       
       if (response.data.filtered === 0) {
-        ElMessage.info('未找到符合条件的供应商，请尝试扩大搜索范围')
+        ElMessage.info(response.data.message || '未找到符合条件的供应商，请尝试扩大搜索范围')
       } else {
-        ElMessage.success(`找到 ${response.data.filtered} 个供应商`)
+        ElMessage.success(`找到 ${response.data.filtered} 个有 ${response.data.drug_name} 库存的供应商`)
       }
     }
   } catch (error) {
-    ElMessage.error('搜索失败: ' + (error.response?.data?.message || error.message))
+    const errorMsg = error.response?.data?.message || error.message
+    ElMessage.error('搜索失败: ' + errorMsg)
     console.error('搜索错误:', error)
   } finally {
     loading.value = false
@@ -628,6 +709,7 @@ const searchNearbySuppliers = async () => {
 
 // 重置搜索
 const resetSearch = () => {
+  searchForm.drugName = ''
   searchForm.address = ''
   searchForm.city = ''
   searchForm.longitude = null
@@ -757,15 +839,30 @@ const addMarkersToMap = () => {
     markers.push(supplierMarker)
     allPoints.push([supplier.longitude, supplier.latitude])
 
+    // 构建信息窗口内容
+    let inventoryHtml = ''
+    if (supplier.inventory) {
+      inventoryHtml = `
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+          <p style="margin: 5px 0;"><strong>药品信息:</strong></p>
+          <p style="margin: 5px 0; padding-left: 10px;">${supplier.inventory.drug_info?.generic_name || ''} (${supplier.inventory.drug_info?.brand_name || ''})</p>
+          <p style="margin: 5px 0; padding-left: 10px;">${supplier.inventory.drug_info?.specification || ''}</p>
+          <p style="margin: 5px 0;"><strong>库存:</strong> <span style="color: #67c23a;">${supplier.inventory.quantity}</span></p>
+          <p style="margin: 5px 0;"><strong>价格:</strong> <span style="color: #f56c6c; font-weight: bold;">¥${supplier.inventory.unit_price}</span></p>
+        </div>
+      `
+    }
+
     // 添加供应商信息窗口
     const supplierInfo = new AMap.InfoWindow({
       content: `
-        <div style="padding: 10px; min-width: 200px;">
+        <div style="padding: 10px; min-width: 250px;">
           <h4 style="margin: 0 0 10px 0; color: #4096ff;">🏭 ${supplier.name}</h4>
           <p style="margin: 5px 0;"><strong>距离:</strong> ${supplier.distance_text}</p>
           <p style="margin: 5px 0;"><strong>地址:</strong> ${supplier.address}</p>
           <p style="margin: 5px 0;"><strong>联系人:</strong> ${supplier.contact_person}</p>
           <p style="margin: 5px 0;"><strong>电话:</strong> ${supplier.contact_phone}</p>
+          ${inventoryHtml}
         </div>
       `
     })
@@ -1045,5 +1142,32 @@ onBeforeUnmount(() => {
 
 :deep(.el-table th) {
   background-color: #f5f7fa;
+}
+
+.inventory-info {
+  margin-top: 15px;
+}
+
+.map-container {
+  margin: 20px 0;
+}
+
+.map-legend {
+  margin-top: 10px;
+  display: flex;
+  gap: 20px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-icon {
+  font-size: 20px;
 }
 </style>

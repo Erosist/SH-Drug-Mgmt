@@ -15,10 +15,11 @@ bp = Blueprint('nearby', __name__, url_prefix='/api/nearby')
 @jwt_required()
 def get_nearby_suppliers():
     """
-    获取就近的供应商列表
+    根据药品名称获取有库存的就近供应商列表
     
     请求体:
     {
+        "drug_name": "阿莫西林",    // 药品名称（必需，支持模糊搜索）
         "longitude": 116.470697,  // 药店经度（必需，如果不提供 address）
         "latitude": 40.000565,    // 药店纬度（必需，如果不提供 address）
         "address": "北京市朝阳区望京SOHO",  // 或者提供地址（会自动转换为坐标）
@@ -31,6 +32,7 @@ def get_nearby_suppliers():
     返回:
     {
         "success": true,
+        "drug_name": "阿莫西林",
         "pharmacy_location": {
             "longitude": 116.470697,
             "latitude": 40.000565
@@ -45,7 +47,11 @@ def get_nearby_suppliers():
                 "longitude": 116.480697,
                 "latitude": 40.010565,
                 "distance": 1289.45,        // 距离（米）
-                "distance_text": "1.3km"    // 格式化的距离
+                "distance_text": "1.3km",   // 格式化的距离
+                "inventory": {              // 库存信息
+                    "quantity": 100,
+                    "unit_price": 25.50
+                }
             },
             ...
         ],
@@ -55,6 +61,15 @@ def get_nearby_suppliers():
     """
     try:
         data = request.get_json()
+        
+        # 检查是否提供药品名称
+        if 'drug_name' not in data or not data['drug_name']:
+            return jsonify({
+                'success': False,
+                'message': '请提供药品名称'
+            }), 400
+        
+        drug_name = data['drug_name'].strip()
         
         # 获取药店位置
         pharmacy_location = None
@@ -97,16 +112,110 @@ def get_nearby_suppliers():
         limit = data.get('limit', 10)
         use_api = data.get('use_api', False)
         
-        # 查询所有活跃的供应商租户
-        suppliers_query = Tenant.query.filter_by(
-            type='SUPPLIER',
-            is_active=True
-        )
+        # 查找匹配的药品（支持模糊搜索：通用名或商品名）
+        from models import Drug, SupplyInfo
+        drugs = Drug.query.filter(
+            db.or_(
+                Drug.generic_name.like(f'%{drug_name}%'),
+                Drug.brand_name.like(f'%{drug_name}%')
+            )
+        ).all()
         
+        if not drugs:
+            return jsonify({
+                'success': False,
+                'message': f'未找到药品: {drug_name}'
+            }), 404
+        
+        drug_ids = [drug.id for drug in drugs]
+        
+        # 查询有这些药品库存的活跃供应商
+        # 使用 SupplyInfo 表查找有库存的供应商
+        supply_infos = SupplyInfo.query.filter(
+            SupplyInfo.drug_id.in_(drug_ids),
+            SupplyInfo.status == 'ACTIVE',
+            SupplyInfo.available_quantity > 0
+        ).all()
+        
+        if not supply_infos:
+            return jsonify({
+                'success': True,
+                'drug_name': drug_name,
+                'pharmacy_location': {
+                    'longitude': pharmacy_location[0],
+                    'latitude': pharmacy_location[1]
+                },
+                'suppliers': [],
+                'total': 0,
+                'filtered': 0,
+                'params': {
+                    'max_distance': max_distance,
+                    'limit': limit,
+                    'use_api': use_api
+                },
+                'message': f'没有供应商有 {drug_name} 的库存'
+            })
+        
+        # 获取供应商租户信息，并附加库存信息
+        tenant_ids = list(set([si.tenant_id for si in supply_infos]))
+        tenants = Tenant.query.filter(
+            Tenant.id.in_(tenant_ids),
+            Tenant.type == 'SUPPLIER',
+            Tenant.is_active == True,
+            Tenant.longitude.isnot(None),  # 必须有坐标信息
+            Tenant.latitude.isnot(None)
+        ).all()
+        
+        # 构建供应商列表，包含库存信息
         suppliers = []
-        for tenant in suppliers_query.all():
+        for tenant in tenants:
+            # 获取该供应商的库存信息（选择价格最低的）
+            tenant_supplies = [si for si in supply_infos if si.tenant_id == tenant.id]
+            if not tenant_supplies:
+                continue
+                
+            # 按价格排序，选择最优的供应信息
+            best_supply = min(tenant_supplies, key=lambda x: float(x.unit_price))
+            
             supplier_dict = tenant.to_dict()
+            supplier_dict['inventory'] = {
+                'supply_id': best_supply.id,
+                'drug_id': best_supply.drug_id,
+                'quantity': best_supply.available_quantity,
+                'unit_price': float(best_supply.unit_price),
+                'min_order_quantity': best_supply.min_order_quantity,
+                'valid_until': best_supply.valid_until.isoformat() if best_supply.valid_until else None
+            }
+            # 获取药品详细信息
+            drug = Drug.query.get(best_supply.drug_id)
+            if drug:
+                supplier_dict['inventory']['drug_info'] = {
+                    'generic_name': drug.generic_name,
+                    'brand_name': drug.brand_name,
+                    'specification': drug.specification,
+                    'manufacturer': drug.manufacturer
+                }
+            
             suppliers.append(supplier_dict)
+        
+        if not suppliers:
+            return jsonify({
+                'success': True,
+                'drug_name': drug_name,
+                'pharmacy_location': {
+                    'longitude': pharmacy_location[0],
+                    'latitude': pharmacy_location[1]
+                },
+                'suppliers': [],
+                'total': 0,
+                'filtered': 0,
+                'params': {
+                    'max_distance': max_distance,
+                    'limit': limit,
+                    'use_api': use_api
+                },
+                'message': f'有 {drug_name} 库存的供应商未设置位置信息'
+            })
         
         # 查找就近供应商
         nearby_suppliers = find_nearby_suppliers(
@@ -119,6 +228,7 @@ def get_nearby_suppliers():
         
         return jsonify({
             'success': True,
+            'drug_name': drug_name,
             'pharmacy_location': {
                 'longitude': pharmacy_location[0],
                 'latitude': pharmacy_location[1]
@@ -134,6 +244,8 @@ def get_nearby_suppliers():
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'message': f'查询失败: {str(e)}'

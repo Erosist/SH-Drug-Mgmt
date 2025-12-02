@@ -43,8 +43,9 @@ apiClient.interceptors.response.use(
 // 就近供应商推荐相关API
 export const nearbyApi = {
   /**
-   * 获取就近供应商列表
+   * 根据药品名称获取有库存的就近供应商列表
    * @param {Object} params - 查询参数
+   * @param {String} params.drug_name - 药品名称（必需）
    * @param {Number} params.longitude - 药店经度
    * @param {Number} params.latitude - 药店纬度
    * @param {String} params.address - 或提供地址（会自动转换为坐标）
