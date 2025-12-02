@@ -72,8 +72,43 @@
       <!-- 页面标题 -->
       <div class="page-header">
         <h2>就近供应商推荐</h2>
-        <p class="subtitle">根据您的位置查找最近的药品供应商</p>
+        <p class="subtitle">在地图上查看药店和供应商位置，搜索药品查找有库存的供应商</p>
       </div>
+
+      <!-- 地图区域 - 始终显示 -->
+      <el-card class="map-card">
+        <template #header>
+          <div class="card-header">
+            <span>供应商地图</span>
+            <div>
+              <el-tag v-if="allSuppliers.length > 0" type="info">
+                共 {{ allSuppliers.length }} 个供应商
+              </el-tag>
+              <el-tag v-if="searchResult && searchResult.filtered > 0" type="success" style="margin-left: 10px">
+                匹配 {{ searchResult.filtered }} 个
+              </el-tag>
+            </div>
+          </div>
+        </template>
+
+        <div class="map-container">
+          <div id="amap-container" style="width: 100%; height: 600px;"></div>
+          <div class="map-legend">
+            <div class="legend-item">
+              <span class="legend-icon pharmacy">📍</span>
+              <span>我的位置</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-icon supplier-normal">⚪</span>
+              <span>普通供应商</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-icon supplier-matched">🏭</span>
+              <span>匹配的供应商</span>
+            </div>
+          </div>
+        </div>
+      </el-card>
 
       <!-- 搜索区域 -->
     <el-card class="search-card">
@@ -228,21 +263,12 @@
     </el-card>
 
     <!-- 搜索结果 -->
-    <el-card class="result-card" v-if="searchResult">
+    <el-card class="result-card" v-if="searchResult && searchResult.suppliers.length > 0">
       <template #header>
         <div class="card-header">
           <span>搜索结果 - {{ searchResult.drug_name }}</span>
           <div>
             <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
-            <el-button 
-              size="small" 
-              :type="showMap ? 'primary' : ''"
-              @click="showMap = !showMap"
-              style="margin-left: 10px"
-            >
-              <el-icon><MapLocation /></el-icon>
-              {{ showMap ? '隐藏地图' : '显示地图' }}
-            </el-button>
           </div>
         </div>
       </template>
@@ -264,21 +290,6 @@
               (searchResult.params.max_distance / 1000) + 'km' : '不限制' }}
           </el-descriptions-item>
         </el-descriptions>
-      </div>
-
-      <!-- 地图容器 -->
-      <div v-show="showMap" class="map-container">
-        <div id="amap-container" style="width: 100%; height: 500px;"></div>
-        <div class="map-legend">
-          <div class="legend-item">
-            <span class="legend-icon pharmacy">📍</span>
-            <span>我的位置</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-icon supplier">🏭</span>
-            <span>有库存的供应商</span>
-          </div>
-        </div>
       </div>
 
       <!-- 供应商列表 -->
@@ -339,7 +350,7 @@
 
       <!-- 空状态 -->
       <el-empty 
-        v-if="searchResult.suppliers.length === 0"
+        v-if="searchResult && searchResult.suppliers.length === 0"
         :description="searchResult.message || '未找到符合条件的供应商'"
       >
         <el-button type="primary" @click="resetSearch">重新搜索</el-button>
@@ -572,7 +583,8 @@ const refreshUser = () => {
 // 地图相关
 let map = null
 let markers = []
-const showMap = ref(false)
+let polylines = [] // 存储路径线
+const allSuppliers = ref([]) // 所有供应商
 
 // 搜索类型
 const searchType = ref('location') // location, address, coords
@@ -614,6 +626,18 @@ const loadMyLocation = async () => {
     }
   } catch (error) {
     console.error('获取位置失败:', error)
+  }
+}
+
+// 获取所有供应商
+const loadAllSuppliers = async () => {
+  try {
+    const response = await nearbyApi.getAllSuppliers()
+    if (response.data.success) {
+      allSuppliers.value = response.data.suppliers
+    }
+  } catch (error) {
+    console.error('获取供应商失败:', error)
   }
 }
 
@@ -692,6 +716,9 @@ const searchNearbySuppliers = async () => {
     if (response.data.success) {
       searchResult.value = response.data
       
+      // 更新地图标记，高亮匹配的供应商
+      updateMapMarkers()
+      
       if (response.data.filtered === 0) {
         ElMessage.info(response.data.message || '未找到符合条件的供应商，请尝试扩大搜索范围')
       } else {
@@ -718,6 +745,11 @@ const resetSearch = () => {
   searchForm.limit = 10
   searchForm.useApi = false
   searchResult.value = null
+  
+  // 重置地图标记（显示所有供应商，无高亮）
+  if (map) {
+    updateMapMarkers()
+  }
 }
 
 // 根据距离获取标签类型
@@ -755,85 +787,99 @@ const initMap = () => {
   // 创建地图实例
   map = new AMap.Map('amap-container', {
     zoom: 11,
-    center: [116.397128, 39.916527], // 默认中心点
+    center: myLocation.value?.has_location 
+      ? [myLocation.value.longitude, myLocation.value.latitude]
+      : [116.397128, 39.916527], // 默认中心点
     viewMode: '2D'
   })
 
   // 添加缩放控件
   map.addControl(new AMap.Scale())
   map.addControl(new AMap.ToolBar())
+  
+  // 初始化地图标记
+  updateMapMarkers()
 }
 
-// 清除所有标记
+// 清除所有标记和路径
 const clearMarkers = () => {
   if (markers.length > 0) {
     map.remove(markers)
     markers = []
   }
+  if (polylines.length > 0) {
+    map.remove(polylines)
+    polylines = []
+  }
 }
 
-// 添加标记到地图
-const addMarkersToMap = () => {
-  if (!map || !searchResult.value) return
+// 更新地图标记
+const updateMapMarkers = () => {
+  if (!map) return
 
   clearMarkers()
 
   const allPoints = []
+  const matchedSupplierIds = new Set(
+    searchResult.value?.suppliers?.map(s => s.id) || []
+  )
 
   // 添加药店标记（红色）
-  const pharmacyMarker = new AMap.Marker({
-    position: [
-      searchResult.value.pharmacy_location.longitude,
-      searchResult.value.pharmacy_location.latitude
-    ],
-    title: '我的位置',
-    icon: new AMap.Icon({
-      size: new AMap.Size(32, 32),
-      image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMiIgZmlsbD0iI2VmNDQ0NCIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjZWY0NDQ0Ii8+PC9zdmc+',
-      imageSize: new AMap.Size(32, 32)
-    }),
-    offset: new AMap.Pixel(-16, -16)
-  })
+  if (myLocation.value?.has_location) {
+    const pharmacyMarker = new AMap.Marker({
+      position: [myLocation.value.longitude, myLocation.value.latitude],
+      title: '我的位置',
+      icon: new AMap.Icon({
+        size: new AMap.Size(40, 40),
+        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxNSIgZmlsbD0iI2VmNDQ0NCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iNSIgZmlsbD0iI2VmNDQ0NCIvPjwvc3ZnPg==',
+        imageSize: new AMap.Size(40, 40)
+      }),
+      offset: new AMap.Pixel(-20, -20),
+      zIndex: 200
+    })
 
-  markers.push(pharmacyMarker)
-  allPoints.push([
-    searchResult.value.pharmacy_location.longitude,
-    searchResult.value.pharmacy_location.latitude
-  ])
+    markers.push(pharmacyMarker)
+    allPoints.push([myLocation.value.longitude, myLocation.value.latitude])
 
-  // 添加药店信息窗口
-  const pharmacyInfo = new AMap.InfoWindow({
-    content: `
-      <div style="padding: 10px;">
-        <h4 style="margin: 0 0 10px 0; color: #ef4444;">📍 我的位置</h4>
-        <p style="margin: 5px 0;">经度: ${searchResult.value.pharmacy_location.longitude.toFixed(6)}</p>
-        <p style="margin: 5px 0;">纬度: ${searchResult.value.pharmacy_location.latitude.toFixed(6)}</p>
-      </div>
-    `
-  })
+    // 添加药店信息窗口
+    const pharmacyInfo = new AMap.InfoWindow({
+      content: `
+        <div style="padding: 12px;">
+          <h4 style="margin: 0 0 10px 0; color: #ef4444; font-size: 16px;">📍 ${myLocation.value.name}</h4>
+          <p style="margin: 5px 0;">地址: ${myLocation.value.address}</p>
+          <p style="margin: 5px 0;">经度: ${myLocation.value.longitude.toFixed(6)}</p>
+          <p style="margin: 5px 0;">纬度: ${myLocation.value.latitude.toFixed(6)}</p>
+        </div>
+      `
+    })
 
-  pharmacyMarker.on('click', () => {
-    pharmacyInfo.open(map, pharmacyMarker.getPosition())
-  })
+    pharmacyMarker.on('click', () => {
+      pharmacyInfo.open(map, pharmacyMarker.getPosition())
+    })
+  }
 
-  // 添加供应商标记（蓝色）
-  searchResult.value.suppliers.forEach((supplier, index) => {
+  // 添加供应商标记
+  allSuppliers.value.forEach((supplier, index) => {
     if (!supplier.longitude || !supplier.latitude) return
+
+    const isMatched = matchedSupplierIds.has(supplier.id)
+    const matchedSupplier = searchResult.value?.suppliers?.find(s => s.id === supplier.id)
+
+    // 根据是否匹配使用不同的图标和大小
+    const iconSize = isMatched ? 36 : 28
+    const iconColor = isMatched ? '#4096ff' : '#999999'
+    const zIndex = isMatched ? 150 : 100
 
     const supplierMarker = new AMap.Marker({
       position: [supplier.longitude, supplier.latitude],
       title: supplier.name,
-      label: {
-        content: `${index + 1}`,
-        direction: 'top',
-        offset: new AMap.Pixel(0, -5)
-      },
       icon: new AMap.Icon({
-        size: new AMap.Size(32, 32),
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMiIgZmlsbD0iIzQwOTZmZiIvPjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBmaWxsPSIjNDA5NmZmIi8+PC9zdmc+',
-        imageSize: new AMap.Size(32, 32)
+        size: new AMap.Size(iconSize, iconSize),
+        image: `data:image/svg+xml;base64,${btoa(`<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" xmlns="http://www.w3.org/2000/svg"><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-2}" fill="${iconColor}"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-6}" fill="#fff"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-10}" fill="${iconColor}"/></svg>`)}`,
+        imageSize: new AMap.Size(iconSize, iconSize)
       }),
-      offset: new AMap.Pixel(-16, -16)
+      offset: new AMap.Pixel(-iconSize/2, -iconSize/2),
+      zIndex: zIndex
     })
 
     markers.push(supplierMarker)
@@ -841,14 +887,16 @@ const addMarkersToMap = () => {
 
     // 构建信息窗口内容
     let inventoryHtml = ''
-    if (supplier.inventory) {
+    if (isMatched && matchedSupplier?.inventory) {
+      const inv = matchedSupplier.inventory
       inventoryHtml = `
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
-          <p style="margin: 5px 0;"><strong>药品信息:</strong></p>
-          <p style="margin: 5px 0; padding-left: 10px;">${supplier.inventory.drug_info?.generic_name || ''} (${supplier.inventory.drug_info?.brand_name || ''})</p>
-          <p style="margin: 5px 0; padding-left: 10px;">${supplier.inventory.drug_info?.specification || ''}</p>
-          <p style="margin: 5px 0;"><strong>库存:</strong> <span style="color: #67c23a;">${supplier.inventory.quantity}</span></p>
-          <p style="margin: 5px 0;"><strong>价格:</strong> <span style="color: #f56c6c; font-weight: bold;">¥${supplier.inventory.unit_price}</span></p>
+          <p style="margin: 5px 0; font-weight: bold; color: #4096ff;">💊 库存药品</p>
+          <p style="margin: 5px 0; padding-left: 10px;">${inv.drug_info?.generic_name || ''} (${inv.drug_info?.brand_name || ''})</p>
+          <p style="margin: 5px 0; padding-left: 10px; font-size: 12px;">${inv.drug_info?.specification || ''}</p>
+          <p style="margin: 5px 0;"><strong>库存:</strong> <span style="color: #67c23a;">${inv.quantity}</span></p>
+          <p style="margin: 5px 0;"><strong>价格:</strong> <span style="color: #f56c6c; font-weight: bold;">¥${inv.unit_price}</span></p>
+          <p style="margin: 5px 0;"><strong>距离:</strong> <span style="color: #409eff;">${matchedSupplier.distance_text}</span></p>
         </div>
       `
     }
@@ -856,9 +904,10 @@ const addMarkersToMap = () => {
     // 添加供应商信息窗口
     const supplierInfo = new AMap.InfoWindow({
       content: `
-        <div style="padding: 10px; min-width: 250px;">
-          <h4 style="margin: 0 0 10px 0; color: #4096ff;">🏭 ${supplier.name}</h4>
-          <p style="margin: 5px 0;"><strong>距离:</strong> ${supplier.distance_text}</p>
+        <div style="padding: 12px; min-width: 260px;">
+          <h4 style="margin: 0 0 10px 0; color: ${iconColor}; font-size: 16px;">
+            ${isMatched ? '🏭' : '⚪'} ${supplier.name}
+          </h4>
           <p style="margin: 5px 0;"><strong>地址:</strong> ${supplier.address}</p>
           <p style="margin: 5px 0;"><strong>联系人:</strong> ${supplier.contact_person}</p>
           <p style="margin: 5px 0;"><strong>电话:</strong> ${supplier.contact_phone}</p>
@@ -870,10 +919,30 @@ const addMarkersToMap = () => {
     supplierMarker.on('click', () => {
       supplierInfo.open(map, supplierMarker.getPosition())
     })
+
+    // 如果是匹配的供应商且有药店位置，绘制路径
+    if (isMatched && myLocation.value?.has_location && matchedSupplier) {
+      const path = [
+        [myLocation.value.longitude, myLocation.value.latitude],
+        [supplier.longitude, supplier.latitude]
+      ]
+
+      const polyline = new AMap.Polyline({
+        path: path,
+        strokeColor: '#4096ff',
+        strokeWeight: 3,
+        strokeOpacity: 0.6,
+        strokeStyle: 'solid',
+        zIndex: 50
+      })
+
+      polylines.push(polyline)
+    }
   })
 
-  // 将所有标记添加到地图
+  // 将所有标记和路径添加到地图
   map.add(markers)
+  map.add(polylines)
 
   // 自动调整视野以包含所有标记
   if (allPoints.length > 0) {
@@ -881,30 +950,31 @@ const addMarkersToMap = () => {
   }
 }
 
-// 监听地图显示状态和搜索结果变化
-watch([showMap, searchResult], async ([newShowMap, newSearchResult]) => {
-  if (newShowMap && newSearchResult) {
-    await nextTick()
-    
-    if (!map) {
-      initMap()
-    }
-    
-    // 延迟添加标记，确保地图已完全加载
-    setTimeout(() => {
-      addMarkersToMap()
-    }, 100)
-  }
-})
-
-// 页面加载时获取我的位置
-onMounted(() => {
+// 页面加载时初始化
+onMounted(async () => {
   window.addEventListener('storage', refreshUser)
-  loadMyLocation()
+  
+  // 加载我的位置和所有供应商
+  await Promise.all([
+    loadMyLocation(),
+    loadAllSuppliers()
+  ])
+  
+  // 延迟初始化地图，确保DOM已渲染
+  await nextTick()
+  setTimeout(() => {
+    initMap()
+  }, 100)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', refreshUser)
+  
+  // 销毁地图
+  if (map) {
+    map.destroy()
+    map = null
+  }
 })
 </script>
 
@@ -1098,6 +1168,10 @@ onBeforeUnmount(() => {
 .subtitle {
   color: #909399;
   font-size: 14px;
+}
+
+.map-card {
+  margin-bottom: 20px;
 }
 
 .search-card {

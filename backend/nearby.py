@@ -462,6 +462,54 @@ def get_my_location():
         }), 500
 
 
+@bp.route('/all-suppliers', methods=['GET'])
+@jwt_required()
+def get_all_suppliers():
+    """
+    获取所有有坐标的活跃供应商列表（用于地图显示）
+    
+    返回:
+    {
+        "success": true,
+        "suppliers": [
+            {
+                "id": 1,
+                "name": "供应商名称",
+                "address": "供应商地址",
+                "longitude": 116.480697,
+                "latitude": 40.010565,
+                "contact_person": "联系人",
+                "contact_phone": "联系电话"
+            },
+            ...
+        ],
+        "total": 5
+    }
+    """
+    try:
+        # 查询所有有坐标的活跃供应商
+        suppliers = Tenant.query.filter(
+            Tenant.type == 'SUPPLIER',
+            Tenant.is_active == True,
+            Tenant.longitude.isnot(None),
+            Tenant.latitude.isnot(None)
+        ).all()
+        
+        supplier_list = [s.to_dict() for s in suppliers]
+        
+        return jsonify({
+            'success': True,
+            'suppliers': supplier_list,
+            'total': len(supplier_list)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'查询失败: {str(e)}'
+        }), 500
+
+
 @bp.route('/update-location', methods=['PUT'])
 @jwt_required()
 def update_my_location():

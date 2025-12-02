@@ -89,6 +89,13 @@ export const nearbyApi = {
   },
 
   /**
+   * 获取所有有坐标的供应商（用于地图显示）
+   */
+  getAllSuppliers: () => {
+    return apiClient.get('/api/nearby/all-suppliers')
+  },
+
+  /**
    * 更新当前用户的位置信息
    * @param {Object} data - 位置数据
    * @param {Number} data.longitude - 经度
