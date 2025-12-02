@@ -614,9 +614,11 @@ const currentSupplier = ref(null)
 // 获取我的位置
 const loadMyLocation = async () => {
   try {
+    console.log('Loading my location...')
     const response = await nearbyApi.getMyLocation()
     if (response.data.success) {
       myLocation.value = response.data.tenant
+      console.log('My location loaded:', myLocation.value)
       
       // 如果有坐标，自动填充
       if (myLocation.value.has_location) {
@@ -632,40 +634,85 @@ const loadMyLocation = async () => {
 // 获取所有供应商
 const loadAllSuppliers = async () => {
   try {
+    console.log('Loading all suppliers...')
     const response = await nearbyApi.getAllSuppliers()
     if (response.data.success) {
       allSuppliers.value = response.data.suppliers
+      console.log('All suppliers loaded:', allSuppliers.value.length)
     }
   } catch (error) {
     console.error('获取供应商失败:', error)
   }
 }
 
-// 更新我的位置
+// 更新我的位置 - 使用浏览器地理定位
 const updateMyLocation = async () => {
+  if (!navigator.geolocation) {
+    ElMessage.error('您的浏览器不支持地理定位功能')
+    return
+  }
+
   try {
-    await ElMessageBox.prompt('请输入您的详细地址', '更新位置', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputPlaceholder: '例如：北京市朝阳区望京SOHO'
-    }).then(async ({ value }) => {
-      updatingLocation.value = true
-      const response = await nearbyApi.updateMyLocation({
-        address: value,
-        city: searchForm.city || undefined
-      })
-      
-      if (response.data.success) {
-        ElMessage.success('位置更新成功')
-        await loadMyLocation()
+    updatingLocation.value = true
+    ElMessage.info('正在获取您的位置，请允许浏览器访问位置信息...')
+    
+    // 使用浏览器的地理定位API
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const coords = position.coords
+          console.log('获取到的位置:', coords)
+          
+          // GCJ-02坐标系转换（如果需要）
+          // 浏览器返回的是WGS84坐标，而高德地图使用GCJ-02坐标
+          // 这里直接使用，高德API会自动处理
+          const response = await nearbyApi.updateMyLocation({
+            longitude: coords.longitude,
+            latitude: coords.latitude
+          })
+          
+          if (response.data.success) {
+            ElMessage.success('位置更新成功')
+            await loadMyLocation()
+            
+            // 更新地图中心点
+            if (map && response.data.tenant.longitude && response.data.tenant.latitude) {
+              map.setCenter([response.data.tenant.longitude, response.data.tenant.latitude])
+              updateMapMarkers()
+            }
+          }
+        } catch (error) {
+          ElMessage.error('位置更新失败: ' + (error.response?.data?.message || error.message))
+        } finally {
+          updatingLocation.value = false
+        }
+      },
+      (error) => {
+        updatingLocation.value = false
+        let errorMsg = '获取位置失败'
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = '您拒绝了位置访问请求，请在浏览器设置中允许位置访问'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = '位置信息不可用，请检查您的设备设置'
+            break
+          case error.TIMEOUT:
+            errorMsg = '获取位置超时，请重试'
+            break
+        }
+        ElMessage.error(errorMsg)
+        console.error('Geolocation error:', error)
+      },
+      {
+        enableHighAccuracy: true, // 使用高精度
+        timeout: 10000, // 10秒超时
+        maximumAge: 0 // 不使用缓存的位置
       }
-    })
+    )
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('位置更新失败: ' + (error.response?.data?.message || error.message))
-    }
-  } finally {
     updatingLocation.value = false
+    ElMessage.error('位置更新失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -796,9 +843,6 @@ const initMap = () => {
   // 添加缩放控件
   map.addControl(new AMap.Scale())
   map.addControl(new AMap.ToolBar())
-  
-  // 初始化地图标记
-  updateMapMarkers()
 }
 
 // 清除所有标记和路径
@@ -815,8 +859,12 @@ const clearMarkers = () => {
 
 // 更新地图标记
 const updateMapMarkers = () => {
-  if (!map) return
+  if (!map) {
+    console.warn('Map not initialized yet')
+    return
+  }
 
+  console.log('Starting updateMapMarkers...')
   clearMarkers()
 
   const allPoints = []
@@ -826,6 +874,7 @@ const updateMapMarkers = () => {
 
   // 添加药店标记（红色）
   if (myLocation.value?.has_location) {
+    console.log('Adding pharmacy marker at:', myLocation.value.longitude, myLocation.value.latitude)
     const pharmacyMarker = new AMap.Marker({
       position: [myLocation.value.longitude, myLocation.value.latitude],
       title: '我的位置',
@@ -859,8 +908,12 @@ const updateMapMarkers = () => {
   }
 
   // 添加供应商标记
+  console.log('Adding supplier markers, total:', allSuppliers.value.length)
   allSuppliers.value.forEach((supplier, index) => {
-    if (!supplier.longitude || !supplier.latitude) return
+    if (!supplier.longitude || !supplier.latitude) {
+      console.warn('Supplier missing coordinates:', supplier.name)
+      return
+    }
 
     const isMatched = matchedSupplierIds.has(supplier.id)
     const matchedSupplier = searchResult.value?.suppliers?.find(s => s.id === supplier.id)
@@ -941,13 +994,24 @@ const updateMapMarkers = () => {
   })
 
   // 将所有标记和路径添加到地图
-  map.add(markers)
-  map.add(polylines)
+  console.log('Adding markers to map, total markers:', markers.length)
+  console.log('Adding polylines to map, total polylines:', polylines.length)
+  
+  if (markers.length > 0) {
+    map.add(markers)
+  }
+  
+  if (polylines.length > 0) {
+    map.add(polylines)
+  }
 
   // 自动调整视野以包含所有标记
   if (allPoints.length > 0) {
+    console.log('Setting fit view for', allPoints.length, 'points')
     map.setFitView(markers, false, [50, 50, 50, 50])
   }
+  
+  console.log('Map markers updated successfully')
 }
 
 // 页面加载时初始化
@@ -960,11 +1024,21 @@ onMounted(async () => {
     loadAllSuppliers()
   ])
   
-  // 延迟初始化地图，确保DOM已渲染
+  // 等待DOM渲染
   await nextTick()
+  
+  // 延迟初始化地图，确保DOM已完全渲染
   setTimeout(() => {
     initMap()
-  }, 100)
+    
+    // 再次延迟确保地图完全初始化后再添加标记
+    setTimeout(() => {
+      console.log('Updating map markers...')
+      console.log('My location:', myLocation.value)
+      console.log('All suppliers:', allSuppliers.value.length)
+      updateMapMarkers()
+    }, 300)
+  }, 200)
 })
 
 onBeforeUnmount(() => {
