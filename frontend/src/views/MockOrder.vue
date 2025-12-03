@@ -708,7 +708,16 @@
 </template>
 
 <script setup>
+// Props
+const props = defineProps({
+  selectedSupplyId: {
+    type: [String, Number],
+    default: null
+  }
+})
+
 import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, Plus, Refresh, ArrowDown
@@ -718,6 +727,9 @@ import { supplyApi } from '@/api/supply'
 import api from '@/api/orders'  // 用于其他API调用
 import { formatDate } from '@/utils/date'
 import { getCurrentUser } from '@/utils/authSession'
+
+// 获取路由实例
+const route = useRoute()
 
 // 响应式数据
 const loading = ref(false)
@@ -971,6 +983,9 @@ const resetCreateForm = () => {
   if (createFormRef.value) {
     createFormRef.value.clearValidate()
   }
+  
+  // 当用户关闭对话框时，也清除URL中的查询参数
+  clearSupplyIdFromUrl()
 }
 
 const submitOrder = async () => {
@@ -1449,6 +1464,66 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+// 监听传入的供应信息ID
+const handlePreselectedSupply = async (supplyId) => {
+  try {
+    supplySearchLoading.value = true
+    
+    // 通过API获取指定的供应信息详情
+    const response = await supplyApi.getSupplyInfo(supplyId)
+    
+    if (response.data?.data) {
+      const supply = response.data.data
+      
+      // 将供应信息添加到选项列表中
+      supplyOptions.value = [supply]
+      
+      // 预选这个供应信息
+      createForm.supply_info_id = supply.id
+      onSupplyInfoChange(supply.id)
+      
+      // 自动打开新建采购单对话框
+      showCreateDialog.value = true
+      
+      // 清除URL中的supplyId查询参数，避免重复触发
+      clearSupplyIdFromUrl()
+    } else {
+      ElMessage.warning('未找到指定的供应信息')
+      showCreateDialog.value = true
+      clearSupplyIdFromUrl()
+    }
+  } catch (error) {
+    console.error('预选供应信息失败:', error)
+    ElMessage.warning('加载选定的供应信息失败，请手动选择')
+    showCreateDialog.value = true
+    clearSupplyIdFromUrl()
+  } finally {
+    supplySearchLoading.value = false
+  }
+}
+
+// 清除URL中的supplyId查询参数
+const clearSupplyIdFromUrl = () => {
+  // 需要从父组件或路由中清除supplyId参数
+  // 这里我们需要通知父组件清除查询参数
+  if (typeof window !== 'undefined' && window.history?.replaceState) {
+    const url = new URL(window.location)
+    url.searchParams.delete('supplyId')
+    url.searchParams.delete('t') // 同时清除时间戳参数
+    // 同时清除tab参数，避免下次进入时自动打开对话框
+    // 只保留基础的B2B页面URL
+    url.searchParams.delete('tab')
+    window.history.replaceState({}, '', url)
+  }
+  
+  // 不要重置processedSupplyData，而是标记为已完成状态
+  // 这样可以防止用户手动导航时重新触发
+  if (processedSupplyData.value.id && processedSupplyData.value.timestamp > 0) {
+    // 保留当前数据，这样下次相同的请求会被正确识别为重复
+    console.log('MockOrder - clearSupplyIdFromUrl: 保留processedSupplyData', processedSupplyData.value)
+  }
+}
+
 watch(canUseRealApi, (authorized) => {
   if (authorized) {
     refreshOrders()
@@ -1458,6 +1533,76 @@ watch(canUseRealApi, (authorized) => {
     pagination.total = 0
   }
 })
+
+// 已处理的供应信息ID和时间戳，避免重复处理
+const processedSupplyData = ref({ id: null, timestamp: 0 })
+
+// 监听路由查询参数中的supplyId变化
+watch(() => route.query.supplyId, async (supplyId) => {
+  console.log('MockOrder - Route supplyId changed:', supplyId, 'canUseRealApi:', canUseRealApi.value)
+  console.log('MockOrder - Route query:', route.query)
+  console.log('MockOrder - processedSupplyData:', processedSupplyData.value)
+  
+  // 如果没有supplyId参数，跳过处理
+  if (!supplyId) {
+    console.log('MockOrder - No supplyId, skipping')
+    return
+  }
+  
+  // 双重检查：确保URL中确实存在supplyId参数
+  // 这是为了防止Vue组件状态与实际URL不同步的情况
+  if (typeof window !== 'undefined') {
+    const currentUrl = new URL(window.location)
+    const actualSupplyId = currentUrl.searchParams.get('supplyId')
+    if (!actualSupplyId) {
+      console.log('MockOrder - URL中没有supplyId参数，跳过处理（可能是组件状态残留）')
+      return
+    }
+    if (actualSupplyId !== String(supplyId)) {
+      console.log('MockOrder - URL中的supplyId与路由参数不匹配，跳过处理')
+      return
+    }
+  }
+  
+  // 检查是否有时间戳参数，如果有就使用它来判断是否为新操作
+  const routeTimestamp = route.query.t ? parseInt(route.query.t) : 0
+  console.log('MockOrder - routeTimestamp:', routeTimestamp)
+  console.log('MockOrder - processed timestamp:', processedSupplyData.value.timestamp)
+  
+  // 如果有相同的时间戳，说明已经处理过了
+  if (routeTimestamp > 0 && processedSupplyData.value.timestamp === routeTimestamp) {
+    console.log('MockOrder - 相同时间戳，跳过处理')
+    return
+  }
+  
+  // 如果没有时间戳参数，但是是相同的ID且处理时间很近，也跳过
+  if (routeTimestamp === 0 && processedSupplyData.value.id === supplyId) {
+    const now = Date.now()
+    const timeDiff = now - processedSupplyData.value.timestamp
+    console.log('MockOrder - timeDiff:', timeDiff)
+    if (timeDiff < 1000) {
+      console.log('MockOrder - 最近处理过相同ID，跳过处理')
+      return
+    }
+  }
+  
+  if (canUseRealApi.value) {
+    try {
+      console.log('MockOrder - 开始处理供应信息:', supplyId)
+      // 记录处理的ID和时间戳（使用路由时间戳或当前时间戳）
+      processedSupplyData.value = {
+        id: supplyId,
+        timestamp: routeTimestamp || Date.now()
+      }
+      await handlePreselectedSupply(supplyId)
+      console.log('MockOrder - 供应信息处理完成')
+    } catch (error) {
+      console.error('处理预选供应信息时出错:', error)
+    }
+  } else {
+    console.log('MockOrder - canUseRealApi is false, skipping')
+  }
+}, { immediate: true })
 
 // 生命周期
 onMounted(() => {
