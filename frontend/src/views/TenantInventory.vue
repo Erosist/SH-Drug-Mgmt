@@ -21,12 +21,17 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
-            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
+            <button v-else class="login-btn" @click="handleLogout">退出登录</button>
           </div>
         </div>
       </div>
@@ -189,9 +194,8 @@
 <script>
 import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
-import { roleToRoute } from '@/utils/roleRoute'
 import { getRoleLabel } from '@/utils/roleLabel'
 export default {
   name: 'TenantInventory',
@@ -316,6 +320,18 @@ export default {
     })
 
     const goToLogin = () => router.push('/login')
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
+    const handleLogout = () => {
+      clearAuth()
+      currentUser.value = null
+      router.push('/login')
+    }
     const goToEnterpriseAuth = () => {
       if (!currentUser.value) {
         router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
@@ -343,12 +359,6 @@ export default {
 
     const refreshUser = () => {
       currentUser.value = getCurrentUser()
-    }
-
-    const goToUserHome = () => {
-      const u = currentUser.value
-      if (!u) return router.push('/login')
-      router.push(roleToRoute(u.role))
     }
 
     const navigateTo = (page) => {
@@ -402,11 +412,12 @@ export default {
       userDisplayName,
       userRoleLabel,
       goToLogin,
+      goToChangePassword,
+      handleLogout,
       goToEnterpriseAuth,
       goToEnterpriseReview,
       goToSystemStatus,
       goToAdminUsers,
-      goToUserHome,
       navigateTo,
       currentDate,
       tenant,
@@ -581,6 +592,21 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
+}
+
+.change-btn {
+  border: 1px solid #1a73e8;
+  background-color: transparent;
+  color: #1a73e8;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.3s;
+}
+
+.change-btn:hover {
+  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn {
