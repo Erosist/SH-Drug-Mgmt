@@ -21,6 +21,11 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -304,6 +309,13 @@ export default {
     }
 
     const goToLogin = () => router.push('/login')
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
     const goToUserHome = () => {
       const u = currentUser.value
       if (!u) return router.push('/login')
@@ -474,7 +486,7 @@ export default {
   return { 
     activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, 
     navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, 
-    goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, 
+    goToSystemStatus, goToAdminUsers, goToChangePassword, currentDate, supplyForm, demandForm, totalPrice, 
     resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
     realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
     isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis,
@@ -507,6 +519,8 @@ export default {
 .review-btn:hover { background-color: #ffeccc; }
 .admin-btn { background-color: #f0f5ff; color: #1a73e8; border: 1px solid #d6e4ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
 .admin-btn:hover { background-color: #e5edff; }
+.change-btn { border: 1px solid #1a73e8; background: transparent; color: #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+.change-btn:hover { background-color: rgba(26,115,232,0.06); }
 .login-btn { background:#1a73e8; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:14px; }
 .login-btn:hover { background:#0d62d9; }
 
