@@ -1,6 +1,7 @@
+import os
 from flask import Flask
 from flask_cors import CORS
-from config import DevelopmentConfig
+from config import DevelopmentConfig, ProductionConfig
 from extensions import db, migrate, jwt
 from auth import bp as auth_bp
 from supply import bp as supply_bp
@@ -11,9 +12,18 @@ from orders import bp as orders_bp, register_logistics_blueprint
 from inventory_warning import bp as inventory_warning_bp
 from circulation import bp as circulation_bp
 
-def create_app(config_object=DevelopmentConfig):
+def create_app():
     app = Flask(__name__)
-    app.config.from_object(config_object)
+
+    # 根据环境变量选择配置
+    env = os.getenv("FLASK_ENV", "development")
+    
+    if env == "production":
+        app.config.from_object(ProductionConfig)
+        print(">>> Using ProductionConfig")
+    else:
+        app.config.from_object(DevelopmentConfig)
+        print(">>> Using DevelopmentConfig")
 
     # init CORS
     CORS(app, 
@@ -44,3 +54,8 @@ def create_app(config_object=DevelopmentConfig):
         return {'msg': 'Flask auth backend is running'}
 
     return app
+
+app = create_app()
+
+if __name__ == '__main__':
+    app.run()
