@@ -104,7 +104,7 @@
         <div v-else-if="activeTab==='order'" class="card">
           <h3 class="card-title">模拟下单</h3>
           <div style="padding:10px 0">
-            <MockOrder />
+            <MockOrder :selectedSupplyId="route.query.supplyId" />
           </div>
         </div>
 
@@ -164,7 +164,7 @@
 
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 // 引入 SupplierList 以支持路由跳转到组件视图
 import SupplierList from '@/component/SupplierList.vue'
 import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
@@ -180,6 +180,7 @@ export default {
   components: { SupplierList, SupplyInfoManagement, MockOrder },
   setup() {
     const router = useRouter()
+    const route = useRoute()
   const activeNav = ref('b2b')
     const activeTab = ref('supply')
   const currentUser = ref(getCurrentUser())
@@ -358,6 +359,14 @@ export default {
     }
 
     const refreshUser = () => { currentUser.value = getCurrentUser() }
+    
+    // 处理路由查询参数切换tab
+    watch(() => route.query.tab, (newTab) => {
+      if (newTab && visibleTabs.value.some(t => t.key === newTab)) {
+        activeTab.value = newTab
+      }
+    }, { immediate: true })
+    
     onMounted(() => { 
       window.addEventListener('storage', refreshUser)
       loadRecentRecords()
@@ -480,7 +489,8 @@ export default {
     goToSystemStatus, goToAdminUsers, goToChangePassword, currentDate, supplyForm, demandForm, totalPrice, 
     resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
     realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
-    isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis
+    isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis,
+    route
   }
   }
 }
