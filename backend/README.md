@@ -695,6 +695,24 @@ Authorization: Bearer <admin_token>
 ```
 该接口整合用户统计、企业认证进度、订单分布与库存预警，可快速判断系统健康状况。
 
+#### 4. 管理员操作审计日志
+```http
+GET /api/admin/audit-logs?admin_id=1&action=export_users&page=1
+Authorization: Bearer <admin_token>
+```
+- 支持按管理员、目标用户、时间范围和操作类型过滤
+- 返回分页结构，包含执行管理员/目标用户的简要信息
+- 所有 `/api/admin/*` 写操作及敏感查询会自动写入审计表 `admin_audit_logs`
+
+#### 5. 导出所有用户数据
+```http
+GET /api/admin/users/export?format=csv
+Authorization: Bearer <admin_token>
+```
+- `format` 支持 `csv`（默认，作为附件下载）或 `json`
+- 导出字段涵盖用户名、角色、企业、启用状态及时间戳
+- 导出动作也会自动记录到审计日志，便于追踪谁导出了数据
+
 ## 定时任务
 
 ### 库存预警扫描任务

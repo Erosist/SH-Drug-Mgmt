@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash
 
 from extensions import db
 from models import User, PasswordResetCode
+from audit import record_admin_action
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -322,12 +323,19 @@ def admin_reset_user_password():
 
     target_user.set_password(new_password)
     target_user.updated_at = datetime.utcnow()
+    db.session.flush()
+
+    record_admin_action(
+        admin_user,
+        'reset_user_password',
+        target_user_id=target_user.id,
+        resource_type='user',
+        resource_id=target_user.id,
+        details={'identifier_used': identifier or user_id},
+    )
+
     db.session.commit()
 
-    current_app.logger.info(
-        'Admin %s reset password for user %s',
-        admin_user.username,
-        target_user.username
-    )
+    current_app.logger.info('Admin %s reset password for user %s', admin_user.username, target_user.username)
 
     return jsonify({'msg': '用户密码已由管理员重置'}), 200
