@@ -244,11 +244,15 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElNotification } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { 
   Search, Shop, Phone, Message, ShoppingCart, InfoFilled, Refresh 
 } from '@element-plus/icons-vue'
 import { supplyApi } from '@/api/supply'
 import { formatDate } from '@/utils/date'
+
+// 路由
+const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -345,8 +349,37 @@ const contactSupplier = (item) => {
 }
 
 const createOrder = (item) => {
-  ElMessage.info('采购功能正在开发中，敬请期待')
-  // 这里可以跳转到订单创建页面或打开采购对话框
+  console.log('SupplierList - createOrder called for item:', item.id)
+  
+  // 添加时间戳确保每次导航都是唯一的
+  const timestamp = Date.now()
+  
+  const targetRoute = { 
+    path: '/b2b', 
+    query: { 
+      tab: 'order', 
+      supplyId: item.id,
+      t: timestamp
+    } 
+  }
+  
+  console.log('SupplierList - navigating to:', targetRoute)
+  
+  // 检查当前是否已经在目标页面
+  const currentRoute = router.currentRoute.value
+  if (currentRoute.path === '/b2b' && currentRoute.query.tab === 'order') {
+    console.log('SupplierList - already on B2B order page, forcing navigation')
+    // 如果已经在B2B订单页面，先跳转到其他页面再跳回来
+    router.replace({ path: '/b2b', query: { tab: 'supply' } }).then(() => {
+      // 等待一下再跳转回订单页面
+      setTimeout(() => {
+        router.push(targetRoute)
+      }, 10)
+    })
+  } else {
+    // 正常导航
+    router.push(targetRoute)
+  }
 }
 
 const getValidityClass = (dateStr) => {
