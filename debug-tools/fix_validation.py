@@ -89,7 +89,7 @@ def main():
         print("1. 打开前端应用: http://localhost:5174")
         print("2. 清除浏览器localStorage (F12 > Application > Local Storage > Clear All)")
         print("3. 重新登录用户 pharmacy1 / password123")
-        print("4. 测试'模拟下单'和'库存管理'功能")
+        print("4. 测试'下单'和'库存管理'功能")
     else:
         print("\n⚠️  某些API仍有问题，需要进一步调试")
 

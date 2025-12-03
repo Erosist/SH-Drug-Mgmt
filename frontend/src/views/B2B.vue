@@ -96,9 +96,9 @@
           </div>
         </div>
 
-        <!-- 模拟下单（内联组件） -->
+        <!-- 下单（内联组件） -->
         <div v-else-if="activeTab==='order'" class="card">
-          <h3 class="card-title">模拟下单</h3>
+          <h3 class="card-title">下单</h3>
           <div style="padding:10px 0">
             <MockOrder />
           </div>
@@ -197,7 +197,7 @@ export default {
     { key: 'supply', label: '供给信息发布', guard: canAccessSupply },
     { key: 'demand', label: '需求信息发布', guard: canAccessDemand },
     { key: 'list', label: '查看供应信息', guard: canAccessSupplyList },
-    { key: 'order', label: '模拟下单', guard: computed(() => true) }
+    { key: 'order', label: '下单', guard: computed(() => true) }
   ]
 
   const visibleTabs = computed(() => tabMatrix.filter(tab => tab.guard.value))
