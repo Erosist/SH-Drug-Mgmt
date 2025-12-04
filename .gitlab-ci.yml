@@ -12,7 +12,7 @@ test-backend:
     - SH-Drug-Mgmt
   script:
     - echo "=== Backend Test Started ==="
-    - cd backend
+    - Set-Location backend
     - echo "Installing dependencies..."
     - python -m pip install --quiet -r requirements.txt
     - python -m pip install --quiet pytest pytest-flask pytest-mock pytest-cov
@@ -34,7 +34,7 @@ test-frontend:
     - SH-Drug-Mgmt
   script:
     - echo "=== Frontend Test Started ==="
-    - cd frontend
+    - Set-Location frontend
     - echo "Installing dependencies..."
     - npm install --silent
     - echo "Running linting..."
@@ -52,7 +52,7 @@ code-quality:
   script:
     - echo "=== Code Quality Check Started ==="
     - echo "Checking backend code quality..."
-    - cd backend
+    - Set-Location backend
     - python -m pip install --quiet flake8 black isort
     - python -m flake8 . --max-line-length=88 --exclude=migrations,venv,__pycache__ || echo "Flake8 warnings found"
     - python -m black --check . || echo "Code formatting issues found"
