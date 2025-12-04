@@ -181,6 +181,12 @@ class User(db.Model):
 
         if include_relations:
             result['tenant'] = self.tenant.to_dict() if self.tenant else None
+            # 若用户提交了企业认证信息，返回认证详情以便前端展示认证状态
+            try:
+                cert = getattr(self, 'enterprise_certification', None)
+                result['enterprise_certification'] = cert.to_dict() if cert else None
+            except Exception:
+                result['enterprise_certification'] = None
 
         return result
 

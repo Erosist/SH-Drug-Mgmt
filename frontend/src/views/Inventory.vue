@@ -100,7 +100,7 @@
               <div class="tuple-box">
                 <span class="info-label">统一社会信用代码</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.unified_social_credit_code }}</template>
+                  <template v-if="isEnterpriseApproved">{{ myTenantDetail.unified_social_credit_code }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -109,7 +109,7 @@
               <div class="tuple-box">
                 <span class="info-label">法人代表</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.legal_representative }}</template>
+                  <template v-if="isEnterpriseApproved">{{ myTenantDetail.legal_representative }}</template>
                   <template v-else>—</template>
                 </strong>
               </div>
@@ -118,7 +118,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系人</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_person }}</template>
+                  <template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_person }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -127,7 +127,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系电话</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_phone }}</template>
+                  <template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_phone }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -136,12 +136,12 @@
           <div class="tenant-contact-grid">
             <div>
               <div class="tuple-box">
-                业务范围：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
+                业务范围：<template v-if="isEnterpriseApproved">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
               </div>
             </div>
             <div>
               <div class="tuple-box">
-                邮箱：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
+                邮箱：<template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@
               <tr v-for="item in myInventory" :key="item.id">
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.batch_number }}</template>
+                    <template v-if="isEnterpriseApproved">{{ item.batch_number }}</template>
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -222,13 +222,13 @@
                 </td>
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.quantity }}</template>
+                    <template v-if="isEnterpriseApproved">{{ item.quantity }}</template>
                     <template v-else>需认证后查看</template>
                   </div>
                 </td>
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ formatPrice(item.unit_price) }}</template>
+                    <template v-if="isEnterpriseApproved">{{ formatPrice(item.unit_price) }}</template>
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -434,7 +434,8 @@
 <script>
 import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
+import { getCurrentUser, getToken, setAuth } from '@/utils/authSession'
+import { me as apiMe } from '@/api/auth'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { roleToRoute } from '@/utils/roleRoute'
 import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
@@ -478,6 +479,11 @@ export default {
     const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
     const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
     const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
+    const isEnterpriseApproved = computed(() => {
+      const cert = currentUser.value?.enterprise_certification
+      if (cert && cert.status) return cert.status === 'approved'
+      return !!currentUser.value?.is_authenticated
+    })
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
     const myTenantId = computed(() => currentUser.value?.tenant_id || null)
@@ -745,6 +751,21 @@ export default {
     onMounted(() => {
       activeNav.value = mapRouteToNav(route.name)
       window.addEventListener('storage', refreshUser)
+      // 主动向后端请求最新的用户信息（包含 enterprise_certification）以避免本地缓存信息过期
+      ;(async () => {
+        try {
+          const token = getToken()
+          if (!token) return
+          const res = await apiMe(token)
+          if (res && res.user) {
+            // 覆盖本地存储中的用户信息并刷新当前引用
+            setAuth(token, res.user)
+            currentUser.value = res.user
+          }
+        } catch (err) {
+          // 忽略请求失败（无需破坏页面加载），window.storage 仍能同步其他 tab 登录事件
+        }
+      })()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -773,6 +794,7 @@ export default {
       isSupplier,
       isRegulator,
       isAdmin,
+      isEnterpriseApproved,
       isPharmacy,
       canViewAnalysis,
       userDisplayName,
