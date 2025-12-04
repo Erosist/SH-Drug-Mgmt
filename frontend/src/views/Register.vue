@@ -21,6 +21,7 @@
               placeholder="请输入用户名"
               size="large"
               prefix-icon="User"
+              autocomplete="off"
             />
           </el-form-item>
 
@@ -31,6 +32,7 @@
               placeholder="请输入邮箱"
               size="large"
               prefix-icon="Message"
+              autocomplete="off"
             />
           </el-form-item>
 
@@ -41,6 +43,7 @@
               placeholder="请输入手机号（可选）"
               size="large"
               prefix-icon="Phone"
+              autocomplete="off"
             />
           </el-form-item>
 
@@ -53,6 +56,7 @@
               size="large"
               prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
             <small class="rule-hint">至少8位，需包含大小写字母和数字</small>
           </el-form-item>
@@ -66,6 +70,7 @@
               size="large"
               prefix-icon="Lock"
               show-password
+              autocomplete="new-password"
             />
           </el-form-item>
           
@@ -156,20 +161,22 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onActivated, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// 注册表单
-const registerForm = reactive({
+const initialFormState = {
   username: '',
   email: '',
   phone: '',
   password: '',
   confirmPassword: ''
-})
+}
+
+// 注册表单
+const registerForm = reactive({ ...initialFormState })
 
 // 表单验证规则
 const validateConfirmPassword = (rule, value, callback) => {
@@ -234,6 +241,24 @@ const showAgreement = ref(false)
 const showPrivacy = ref(false)
 // 去除发送验证码逻辑
 
+const resetRegisterForm = async () => {
+  Object.assign(registerForm, initialFormState)
+  agreementChecked.value = false
+  await nextTick()
+  if (registerFormRef.value) {
+    registerFormRef.value.resetFields()
+    registerFormRef.value.clearValidate()
+  }
+}
+
+onMounted(() => {
+  resetRegisterForm()
+})
+
+onActivated(() => {
+  resetRegisterForm()
+})
+
 // 注册处理
 const handleRegister = async () => {
   if (!registerFormRef.value) return
@@ -258,6 +283,7 @@ const handleRegister = async () => {
           password: registerForm.password,
         })
         ElMessage.success('注册成功')
+        resetRegisterForm()
         router.push('/login')
       } catch (e) {
         ElMessage.error(e.message || '注册失败')
