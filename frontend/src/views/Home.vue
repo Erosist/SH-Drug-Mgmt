@@ -9,7 +9,7 @@
         </div>
         
         <div class="nav-section">
-          <div class="nav-menu">
+          <div class="nav-menu" v-if="!isAdmin">
             <div 
               class="nav-item" 
               :class="{ active: activeNav === 'home' }"
@@ -55,6 +55,14 @@
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
             >智能调度</div>
+            <div v-if="isLogistics"
+              class="nav-item"
+              :class="{ active: activeNav === 'orders' }"
+              @click="navigateTo('logistics-orders')"
+            >订单查看</div>
+          </div>
+          <div v-else class="nav-menu disabled-nav">
+            <span class="nav-disabled-text">管理员账号无法访问业务功能</span>
           </div>
           
           <div class="user-actions">
@@ -64,11 +72,11 @@
             </div>
             <button
               v-if="currentUser"
-              class="change-btn"
+              class="admin-btn"
               @click="goToChangePassword"
             >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAuditLogs">审计日志</button>
@@ -207,6 +215,7 @@ export default {
       if (name === 'circulation') return 'circulation'
       if (name === 'analysis') return 'analysis'
       if (name === 'service') return 'service'
+      if (name === 'logistics-orders') return 'orders'
       return 'home'
     }
 
@@ -275,13 +284,13 @@ export default {
     const goToAdminUsers = () => {
       if (!currentUser.value) return router.push('/login')
       if (currentUser.value.role !== 'admin') return
-      router.push('/admin/users')
+      router.push({ name: 'admin-users' })
     }
 
     const goToAuditLogs = () => {
       if (!currentUser.value) return router.push('/login')
       if (currentUser.value.role !== 'admin') return
-      router.push('/admin/audit-logs')
+      router.push({ name: 'admin-audit-logs' })
     }
 
     const refreshUser = () => {
@@ -361,6 +370,16 @@ export default {
             break
           }
           router.push('/service'); break
+        case 'logistics-orders':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/logistics-orders' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'orders' } })
+            break
+          }
+          router.push('/logistics-orders'); break
         case 'compliance':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/compliance-report' } })
@@ -559,6 +578,18 @@ export default {
   gap: 30px;
 }
 
+.nav-menu.disabled-nav {
+  flex: 1;
+  align-items: center;
+  gap: 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.nav-disabled-text {
+  color: #999;
+}
+
 .nav-item {
   font-size: 16px;
   color: #333;
@@ -620,20 +651,6 @@ export default {
   background-color: rgba(26, 115, 232, 0.08);
 }
 
-.review-btn {
-  background-color: #fff7e6;
-  color: #b76c00;
-  border: 1px solid #f3e5b8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.review-btn:hover {
-  background-color: #ffeccc;
-}
-
 .admin-btn {
   background-color: #f0f5ff;
   color: #1a73e8;
@@ -646,21 +663,6 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
-}
-
-.change-btn {
-  border: 1px solid #1a73e8;
-  background-color: transparent;
-  color: #1a73e8;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-  transition: background-color 0.3s;
-}
-
-.change-btn:hover {
-  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn {
