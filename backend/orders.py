@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from extensions import db
 from models import User, Order, OrderItem, SupplyInfo, Drug, Tenant, InventoryItem, InventoryTransaction
+from supply_utils import update_supply_info_quantity
 
 bp = Blueprint('orders', __name__, url_prefix='/api/orders')
 
@@ -320,8 +321,16 @@ def create_order(current_user):
         db.session.flush()  # 获取订单ID
         
         # 更新供应信息的可用数量（预占库存）
-        supply_info.available_quantity -= quantity
-        supply_info.updated_at = datetime.utcnow()
+        updated_supply_info = update_supply_info_quantity(
+            supply_info.tenant_id, 
+            supply_info.drug_id, 
+            -quantity,
+            f"订单{order.order_number}创建，预占库存"
+        )
+        
+        if not updated_supply_info:
+            db.session.rollback()
+            return jsonify({'msg': '供应信息数量不足，无法创建订单'}), 400
         
         db.session.commit()
         
@@ -537,15 +546,12 @@ def confirm_order(current_user, order_id):
             
             # 恢复供应信息的可用数量
             for item in order.items:
-                supply_info = SupplyInfo.query.filter_by(
-                    tenant_id=order.supplier_tenant_id,
-                    drug_id=item.drug_id,
-                    status='ACTIVE'
-                ).first()
-                
-                if supply_info:
-                    supply_info.available_quantity += item.quantity
-                    supply_info.updated_at = datetime.utcnow()
+                update_supply_info_quantity(
+                    order.supplier_tenant_id,
+                    item.drug_id, 
+                    item.quantity,
+                    f"订单{order.order_number}被供应商拒绝，恢复库存"
+                )
             
             message = '订单已拒绝'
         
@@ -598,15 +604,12 @@ def cancel_order(current_user, order_id):
         
         # 恢复供应信息的可用数量
         for item in order.items:
-            supply_info = SupplyInfo.query.filter_by(
-                tenant_id=order.supplier_tenant_id,
-                drug_id=item.drug_id,
-                status='ACTIVE'
-            ).first()
-            
-            if supply_info:
-                supply_info.available_quantity += item.quantity
-                supply_info.updated_at = datetime.utcnow()
+            update_supply_info_quantity(
+                order.supplier_tenant_id,
+                item.drug_id, 
+                item.quantity,
+                f"订单{order.order_number}取消，恢复库存"
+            )
         
         db.session.commit()
         
