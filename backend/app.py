@@ -12,15 +12,21 @@ from orders import bp as orders_bp, register_logistics_blueprint
 from inventory_warning import bp as inventory_warning_bp
 from circulation import bp as circulation_bp
 
-def create_app():
+def create_app(config_name=None):
     app = Flask(__name__)
 
-    # 根据环境变量选择配置
-    env = os.getenv("FLASK_ENV", "development")
+    # 根据参数或环境变量选择配置
+    if config_name:
+        env = config_name
+    else:
+        env = os.getenv("FLASK_ENV", "development")
     
     if env == "production":
         app.config.from_object(ProductionConfig)
         print(">>> Using ProductionConfig")
+    elif env == "testing":
+        app.config.from_object(TestingConfig)
+        print(">>> Using TestingConfig")
     else:
         app.config.from_object(DevelopmentConfig)
         print(">>> Using DevelopmentConfig")
