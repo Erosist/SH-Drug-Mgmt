@@ -110,20 +110,15 @@
                 <h3>健康资讯中心</h3>
                 <p>获取最新健康资讯、疾病预防知识和健康生活方式建议</p>
                 <div class="health-news-list">
-                  <div class="news-item">
-                    <span class="news-title">疫情防控指南更新</span>
-                    <span class="news-date">01-01</span>
+                  <div v-for="news in healthNewsList" :key="news.id" class="news-item">
+                    <span class="news-title">{{ news.title }}</span>
+                    <span class="news-date">{{ formatNewsDate(news.publish_date) }}</span>
                   </div>
-                  <div class="news-item">
-                    <span class="news-title">冬季流感预防措施</span>
-                    <span class="news-date">12-28</span>
-                  </div>
-                  <div class="news-item">
-                    <span class="news-title">健康饮食推荐</span>
-                    <span class="news-date">12-25</span>
+                  <div v-if="healthNewsList.length === 0" class="news-item">
+                    <span class="news-title" style="color: #999;">暂无资讯</span>
                   </div>
                 </div>
-                <button class="action-btn">更多资讯</button>
+                <button class="action-btn" @click="loadMoreNews">更多资讯</button>
               </div>
             </div>
           </div>
@@ -134,14 +129,17 @@
           <div class="section notices">
             <h2 class="section-title">重要提醒与公告</h2>
             <div class="notice-content">
-              <div class="urgent-notice">
-                <div class="notice-title">紧急通知：某批次清关药品召回通知</div>
-                <div class="notice-desc">即产品到期后，国家药品监督管理局2025年6月报2004年1月发布。</div>
+              <div v-if="urgentNotice" class="urgent-notice">
+                <div class="notice-title">{{ urgentNotice.title }}</div>
+                <div class="notice-desc">{{ urgentNotice.content }}</div>
+              </div>
+              <div v-else class="urgent-notice">
+                <div class="notice-title" style="color: #999;">暂无紧急通知</div>
               </div>
               
               <div class="report-input">
-                <input type="text" placeholder="本市2024年度报告请输入" class="report-field">
-                <button class="submit-btn">提交</button>
+                <input type="text" v-model="reportText" placeholder="本市2024年度报告请输入" class="report-field">
+                <button class="submit-btn" @click="submitReport">提交</button>
               </div>
             </div>
           </div>
@@ -192,6 +190,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { homeApi } from '@/api/home'
 
 export default {
   name: 'Home',
@@ -222,6 +221,13 @@ export default {
     const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
+
+    // 主页数据
+    const platformStats = ref({})
+    const healthNewsList = ref([])
+    const urgentNotice = ref(null)
+    const userStats = ref({})
+    const reportText = ref('')
 
     // 动态日期
     const currentDate = computed(() => {
@@ -370,8 +376,86 @@ export default {
           router.push('/');
       }
     }
+
+    // 加载平台统计数据
+    const loadPlatformStats = async () => {
+      try {
+        const response = await homeApi.getPlatformStats()
+        if (response.data?.data) {
+          platformStats.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载平台统计失败:', error)
+      }
+    }
+
+    // 加载健康资讯
+    const loadHealthNews = async () => {
+      try {
+        const response = await homeApi.getHealthNews({ limit: 3 })
+        if (response.data?.data) {
+          healthNewsList.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载健康资讯失败:', error)
+      }
+    }
+
+    // 加载紧急通知
+    const loadUrgentNotices = async () => {
+      try {
+        const response = await homeApi.getUrgentNotices({ limit: 1 })
+        if (response.data?.data && response.data.data.length > 0) {
+          urgentNotice.value = response.data.data[0]
+        }
+      } catch (error) {
+        console.error('加载紧急通知失败:', error)
+      }
+    }
+
+    // 加载用户统计数据
+    const loadUserStats = async () => {
+      if (!currentUser.value) return
+      try {
+        const response = await homeApi.getUserStats()
+        if (response.data?.data) {
+          userStats.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载用户统计失败:', error)
+      }
+    }
+
+    // 格式化新闻日期
+    const formatNewsDate = (dateStr) => {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    }
+
+    // 加载更多资讯
+    const loadMoreNews = () => {
+      ElMessage.info('更多资讯功能开发中...')
+    }
+
+    // 提交报告
+    const submitReport = () => {
+      if (!reportText.value.trim()) {
+        ElMessage.warning('请输入报告内容')
+        return
+      }
+      ElMessage.success('报告提交成功')
+      reportText.value = ''
+    }
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
+      // 加载主页数据
+      loadPlatformStats()
+      loadHealthNews()
+      loadUrgentNotices()
+      loadUserStats()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -398,7 +482,16 @@ export default {
       userDisplayName,
       userRoleLabel,
       currentDate,
-      // （就近供应商相关已移除）
+      // 主页数据
+      platformStats,
+      healthNewsList,
+      urgentNotice,
+      userStats,
+      reportText,
+      // 主页方法
+      formatNewsDate,
+      loadMoreNews,
+      submitReport
     }
   }
 }
