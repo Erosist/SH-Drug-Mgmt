@@ -100,7 +100,7 @@
               <div class="tuple-box">
                 <span class="info-label">统一社会信用代码</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.unified_social_credit_code }}</template>
+                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.unified_social_credit_code }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -109,7 +109,7 @@
               <div class="tuple-box">
                 <span class="info-label">法人代表</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.legal_representative }}</template>
+                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.legal_representative }}</template>
                   <template v-else>—</template>
                 </strong>
               </div>
@@ -118,7 +118,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系人</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_person }}</template>
+                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_person }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -127,7 +127,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系电话</span>
                 <strong>
-                  <template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_phone }}</template>
+                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_phone }}</template>
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -136,12 +136,12 @@
           <div class="tenant-contact-grid">
             <div>
               <div class="tuple-box">
-                业务范围：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
+                业务范围：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
               </div>
             </div>
             <div>
               <div class="tuple-box">
-                邮箱：<template v-if="currentUser && currentUser.is_authenticated">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
+                邮箱：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@
               <tr v-for="item in myInventory" :key="item.id">
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.batch_number }}</template>
+                    <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -222,13 +222,13 @@
                 </td>
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ item.quantity }}</template>
+                    <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
                     <template v-else>需认证后查看</template>
                   </div>
                 </td>
                 <td>
                   <div class="tuple-box small">
-                    <template v-if="currentUser && currentUser.is_authenticated">{{ formatPrice(item.unit_price) }}</template>
+                    <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -259,6 +259,10 @@
           </div>
         </div>
       </div>
+
+        <div v-if="myTenantId && canManageInventory" class="section manual-inventory-section">
+          <InventoryManagePanel />
+        </div>
 
       <div class="content-wrapper">
         <!-- 左侧主要内容 -->
@@ -439,10 +443,11 @@ import { getRoleLabel } from '@/utils/roleLabel'
 import { roleToRoute } from '@/utils/roleRoute'
 import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
 import InventoryWarning from '@/component/InventoryWarning.vue'
+import InventoryManagePanel from '@/component/InventoryManagePanel.vue'
 
 export default {
   name: 'Inventory',
-  components: { InventoryWarning },
+  components: { InventoryWarning, InventoryManagePanel },
   setup() {
     const router = useRouter()
     const activeNav = ref('inventory')
@@ -477,6 +482,8 @@ export default {
     const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
     const isRegulator = computed(() => currentUser.value && currentUser.value.role === 'regulator')
     const isAdmin = computed(() => currentUser.value && currentUser.value.role === 'admin')
+    const isAuthenticatedViewer = computed(() => Boolean(currentUser.value && currentUser.value.role && currentUser.value.role !== 'unauth'))
+    const canManageInventory = computed(() => isPharmacy.value || isSupplier.value || isAdmin.value)
     const canViewAnalysis = computed(() => isRegulator.value || isAdmin.value)
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
@@ -769,12 +776,14 @@ export default {
       within5km,
       currentDate,
       currentUser,
+      isAuthenticatedViewer,
       isLogistics,
       isSupplier,
       isRegulator,
       isAdmin,
       isPharmacy,
       canViewAnalysis,
+      canManageInventory,
       userDisplayName,
       userRoleLabel,
       myTenantId,

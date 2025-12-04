@@ -1,11 +1,11 @@
 from datetime import datetime, date
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import User, SupplyInfo, Drug, Tenant
+from models import User, SupplyInfo, Drug, Tenant, InventoryItem
 
 bp = Blueprint('supply', __name__, url_prefix='/api/supply')
 
@@ -29,6 +29,22 @@ def require_supplier_role(f):
         return f(user, *args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
+
+
+def _get_available_inventory_quantity(tenant_id: int, drug_id: int) -> int:
+    """计算指定企业针对给定药品的可用库存总量"""
+    if not tenant_id or not drug_id:
+        return 0
+    total = (
+        db.session.query(func.sum(InventoryItem.quantity))
+        .filter(
+            InventoryItem.tenant_id == tenant_id,
+            InventoryItem.drug_id == drug_id,
+            InventoryItem.quantity > 0
+        )
+        .scalar()
+    )
+    return int(total or 0)
 
 @bp.route('/info', methods=['POST'])
 @jwt_required()
@@ -92,6 +108,15 @@ def create_supply_info(current_user):
         # 检查用户是否有关联的企业
         if not current_user.tenant_id:
             return jsonify({'msg': '用户未关联企业，无法发布供应信息'}), 400
+
+        available_stock = _get_available_inventory_quantity(current_user.tenant_id, drug_id)
+        if available_stock <= 0:
+            return jsonify({'msg': '当前库存中没有该药品，无法发布供应信息'}), 400
+        if available_quantity > available_stock:
+            return jsonify({
+                'msg': f'可供应数量不能超过当前库存({available_stock})',
+                'available_stock': available_stock
+            }), 400
         
         # 创建供应信息
         supply_info = SupplyInfo(
@@ -268,31 +293,46 @@ def update_supply_info(current_user, supply_id):
             'available_quantity', 'unit_price', 'valid_until', 
             'min_order_quantity', 'description', 'status'
         ]
-        
+
+        pending_updates = {}
+
         for field in updatable_fields:
-            if field in data:
-                value = data[field]
-                
-                # 特殊处理日期字段
-                if field == 'valid_until' and value:
-                    try:
-                        value = datetime.strptime(value, '%Y-%m-%d').date()
-                    except ValueError:
-                        return jsonify({'msg': f'{field} 日期格式错误，应为 YYYY-MM-DD'}), 400
-                
-                # 数值验证
-                if field in ['available_quantity', 'min_order_quantity'] and value is not None:
-                    if int(value) <= 0:
-                        return jsonify({'msg': f'{field} 必须大于0'}), 400
-                    value = int(value)
-                elif field == 'unit_price' and value is not None:
-                    if float(value) <= 0:
-                        return jsonify({'msg': '单价必须大于0'}), 400
-                    value = float(value)
-                elif field == 'status' and value not in ['ACTIVE', 'INACTIVE']:
-                    return jsonify({'msg': '状态只能是 ACTIVE 或 INACTIVE'}), 400
-                
-                setattr(supply_info, field, value)
+            if field not in data:
+                continue
+
+            value = data[field]
+
+            if field == 'valid_until' and value:
+                try:
+                    value = datetime.strptime(value, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'msg': f'{field} 日期格式错误，应为 YYYY-MM-DD'}), 400
+
+            if field in ['available_quantity', 'min_order_quantity'] and value is not None:
+                if int(value) <= 0:
+                    return jsonify({'msg': f'{field} 必须大于0'}), 400
+                value = int(value)
+            elif field == 'unit_price' and value is not None:
+                if float(value) <= 0:
+                    return jsonify({'msg': '单价必须大于0'}), 400
+                value = float(value)
+            elif field == 'status' and value not in ['ACTIVE', 'INACTIVE']:
+                return jsonify({'msg': '状态只能是 ACTIVE 或 INACTIVE'}), 400
+
+            pending_updates[field] = value
+
+        if 'available_quantity' in pending_updates:
+            available_stock = _get_available_inventory_quantity(current_user.tenant_id, supply_info.drug_id)
+            if available_stock <= 0:
+                return jsonify({'msg': '当前库存中没有该药品，无法设置供应数量'}), 400
+            if pending_updates['available_quantity'] > available_stock:
+                return jsonify({
+                    'msg': f'可供应数量不能超过当前库存({available_stock})',
+                    'available_stock': available_stock
+                }), 400
+
+        for field, value in pending_updates.items():
+            setattr(supply_info, field, value)
         
         supply_info.updated_at = datetime.utcnow()
         db.session.commit()
