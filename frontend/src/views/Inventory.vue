@@ -69,213 +69,195 @@
 
     <!-- 库存管理主内容区域 -->
     <div class="main-content">
-      <div v-if="myTenantId" class="section my-tenant-overview">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">我的企业库存概览</h2>
-            <p class="section-subtitle">聚焦当前登录用户所在企业的主体信息与库存统计</p>
-          </div>
-          <button v-if="!isLogistics" class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
-        </div>
-        <div v-if="myTenantLoading" class="info-placeholder">正在加载企业信息...</div>
-        <div v-else-if="myTenantError" class="info-placeholder error">
-          {{ myTenantError }}
-          <button class="ghost-btn retry-btn" @click="reloadMyTenant">重新加载</button>
-        </div>
-        <div v-else-if="myTenantDetail" class="tenant-overview-content">
-          <div class="tenant-header">
-            <div>
-              <h3>{{ myTenantDetail.name }}</h3>
-              <p class="tenant-address">{{ myTenantDetail.address }}</p>
-            </div>
-            <div class="tenant-tags">
-              <span class="tag">{{ myTenantDetail.type }}</span>
-              <span class="status" :class="{ active: myTenantDetail.is_active }">
-                {{ myTenantDetail.is_active ? '在营' : '停业' }}
-              </span>
-            </div>
-          </div>
-            <div class="tenant-details-grid">
-            <div>
-              <div class="tuple-box">
-                <span class="info-label">统一社会信用代码</span>
-                <strong>
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.unified_social_credit_code }}</template>
-                  <template v-else>需认证后查看</template>
-                </strong>
-              </div>
-            </div>
-            <div>
-              <div class="tuple-box">
-                <span class="info-label">法人代表</span>
-                <strong>
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.legal_representative }}</template>
-                  <template v-else>—</template>
-                </strong>
-              </div>
-            </div>
-            <div>
-              <div class="tuple-box">
-                <span class="info-label">联系人</span>
-                <strong>
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_person }}</template>
-                  <template v-else>需认证后查看</template>
-                </strong>
-              </div>
-            </div>
-            <div>
-              <div class="tuple-box">
-                <span class="info-label">联系电话</span>
-                <strong>
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_phone }}</template>
-                  <template v-else>需认证后查看</template>
-                </strong>
-              </div>
-            </div>
-          </div>
-          <div class="tenant-contact-grid">
-            <div>
-              <div class="tuple-box">
-                业务范围：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
-              </div>
-            </div>
-            <div>
-              <div class="tuple-box">
-                邮箱：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
-              </div>
-            </div>
-          </div>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-label">库存批次</span>
-              <span class="stat-value">{{ myTenantStats.total_batches }}</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">药品种类</span>
-              <span class="stat-value">{{ myTenantStats.unique_drugs }}</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">总库存量</span>
-              <span class="stat-value">{{ myTenantStats.total_quantity }}</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">最近更新</span>
-              <span class="stat-value">{{ myLatestUpdateText }}</span>
-            </div>
-          </div>
-        </div>
-        <div v-else class="info-placeholder">暂无企业信息</div>
-      </div>
-
-      <div v-if="myTenantId" class="section my-tenant-inventory">
-        <div class="section-header">
-          <div>
-            <h2 class="section-title">企业库存明细</h2>
-            <p class="section-subtitle">仅展示当前企业的库存批次</p>
-          </div>
-          <div class="search-controls">
-            <input
-              type="text"
-              placeholder="输入批次号、药品或供应商"
-              v-model="myInventoryKeyword"
-              @keyup.enter="searchMyInventory"
-            />
-            <button class="search-btn" :disabled="myInventoryLoading" @click="searchMyInventory">搜索</button>
-            <button
-              class="ghost-btn"
-              :disabled="!myInventoryKeyword || myInventoryLoading"
-              @click="resetMyInventorySearch"
-            >
-              重置
-            </button>
-          </div>
-        </div>
-        <div v-if="myInventoryLoading" class="info-placeholder">正在加载库存...</div>
-        <div v-else-if="myInventoryError" class="info-placeholder error">{{ myInventoryError }}</div>
-        <div v-else-if="!myInventory.length" class="info-placeholder">暂无库存数据</div>
-        <div v-else class="table-wrapper">
-          <table class="result-table my-inventory-table">
-            <thead>
-              <tr>
-                <th>批次号</th>
-                <th>药品</th>
-                <th>数量</th>
-                <th>单价</th>
-                <th>生产日期</th>
-                <th>有效期</th>
-                <th>更新时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in myInventory" :key="item.id">
-                <td>
-                  <div class="tuple-box small">
-                    <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
-                    <template v-else>—</template>
-                  </div>
-                </td>
-                <td>
-                  <div class="tuple-box">
-                    <div class="drug-name">{{ item.drug_name || '—' }}</div>
-                    <div class="drug-brand">{{ item.drug_brand }}</div>
-                  </div>
-                </td>
-                <td>
-                  <div class="tuple-box small">
-                    <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
-                    <template v-else>需认证后查看</template>
-                  </div>
-                </td>
-                <td>
-                  <div class="tuple-box small">
-                    <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
-                    <template v-else>—</template>
-                  </div>
-                </td>
-                <td>
-                  <div class="tuple-box small">{{ formatDate(item.production_date) }}</div>
-                </td>
-                <td>
-                  <div class="tuple-box small">{{ formatDate(item.expiry_date) }}</div>
-                </td>
-                <td>
-                  <div class="tuple-box small">{{ formatDateTime(item.updated_at) }}</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="pagination" v-if="myInventoryPagination.total > myInventoryPagination.per_page">
-            <button class="ghost-btn" :disabled="myInventoryPagination.page === 1" @click="changeMyInventoryPage(myInventoryPagination.page - 1)">
-              上一页
-            </button>
-            <span>第 {{ myInventoryPagination.page }} / {{ myInventoryTotalPages }} 页 · 共 {{ myInventoryPagination.total }} 条</span>
-            <button
-              class="ghost-btn"
-              :disabled="myInventoryPagination.page >= myInventoryTotalPages"
-              @click="changeMyInventoryPage(myInventoryPagination.page + 1)"
-            >
-              下一页
-            </button>
-          </div>
+      <div class="inventory-tabs">
+        <div
+          v-for="tab in inventoryTabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ active: activeInventoryTab === tab.key }"
+          @click="setActiveInventoryTab(tab.key)"
+        >
+          {{ tab.label }}
         </div>
       </div>
 
+      <div v-if="activeInventoryTab === 'overview'" class="tab-panel">
+        <div v-if="myTenantId">
+          <div class="section my-tenant-overview">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">我的企业库存概览</h2>
+                <p class="section-subtitle">聚焦当前登录用户所在企业的主体信息与库存统计</p>
+              </div>
+              <button v-if="!isLogistics" class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
+            </div>
+            <div v-if="myTenantLoading" class="info-placeholder">正在加载企业信息...</div>
+            <div v-else-if="myTenantError" class="info-placeholder error">
+              {{ myTenantError }}
+              <button class="ghost-btn retry-btn" @click="reloadMyTenant">重新加载</button>
+            </div>
+            <div v-else-if="myTenantDetail" class="tenant-overview-content">
+              <div class="tenant-header">
+                <div>
+                  <h3>{{ myTenantDetail.name }}</h3>
+                  <p class="tenant-address">{{ myTenantDetail.address }}</p>
+                </div>
+                <div class="tenant-tags">
+                  <span class="tag">{{ myTenantDetail.type }}</span>
+                  <span class="status" :class="{ active: myTenantDetail.is_active }">
+                    {{ myTenantDetail.is_active ? '在营' : '停业' }}
+                  </span>
+                </div>
+              </div>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <span class="stat-label">库存批次</span>
+                  <span class="stat-value">{{ myTenantStats.total_batches }}</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">药品种类</span>
+                  <span class="stat-value">{{ myTenantStats.unique_drugs }}</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">总库存量</span>
+                  <span class="stat-value">{{ myTenantStats.total_quantity }}</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">最近更新</span>
+                  <span class="stat-value">{{ myLatestUpdateText }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="info-placeholder">暂无企业信息</div>
+          </div>
+
+          <div class="section my-tenant-inventory">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">企业库存明细</h2>
+                <p class="section-subtitle">仅展示当前企业的库存批次</p>
+              </div>
+              <div class="search-controls">
+                <input
+                  type="text"
+                  placeholder="输入批次号、药品或供应商"
+                  v-model="myInventoryKeyword"
+                  @keyup.enter="searchMyInventory"
+                />
+                <button class="search-btn" :disabled="myInventoryLoading" @click="searchMyInventory">搜索</button>
+                <button
+                  class="ghost-btn"
+                  :disabled="!myInventoryKeyword || myInventoryLoading"
+                  @click="resetMyInventorySearch"
+                >
+                  重置
+                </button>
+              </div>
+            </div>
+            <div v-if="myInventoryLoading" class="info-placeholder">正在加载库存...</div>
+            <div v-else-if="myInventoryError" class="info-placeholder error">{{ myInventoryError }}</div>
+            <div v-else-if="!myInventory.length" class="info-placeholder">暂无库存数据</div>
+            <div v-else class="table-wrapper">
+              <table class="result-table my-inventory-table">
+                <thead>
+                  <tr>
+                    <th>批次号</th>
+                    <th>药品</th>
+                    <th>数量</th>
+                    <th>单价</th>
+                    <th>生产日期</th>
+                    <th>有效期</th>
+                    <th>更新时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in myInventory" :key="item.id">
+                    <td>
+                      <div class="tuple-box small">
+                        <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
+                        <template v-else>—</template>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="tuple-box">
+                        <div class="drug-name">{{ item.drug_name || '—' }}</div>
+                        <div class="drug-brand">{{ item.drug_brand }}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="tuple-box small">
+                        <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
+                        <template v-else>需认证后查看</template>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="tuple-box small">
+                        <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
+                        <template v-else>—</template>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="tuple-box small">{{ formatDate(item.production_date) }}</div>
+                    </td>
+                    <td>
+                      <div class="tuple-box small">{{ formatDate(item.expiry_date) }}</div>
+                    </td>
+                    <td>
+                      <div class="tuple-box small">{{ formatDateTime(item.updated_at) }}</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="pagination" v-if="myInventoryPagination.total > myInventoryPagination.per_page">
+                <button class="ghost-btn" :disabled="myInventoryPagination.page === 1" @click="changeMyInventoryPage(myInventoryPagination.page - 1)">
+                  上一页
+                </button>
+                <span>第 {{ myInventoryPagination.page }} / {{ myInventoryTotalPages }} 页 · 共 {{ myInventoryPagination.total }} 条</span>
+                <button
+                  class="ghost-btn"
+                  :disabled="myInventoryPagination.page >= myInventoryTotalPages"
+                  @click="changeMyInventoryPage(myInventoryPagination.page + 1)"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="info-placeholder">
+          当前账号未关联企业，无法展示库存概览。
+        </div>
+      </div>
+
+      <div v-else-if="activeInventoryTab === 'maintenance'" class="tab-panel">
         <div v-if="myTenantId && canManageInventory" class="section manual-inventory-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">库存维护</h2>
+              <p class="section-subtitle">通过标准化操作板维护库存批次与补货计划</p>
+            </div>
+          </div>
           <InventoryManagePanel />
         </div>
+        <div v-else class="info-placeholder">
+          该功能仅对已认证企业开放，请先完成企业认证或切换具备权限的账户。
+        </div>
+      </div>
 
-      <div class="content-wrapper">
-        <!-- 左侧主要内容 -->
-        <div class="left-content">
-          <!-- 库存预警管理 -->
-          <div class="section inventory-warning-section">
-            <h2 class="section-title">库存预警管理</h2>
-            <div style="padding: 10px 0">
-              <InventoryWarning />
+      <div v-else class="tab-panel">
+        <div class="section inventory-warning-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">库存预警管理</h2>
+              <p class="section-subtitle">实时监测低库存、临期批次并给出调拨建议</p>
             </div>
+          </div>
+          <div style="padding: 10px 0">
+            <InventoryWarning />
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -320,6 +302,12 @@ export default {
       }
     }
     const currentUser = ref(getCurrentUser())
+    const inventoryTabs = [
+      { key: 'overview', label: '我的企业库存概览' },
+      { key: 'maintenance', label: '库存维护' },
+      { key: 'warning', label: '库存预警管理' }
+    ]
+    const activeInventoryTab = ref('overview')
     const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
     const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
     const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
@@ -494,6 +482,9 @@ export default {
       if (currentUser.value.role !== 'admin') return
       router.push('/admin/users')
     }
+    const setActiveInventoryTab = (tab) => {
+      activeInventoryTab.value = tab
+    }
 
     const refreshUser = () => {
       currentUser.value = getCurrentUser()
@@ -608,6 +599,9 @@ export default {
       goToEnterpriseReview,
       goToSystemStatus,
       goToAdminUsers,
+      inventoryTabs,
+      activeInventoryTab,
+      setActiveInventoryTab,
       navigateTo,
       activeNav,
       currentDate,
@@ -884,11 +878,48 @@ export default {
   gap: 18px;
 }
 
-.content-wrapper {
+
+.inventory-tabs {
+  display: flex;
+  gap: 40px;
+  padding: 0 8px;
+  border-bottom: 1px solid #e5e5e5;
+  background: transparent;
+}
+
+.tab-item {
+  position: relative;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tab-item::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.tab-item.active {
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  background-color: #1a73e8;
+}
+
+.tab-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  height: 100%;
+  gap: 18px;
 }
 
 .section {
@@ -896,7 +927,6 @@ export default {
   border-radius: 8px;
   box-shadow: 0 1px 6px rgba(10, 20, 30, 0.04);
   padding: 20px;
-  margin-bottom: 18px;
 }
 
 .section-title {
@@ -1034,20 +1064,6 @@ export default {
 .status.active {
   background-color: #e6f4ea;
   color: #1e8e3e;
-}
-
-.tenant-details-grid,
-.tenant-contact-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.info-label {
-  display: block;
-  font-size: 12px;
-  color: #9ca3af;
-  margin-bottom: 4px;
 }
 
 .stats-grid {
