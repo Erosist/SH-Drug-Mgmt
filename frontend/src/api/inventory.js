@@ -64,4 +64,35 @@ export const inventoryWarningApi = {
   }
 }
 
+// 库存明细手工管理相关API
+export const inventoryItemApi = {
+  /**
+   * 查询当前企业的库存批次
+   */
+  list: (params = {}) => {
+    return apiClient.get('/api/v1/inventory/items', { params })
+  },
+
+  /**
+   * 查看单个库存批次
+   */
+  getDetail: (itemId) => {
+    return apiClient.get(`/api/v1/inventory/items/${itemId}`)
+  },
+
+  /**
+   * 手工新增库存批次
+   */
+  create: (payload) => {
+    return apiClient.post('/api/v1/inventory/items', payload)
+  },
+
+  /**
+   * 调整现有库存批次（数量改动、备注等）
+   */
+  update: (itemId, payload) => {
+    return apiClient.put(`/api/v1/inventory/items/${itemId}`, payload)
+  }
+}
+
 export default apiClient
