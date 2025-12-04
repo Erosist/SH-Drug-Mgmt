@@ -20,16 +20,16 @@
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
-            <div v-if="!isLogistics"
-              class="nav-item" 
-              :class="{ active: activeNav === 'b2b' }"
-              @click="navigateTo('b2b')"
-            >B2B供求平台</div>
             <div v-if="isPharmacy"
               class="nav-item" 
               :class="{ active: activeNav === 'nearby' }"
               @click="navigateTo('nearby')"
             >就近推荐</div>
+            <div v-if="!isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'b2b' }"
+              @click="navigateTo('b2b')"
+            >B2B供求平台</div>
             <div 
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
