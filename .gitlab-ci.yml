@@ -16,6 +16,9 @@ test-backend:
     - Write-Host "Installing dependencies..."
     - python -m pip install --quiet -r requirements.txt
     - python -m pip install --quiet pytest pytest-flask pytest-mock pytest-cov
+    - Write-Host "Initializing database..."
+    - $env:FLASK_ENV = "testing"
+    - python -c "from app import create_app, db; app = create_app('testing'); ctx = app.app_context(); ctx.push(); db.create_all(); print('Database initialized successfully'); ctx.pop()"
     - Write-Host "Running tests..."
     - $env:PYTHONPATH = ".;$env:PYTHONPATH"
     - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
