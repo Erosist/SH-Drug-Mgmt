@@ -19,14 +19,16 @@ test-backend:
     - echo "Initializing database..."
     - python -c "import os; os.environ['FLASK_ENV'] = 'testing'; from app import create_app, db; app = create_app('testing'); ctx = app.app_context(); ctx.push(); db.create_all(); print('Database initialized successfully'); ctx.pop()"
     - echo "Running tests..."
-    - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
+    - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
     - echo "=== Backend Test Completed ==="
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
+    when: always
+    reports:
+      cobertura: backend/coverage.xml
     paths:
       - backend/htmlcov/
-      - backend/coverage.xml
     expire_in: 1 week
-  coverage: '/TOTAL.*\s+(\d+%)$/'
 
 test-frontend:
   stage: test
