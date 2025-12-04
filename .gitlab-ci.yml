@@ -11,37 +11,36 @@ test-backend:
   tags:
     - SH-Drug-Mgmt
   script:
-    - Write-Host "=== Backend Test Started ==="
+    - echo "=== Backend Test Started ==="
     - Set-Location backend
-    - Write-Host "Installing dependencies..."
+    - echo "Installing dependencies..."
     - python -m pip install --quiet -r requirements.txt
     - python -m pip install --quiet pytest pytest-flask pytest-mock pytest-cov
-    - Write-Host "Running tests..."
-    - $env:PYTHONPATH = ".;$env:PYTHONPATH"
-    - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
-    - Write-Host "=== Backend Test Completed ==="
+    - echo "Initializing database..."
+    - python -c "import os; os.environ['FLASK_ENV'] = 'testing'; from app import create_app, db; app = create_app('testing'); ctx = app.app_context(); ctx.push(); db.create_all(); print('Database initialized successfully'); ctx.pop()"
+    - echo "Running tests..."
+    - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+    - echo "=== Backend Test Completed ==="
   artifacts:
-    reports:
-      cobertura: vue-project/backend/coverage.xml  # <--- 确认一下路径是否需要加 vue-project
     paths:
       - backend/htmlcov/
+      - backend/coverage.xml
     expire_in: 1 week
-  coverage: '/TOTAL.*\s+(\d+%)$/'
 
 test-frontend:
   stage: test
   tags:
     - SH-Drug-Mgmt
   script:
-    - Write-Host "=== Frontend Test Started ==="
+    - echo "=== Frontend Test Started ==="
     - Set-Location frontend
-    - Write-Host "Installing dependencies..."
+    - echo "Installing dependencies..."
     - npm install --silent
-    - Write-Host "Running linting..."
+    - echo "Running linting..."
     - npm run lint
-    - Write-Host "Running tests..."
+    - echo "Running tests..."
     - npm run test:run
-    - Write-Host "=== Frontend Test Completed ==="
+    - echo "=== Frontend Test Completed ==="
   allow_failure: true
 
 # 代码质量检查
@@ -50,12 +49,12 @@ code-quality:
   tags:
     - SH-Drug-Mgmt
   script:
-    - Write-Host "=== Code Quality Check Started ==="
-    - Write-Host "Checking backend code quality..."
+    - echo "=== Code Quality Check Started ==="
+    - echo "Checking backend code quality..."
     - Set-Location backend
     - python -m pip install --quiet flake8 black isort
-    - python -m flake8 . --max-line-length=88 --exclude=migrations,venv,__pycache__ || Write-Host "Flake8 warnings found"
-    - python -m black --check . || Write-Host "Code formatting issues found"
-    - python -m isort --check-only . || Write-Host "Import sorting issues found"
-    - Write-Host "=== Code Quality Check Completed ==="
+    - python -m flake8 . --max-line-length=88 --exclude=migrations,venv,__pycache__ || echo "Flake8 warnings found"
+    - python -m black --check . || echo "Code formatting issues found"
+    - python -m isort --check-only . || echo "Import sorting issues found"
+    - echo "=== Code Quality Check Completed ==="
   allow_failure: true

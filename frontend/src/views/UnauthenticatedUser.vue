@@ -11,6 +11,7 @@
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
             <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="isPharmacy" class="nav-item" :class="{ active: activeNav === 'nearby' }" @click="navigateTo('nearby')">就近推荐</div>
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
@@ -22,6 +23,11 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role === 'unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role === 'admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -60,11 +66,12 @@ export default {
     const mapRouteToNav = (name) => {
       if (!name) return 'home'
       if (name === 'home') return 'home'
-      if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
-      if (name === 'b2b') return 'b2b'
-      if (name === 'circulation') return 'circulation'
-      if (name === 'analysis') return 'analysis'
-      if (name === 'service') return 'service'
+  if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+  if (name === 'b2b') return 'b2b'
+  if (name === 'circulation') return 'circulation'
+  if (name === 'analysis') return 'analysis'
+  if (name === 'service') return 'service'
+  if (name === 'nearby-suppliers') return 'nearby'
       return 'home'
     }
 
@@ -95,6 +102,14 @@ export default {
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
 
     const goToLogin = () => router.push({ name: 'login' })
+
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
 
     const handleLogout = () => {
       clearAuth()
@@ -135,6 +150,16 @@ export default {
           router.push('/'); break
         case 'inventory':
           router.push('/inventory'); break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers'); break
         case 'b2b':
           router.push('/b2b'); break
         case 'circulation':
@@ -178,6 +203,7 @@ export default {
       goToSystemStatus,
       goToAdminUsers,
       goToLogin,
+      goToChangePassword,
       handleLogout
     }
   }
@@ -288,7 +314,8 @@ export default {
 .login-btn,
 .logout-btn,
 .admin-btn,
-.review-btn {
+.review-btn,
+.change-btn {
   border-radius: 4px;
   border: none;
   padding: 8px 16px;
@@ -325,6 +352,16 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
+}
+
+.change-btn {
+  background-color: #fff;
+  color: #1a73e8;
+  border: 1px solid #1a73e8;
+}
+
+.change-btn:hover {
+  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn,

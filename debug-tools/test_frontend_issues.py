@@ -6,7 +6,7 @@ import requests
 import json
 
 def test_frontend_issues():
-    print('=== 前端"模拟下单"界面问题调试 ===')
+    print('=== 前端"下单"界面问题调试 ===')
     
     # 1. 测试不同用户登录状态
     test_users = [
@@ -92,7 +92,7 @@ def test_frontend_issues():
             print(f'❌ 供应信息失败: {supply_resp.text[:100]}')
     
     print(f'\n=== 调试建议 ===')
-    print(f'1. 前端"模拟下单"界面问题:')
+    print(f'1. 前端"下单"界面问题:')
     print(f'   - 检查浏览器localStorage中的current_user和access_token是否正确')
     print(f'   - 确认用户角色是pharmacy、supplier或admin')
     print(f'   - 打开浏览器F12控制台查看API请求是否成功')

@@ -11,6 +11,7 @@
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
             <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="isPharmacy" class="nav-item" :class="{ active: activeNav === 'nearby' }" @click="navigateTo('nearby')">就近推荐</div>
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
@@ -22,6 +23,11 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -96,11 +102,11 @@
           </div>
         </div>
 
-        <!-- 模拟下单（内联组件） -->
+        <!-- 下单（内联组件） -->
         <div v-else-if="activeTab==='order'" class="card">
-          <h3 class="card-title">模拟下单</h3>
+          <h3 class="card-title">下单</h3>
           <div style="padding:10px 0">
-            <MockOrder />
+            <MockOrder :selectedSupplyId="route.query.supplyId" />
           </div>
         </div>
 
@@ -160,7 +166,7 @@
 
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 // 引入 SupplierList 以支持路由跳转到组件视图
 import SupplierList from '@/component/SupplierList.vue'
 import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
@@ -176,6 +182,7 @@ export default {
   components: { SupplierList, SupplyInfoManagement, MockOrder },
   setup() {
     const router = useRouter()
+    const route = useRoute()
   const activeNav = ref('b2b')
     const activeTab = ref('supply')
   const currentUser = ref(getCurrentUser())
@@ -197,7 +204,7 @@ export default {
     { key: 'supply', label: '供给信息发布', guard: canAccessSupply },
     { key: 'demand', label: '需求信息发布', guard: canAccessDemand },
     { key: 'list', label: '查看供应信息', guard: canAccessSupplyList },
-    { key: 'order', label: '模拟下单', guard: computed(() => true) }
+    { key: 'order', label: '下单', guard: computed(() => true) }
   ]
 
   const visibleTabs = computed(() => tabMatrix.filter(tab => tab.guard.value))
@@ -295,6 +302,16 @@ export default {
       switch(page) {
         case 'home': router.push('/') ; break
         case 'inventory': router.push('/inventory') ; break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers') ; break
         case 'b2b': router.push('/b2b') ; break
         case 'circulation': router.push('/circulation') ; break
         case 'analysis': router.push('/analysis') ; break
@@ -315,6 +332,13 @@ export default {
     }
 
     const goToLogin = () => router.push('/login')
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
     const goToUserHome = () => {
       const u = currentUser.value
       if (!u) return router.push('/login')
@@ -358,6 +382,14 @@ export default {
     }
 
     const refreshUser = () => { currentUser.value = getCurrentUser() }
+    
+    // 处理路由查询参数切换tab
+    watch(() => route.query.tab, (newTab) => {
+      if (newTab && visibleTabs.value.some(t => t.key === newTab)) {
+        activeTab.value = newTab
+      }
+    }, { immediate: true })
+    
     onMounted(() => { 
       window.addEventListener('storage', refreshUser)
       loadRecentRecords()
@@ -477,10 +509,11 @@ export default {
   return { 
     activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, 
     navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, 
-    goToSystemStatus, goToAdminUsers, currentDate, supplyForm, demandForm, totalPrice, 
+    goToSystemStatus, goToAdminUsers, goToChangePassword, currentDate, supplyForm, demandForm, totalPrice, 
     resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
     realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
-    isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis
+    isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis,
+    route
   }
   }
 }
@@ -509,6 +542,8 @@ export default {
 .review-btn:hover { background-color: #ffeccc; }
 .admin-btn { background-color: #f0f5ff; color: #1a73e8; border: 1px solid #d6e4ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 14px; }
 .admin-btn:hover { background-color: #e5edff; }
+.change-btn { border: 1px solid #1a73e8; background: transparent; color: #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+.change-btn:hover { background-color: rgba(26,115,232,0.06); }
 .login-btn { background:#1a73e8; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:14px; }
 .login-btn:hover { background:#0d62d9; }
 

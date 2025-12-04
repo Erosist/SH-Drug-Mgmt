@@ -1,7 +1,7 @@
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_, and_, desc
+from sqlalchemy import or_, and_, desc, asc
 from sqlalchemy.exc import IntegrityError
 from decimal import Decimal
 
@@ -79,6 +79,143 @@ def can_access_order(user, order):
     return False
 
 
+def _coerce_to_date(value):
+    """将 datetime/date/None 转换为 date 对象"""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.utcnow().date()
+
+
+def _sync_inventory_for_receipt(order, current_user):
+    """收货后自动将订单明细同步到买方库存"""
+    if not order.buyer_tenant_id:
+        raise ValueError('订单缺少买方企业，无法同步库存')
+
+    if not order.items:
+        current_app.logger.info(f'订单 {order.id} 无明细，跳过库存同步')
+        return
+
+    base_date = _coerce_to_date(order.delivered_at or order.shipped_at or order.confirmed_at or order.created_at)
+    default_expiry = base_date + timedelta(days=365)
+    order_identifier = order.order_number or f'ORDER-{order.id}'
+
+    for item in order.items:
+        if not item.quantity or item.quantity <= 0:
+            current_app.logger.warning(f'订单 {order.id} 明细 {item.id} 数量异常，跳过自动入库')
+            continue
+
+        batch_number = item.batch_number or f'AUTO-{order_identifier}-{item.id}'
+        inventory_item = InventoryItem.query.filter_by(
+            tenant_id=order.buyer_tenant_id,
+            drug_id=item.drug_id,
+            batch_number=batch_number
+        ).first()
+
+        incoming_qty = int(item.quantity)
+        incoming_price = float(item.unit_price or 0)
+
+        if inventory_item:
+            total_quantity = inventory_item.quantity + incoming_qty
+            if total_quantity <= 0:
+                raise ValueError('库存数量即将变为负数，终止自动入库')
+
+            current_total_value = (inventory_item.unit_price or 0) * inventory_item.quantity
+            new_total_value = current_total_value + incoming_price * incoming_qty
+            inventory_item.quantity = total_quantity
+            if total_quantity > 0:
+                inventory_item.unit_price = round(new_total_value / total_quantity, 2)
+            inventory_item.updated_at = datetime.utcnow()
+        else:
+            inventory_item = InventoryItem(
+                tenant_id=order.buyer_tenant_id,
+                drug_id=item.drug_id,
+                batch_number=batch_number,
+                production_date=base_date,
+                expiry_date=default_expiry,
+                quantity=incoming_qty,
+                unit_price=incoming_price
+            )
+            db.session.add(inventory_item)
+            db.session.flush()  # 获取ID供流水使用
+
+        transaction = InventoryTransaction(
+            inventory_item_id=inventory_item.id,
+            transaction_type='IN',
+            quantity_delta=incoming_qty,
+            source_tenant_id=order.supplier_tenant_id,
+            related_order_id=order.id,
+            notes=f'订单 {order_identifier} 收货自动入库',
+            created_by=current_user.id
+        )
+        db.session.add(transaction)
+
+
+def _deduct_inventory_for_shipment(order, current_user):
+    """发货时从供应商库存扣减相应药品"""
+    if not order.supplier_tenant_id:
+        raise ValueError('订单缺少供应商企业，无法扣减库存')
+
+    if not order.items:
+        current_app.logger.info(f'订单 {order.id} 无明细，跳过库存扣减')
+        return
+
+    order_identifier = order.order_number or f'ORDER-{order.id}'
+
+    for item in order.items:
+        required_qty = int(item.quantity or 0)
+        if required_qty <= 0:
+            continue
+
+        query = InventoryItem.query.filter_by(
+            tenant_id=order.supplier_tenant_id,
+            drug_id=item.drug_id
+        ).filter(InventoryItem.quantity > 0)
+
+        if item.batch_number:
+            query = query.filter(InventoryItem.batch_number == item.batch_number)
+
+        inventory_entries = query.order_by(
+            asc(InventoryItem.expiry_date),
+            asc(InventoryItem.id)
+        ).all()
+
+        if not inventory_entries:
+            if item.batch_number:
+                raise ValueError(f'库存中未找到批次 {item.batch_number} 的药品，无法发货')
+            raise ValueError('库存中没有可用的药品，无法发货')
+
+        remaining = required_qty
+
+        for inventory_item in inventory_entries:
+            if remaining <= 0:
+                break
+            available = inventory_item.quantity or 0
+            if available <= 0:
+                continue
+
+            deduction = min(available, remaining)
+            inventory_item.quantity -= deduction
+            inventory_item.updated_at = datetime.utcnow()
+
+            transaction = InventoryTransaction(
+                inventory_item_id=inventory_item.id,
+                transaction_type='OUT',
+                quantity_delta=-deduction,
+                source_tenant_id=order.buyer_tenant_id,
+                related_order_id=order.id,
+                notes=f'订单 {order_identifier} 发货扣减库存',
+                created_by=current_user.id
+            )
+            db.session.add(transaction)
+
+            remaining -= deduction
+
+        if remaining > 0:
+            raise ValueError('库存不足，无法完成此次发货')
+
+
 @bp.route('', methods=['POST'])
 @jwt_required()
 @require_buyer_role
@@ -89,6 +226,7 @@ def create_order(current_user):
     请求体参数:
     - supply_info_id: 供应信息ID
     - quantity: 订购数量
+
     - expected_delivery_date: 期望交付日期 (可选，YYYY-MM-DD格式)
     - notes: 备注 (可选)
     """
@@ -162,6 +300,7 @@ def create_order(current_user):
         order = Order(
             buyer_tenant_id=current_user.tenant_id,
             supplier_tenant_id=supply_info.tenant_id,
+            supply_info_id=supply_info_id,  # 关联供应信息ID
             expected_delivery_date=expected_delivery_date,
             notes=notes,
             status='PENDING',
@@ -520,6 +659,8 @@ def ship_order(current_user, order_id):
             except (ValueError, TypeError):
                 return jsonify({'msg': '物流公司ID格式错误'}), 400
         
+        _deduct_inventory_for_shipment(order, current_user)
+
         # 更新订单状态
         order.status = 'SHIPPED'
         order.tracking_number = tracking_number
@@ -534,6 +675,9 @@ def ship_order(current_user, order_id):
             'data': order.to_dict(include_relations=True)
         })
         
+    except ValueError as inventory_error:
+        db.session.rollback()
+        return jsonify({'msg': str(inventory_error)}), 400
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'发货失败: {str(e)}')
@@ -575,8 +719,7 @@ def receive_order(current_user, order_id):
         if notes:
             order.notes = (order.notes or '') + f'\n收货备注: {notes}'
         
-        # TODO: 这里可以添加自动入库逻辑
-        # 创建库存流水记录等
+        _sync_inventory_for_receipt(order, current_user)
         
         db.session.commit()
         

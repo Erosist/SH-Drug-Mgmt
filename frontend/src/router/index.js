@@ -20,6 +20,7 @@ import AdminAuditLogs from '../views/AdminAuditLogs.vue'
 import ChangePassword from '../views/ChangePassword.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
+import NearbySuppliers from '../views/NearbySuppliers.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import ComplianceReport from '../views/ComplianceReport.vue'
 
@@ -34,7 +35,8 @@ const UNAUDITED_ALLOWED_ROUTE_NAMES = new Set([
   'circulation',
   'analysis',
   'service',
-  'tenant-inventory'
+  'tenant-inventory',
+  'nearby-suppliers'
 ])
 
 const router = createRouter({
@@ -47,6 +49,7 @@ const router = createRouter({
     { path: '/change-password', name: 'change-password', component: ChangePassword, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: inventory },
     { path: '/tenants/:tenantId', name: 'tenant-inventory', component: TenantInventory, props: true, meta: { requiresAuth: true, requiresVerified: true } },
+    { path: '/nearby-suppliers', name: 'nearby-suppliers', component: NearbySuppliers, meta: { requiresAuth: true } },
     { path: '/b2b', name: 'b2b', component: b2b, meta: { requiresAuth: true, requiresVerified: true } },
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },

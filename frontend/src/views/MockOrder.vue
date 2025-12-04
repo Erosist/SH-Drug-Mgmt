@@ -467,9 +467,11 @@
           <el-input-number
             v-model="createForm.quantity"
             :min="selectedSupplyInfo?.min_order_quantity || 1"
-            :max="selectedSupplyInfo?.available_quantity || 9999"
+            :max="9999"
             placeholder="请输入采购数量"
             style="width: 100%"
+            @change="handleQuantityChange"
+            @input="handleQuantityInput"
           />
           <div v-if="selectedSupplyInfo" class="quantity-tips">
             起订量: {{ selectedSupplyInfo.min_order_quantity }}，
@@ -708,7 +710,16 @@
 </template>
 
 <script setup>
+// Props
+const props = defineProps({
+  selectedSupplyId: {
+    type: [String, Number],
+    default: null
+  }
+})
+
 import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, Plus, Refresh, ArrowDown
@@ -718,6 +729,9 @@ import { supplyApi } from '@/api/supply'
 import api from '@/api/orders'  // 用于其他API调用
 import { formatDate } from '@/utils/date'
 import { getCurrentUser } from '@/utils/authSession'
+
+// 获取路由实例
+const route = useRoute()
 
 // 响应式数据
 const loading = ref(false)
@@ -959,6 +973,119 @@ const onSupplyInfoChange = () => {
   }
 }
 
+// 防抖计时器，避免频繁弹窗
+let quantityCheckTimer = null
+let lastDialogTime = 0
+let isAutoAdjusting = false  // 标记是否正在自动调整，避免循环触发
+
+// 监听数量变化，检查是否超过可供数量
+const handleQuantityChange = (value) => {
+  console.log('handleQuantityChange - 数量变化:', value, 'isAutoAdjusting:', isAutoAdjusting)
+  
+  // 如果是自动调整导致的变化，跳过检查
+  if (isAutoAdjusting) {
+    console.log('handleQuantityChange - 正在自动调整，跳过检查')
+    return
+  }
+  
+  checkQuantityExceedsLimit(value, 'change')
+}
+
+// 监听数量输入，检查是否超过可供数量
+const handleQuantityInput = (value) => {
+  console.log('handleQuantityInput - 数量输入:', value, 'isAutoAdjusting:', isAutoAdjusting)
+  
+  // 如果是自动调整导致的变化，跳过检查
+  if (isAutoAdjusting) {
+    console.log('handleQuantityInput - 正在自动调整，跳过检查')
+    return
+  }
+  
+  // 清除之前的计时器
+  if (quantityCheckTimer) {
+    clearTimeout(quantityCheckTimer)
+  }
+  
+  // 设置防抖，避免用户快速输入时频繁触发
+  quantityCheckTimer = setTimeout(() => {
+    checkQuantityExceedsLimit(value, 'input')
+  }, 500) // 500ms 防抖
+}
+
+// 统一的数量检查函数
+const checkQuantityExceedsLimit = (value, triggerSource) => {
+  console.log(`checkQuantityExceedsLimit - 来源:${triggerSource}, 数量:${value}`)
+  console.log('checkQuantityExceedsLimit - 当前选择的供应信息:', selectedSupplyInfo.value)
+  
+  if (!selectedSupplyInfo.value) {
+    console.log('checkQuantityExceedsLimit - 没有选择供应信息，跳过检查')
+    return
+  }
+  
+  const availableQty = selectedSupplyInfo.value.available_quantity
+  const minOrderQty = selectedSupplyInfo.value.min_order_quantity
+  
+  console.log('checkQuantityExceedsLimit - 可供数量:', availableQty, '输入数量:', value)
+  
+  // 如果输入的数量超过可供数量，仅弹窗提示，不自动调整
+  if (value > availableQty) {
+    console.log('checkQuantityExceedsLimit - 数量超过可供量，显示弹窗')
+    
+    // 防止短时间内重复弹窗
+    const now = Date.now()
+    if (now - lastDialogTime > 2000) { // 2秒内不重复弹窗
+      lastDialogTime = now
+      showSupplyShortageDialog(availableQty, value)
+    } else {
+      console.log('checkQuantityExceedsLimit - 短时间内已显示过弹窗，跳过')
+    }
+  } else {
+    console.log('checkQuantityExceedsLimit - 数量在可接受范围内')
+  }
+}
+
+// 显示供应量不足弹窗的函数
+const showSupplyShortageDialog = (availableQty, requestedQty) => {
+  // 使用美观的弹窗提示
+  ElMessageBox.alert(
+    `该药品当前库存不足！
+
+您输入的数量：${requestedQty} 个
+最大可购买数量：${availableQty} 个
+
+系统将自动调整采购数量为 ${availableQty} 个。`,
+    '供应量不足提示',
+    {
+      confirmButtonText: '确定',
+      type: 'warning',
+      dangerouslyUseHTMLString: false,
+      customClass: 'supply-shortage-alert',
+      center: true
+    }
+  ).then(() => {
+    console.log('showSupplyShortageDialog - 用户确认了弹窗，自动调整数量到最大可供量')
+    autoAdjustQuantity(availableQty)
+  }).catch(() => {
+    console.log('showSupplyShortageDialog - 用户取消了弹窗，自动调整数量到最大可供量')
+    autoAdjustQuantity(availableQty)
+  })
+}
+
+// 自动调整数量的函数
+const autoAdjustQuantity = (availableQty) => {
+  // 设置标记，避免循环触发检查
+  isAutoAdjusting = true
+  
+  // 设置数量为最大可供量
+  createForm.quantity = availableQty
+  
+  // 延迟重置标记，确保变化事件已经处理完毕
+  setTimeout(() => {
+    isAutoAdjusting = false
+    console.log('autoAdjustQuantity - 自动调整完成，重置标记')
+  }, 100)
+}
+
 const resetCreateForm = () => {
   Object.assign(createForm, {
     supply_info_id: null,
@@ -971,6 +1098,17 @@ const resetCreateForm = () => {
   if (createFormRef.value) {
     createFormRef.value.clearValidate()
   }
+  
+  // 清除防抖计时器和弹窗状态
+  if (quantityCheckTimer) {
+    clearTimeout(quantityCheckTimer)
+    quantityCheckTimer = null
+  }
+  lastDialogTime = 0
+  isAutoAdjusting = false  // 重置自动调整标记
+  
+  // 当用户关闭对话框时，也清除URL中的查询参数
+  clearSupplyIdFromUrl()
 }
 
 const submitOrder = async () => {
@@ -1000,8 +1138,50 @@ const submitOrder = async () => {
     refreshOrders()
   } catch (error) {
     console.error('提交订单失败:', error)
-    const message = error.response?.data?.msg || '订单提交失败，请稍后重试'
-    ElMessage.error(message)
+    const errorData = error.response?.data
+    const message = errorData?.msg || '订单提交失败，请稍后重试'
+    
+    // 如果是库存不足错误，使用友好的弹窗提示
+    if (message.includes('库存不足') || message.includes('供应量不足')) {
+      console.log('submitOrder - 检测到供应量不足错误，显示弹窗')
+      console.log('submitOrder - 错误消息:', message)
+      console.log('submitOrder - 错误数据:', errorData)
+      
+      const availableQty = errorData?.available_quantity
+      const requestedQty = errorData?.requested_quantity
+      
+      let alertMessage = message
+      if (availableQty !== undefined && requestedQty !== undefined) {
+        alertMessage = `抱歉，该药品当前供应量不足！
+
+您需要采购：${requestedQty} 个
+当前库存：${availableQty} 个
+缺少数量：${requestedQty - availableQty} 个
+
+请调整采购数量或联系供应商补货。`
+      }
+      
+      console.log('submitOrder - 即将显示弹窗，消息:', alertMessage)
+      
+      ElMessageBox.alert(
+        alertMessage,
+        '供应量不足',
+        {
+          confirmButtonText: '我知道了',
+          type: 'warning',
+          dangerouslyUseHTMLString: false,
+          customClass: 'supply-shortage-alert',
+          center: true
+        }
+      ).then(() => {
+        console.log('submitOrder - 用户确认了供应量不足弹窗')
+      }).catch(() => {
+        console.log('submitOrder - 用户取消了供应量不足弹窗')
+      })
+    } else {
+      // 其他错误使用普通消息提示
+      ElMessage.error(message)
+    }
   } finally {
     submitLoading.value = false
   }
@@ -1449,6 +1629,66 @@ const formatDateTime = (dateStr) => {
   })
 }
 
+// 监听传入的供应信息ID
+const handlePreselectedSupply = async (supplyId) => {
+  try {
+    supplySearchLoading.value = true
+    
+    // 通过API获取指定的供应信息详情
+    const response = await supplyApi.getSupplyInfo(supplyId)
+    
+    if (response.data?.data) {
+      const supply = response.data.data
+      
+      // 将供应信息添加到选项列表中
+      supplyOptions.value = [supply]
+      
+      // 预选这个供应信息
+      createForm.supply_info_id = supply.id
+      onSupplyInfoChange(supply.id)
+      
+      // 自动打开新建采购单对话框
+      showCreateDialog.value = true
+      
+      // 清除URL中的supplyId查询参数，避免重复触发
+      clearSupplyIdFromUrl()
+    } else {
+      ElMessage.warning('未找到指定的供应信息')
+      showCreateDialog.value = true
+      clearSupplyIdFromUrl()
+    }
+  } catch (error) {
+    console.error('预选供应信息失败:', error)
+    ElMessage.warning('加载选定的供应信息失败，请手动选择')
+    showCreateDialog.value = true
+    clearSupplyIdFromUrl()
+  } finally {
+    supplySearchLoading.value = false
+  }
+}
+
+// 清除URL中的supplyId查询参数
+const clearSupplyIdFromUrl = () => {
+  // 需要从父组件或路由中清除supplyId参数
+  // 这里我们需要通知父组件清除查询参数
+  if (typeof window !== 'undefined' && window.history?.replaceState) {
+    const url = new URL(window.location)
+    url.searchParams.delete('supplyId')
+    url.searchParams.delete('t') // 同时清除时间戳参数
+    // 同时清除tab参数，避免下次进入时自动打开对话框
+    // 只保留基础的B2B页面URL
+    url.searchParams.delete('tab')
+    window.history.replaceState({}, '', url)
+  }
+  
+  // 不要重置processedSupplyData，而是标记为已完成状态
+  // 这样可以防止用户手动导航时重新触发
+  if (processedSupplyData.value.id && processedSupplyData.value.timestamp > 0) {
+    // 保留当前数据，这样下次相同的请求会被正确识别为重复
+    console.log('MockOrder - clearSupplyIdFromUrl: 保留processedSupplyData', processedSupplyData.value)
+  }
+}
+
 watch(canUseRealApi, (authorized) => {
   if (authorized) {
     refreshOrders()
@@ -1459,6 +1699,76 @@ watch(canUseRealApi, (authorized) => {
   }
 })
 
+// 已处理的供应信息ID和时间戳，避免重复处理
+const processedSupplyData = ref({ id: null, timestamp: 0 })
+
+// 监听路由查询参数中的supplyId变化
+watch(() => route.query.supplyId, async (supplyId) => {
+  console.log('MockOrder - Route supplyId changed:', supplyId, 'canUseRealApi:', canUseRealApi.value)
+  console.log('MockOrder - Route query:', route.query)
+  console.log('MockOrder - processedSupplyData:', processedSupplyData.value)
+  
+  // 如果没有supplyId参数，跳过处理
+  if (!supplyId) {
+    console.log('MockOrder - No supplyId, skipping')
+    return
+  }
+  
+  // 双重检查：确保URL中确实存在supplyId参数
+  // 这是为了防止Vue组件状态与实际URL不同步的情况
+  if (typeof window !== 'undefined') {
+    const currentUrl = new URL(window.location)
+    const actualSupplyId = currentUrl.searchParams.get('supplyId')
+    if (!actualSupplyId) {
+      console.log('MockOrder - URL中没有supplyId参数，跳过处理（可能是组件状态残留）')
+      return
+    }
+    if (actualSupplyId !== String(supplyId)) {
+      console.log('MockOrder - URL中的supplyId与路由参数不匹配，跳过处理')
+      return
+    }
+  }
+  
+  // 检查是否有时间戳参数，如果有就使用它来判断是否为新操作
+  const routeTimestamp = route.query.t ? parseInt(route.query.t) : 0
+  console.log('MockOrder - routeTimestamp:', routeTimestamp)
+  console.log('MockOrder - processed timestamp:', processedSupplyData.value.timestamp)
+  
+  // 如果有相同的时间戳，说明已经处理过了
+  if (routeTimestamp > 0 && processedSupplyData.value.timestamp === routeTimestamp) {
+    console.log('MockOrder - 相同时间戳，跳过处理')
+    return
+  }
+  
+  // 如果没有时间戳参数，但是是相同的ID且处理时间很近，也跳过
+  if (routeTimestamp === 0 && processedSupplyData.value.id === supplyId) {
+    const now = Date.now()
+    const timeDiff = now - processedSupplyData.value.timestamp
+    console.log('MockOrder - timeDiff:', timeDiff)
+    if (timeDiff < 1000) {
+      console.log('MockOrder - 最近处理过相同ID，跳过处理')
+      return
+    }
+  }
+  
+  if (canUseRealApi.value) {
+    try {
+      console.log('MockOrder - 开始处理供应信息:', supplyId)
+      // 记录处理的ID和时间戳（使用路由时间戳或当前时间戳）
+      processedSupplyData.value = {
+        id: supplyId,
+        timestamp: routeTimestamp || Date.now()
+      }
+      await handlePreselectedSupply(supplyId)
+      console.log('MockOrder - 供应信息处理完成')
+    } catch (error) {
+      console.error('处理预选供应信息时出错:', error)
+    }
+  } else {
+    console.log('MockOrder - canUseRealApi is false, skipping')
+  }
+}, { immediate: true })
+
 // 生命周期
 onMounted(() => {
   window.addEventListener('storage', syncUser)
@@ -1467,6 +1777,13 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', syncUser)
+  // 清除防抖计时器
+  if (quantityCheckTimer) {
+    clearTimeout(quantityCheckTimer)
+    quantityCheckTimer = null
+  }
+  // 重置自动调整标记
+  isAutoAdjusting = false
 })
 </script>
 
@@ -1885,5 +2202,53 @@ onBeforeUnmount(() => {
 
 :deep(.el-table__row:hover) {
   background-color: #f5f7fa;
+}
+
+/* 自定义供应量不足弹窗样式 */
+:deep(.supply-shortage-alert) {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+:deep(.supply-shortage-alert .el-message-box__header) {
+  padding: 24px 24px 16px;
+  background: linear-gradient(135deg, #fff5f0 0%, #ffe8e0 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+:deep(.supply-shortage-alert .el-message-box__title) {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e6a23c;
+}
+
+:deep(.supply-shortage-alert .el-message-box__content) {
+  padding: 24px;
+}
+
+:deep(.supply-shortage-alert .el-message-box__message) {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #606266;
+  white-space: pre-line;
+}
+
+:deep(.supply-shortage-alert .el-message-box__btns) {
+  padding: 16px 24px 24px;
+}
+
+:deep(.supply-shortage-alert .el-button--primary) {
+  padding: 10px 32px;
+  font-size: 15px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e6a23c 0%, #f0a800 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+  transition: all 0.3s ease;
+}
+
+:deep(.supply-shortage-alert .el-button--primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.4);
 }
 </style>
