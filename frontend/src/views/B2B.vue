@@ -12,6 +12,7 @@
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
             <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
+            <div v-if="isPharmacy" class="nav-item" :class="{ active: activeNav === 'nearby' }" @click="navigateTo('nearby')">就近推荐</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
             <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
@@ -100,9 +101,9 @@
           </div>
         </div>
 
-        <!-- 模拟下单（内联组件） -->
+        <!-- 下单（内联组件） -->
         <div v-else-if="activeTab==='order'" class="card">
-          <h3 class="card-title">模拟下单</h3>
+          <h3 class="card-title">下单</h3>
           <div style="padding:10px 0">
             <MockOrder :selectedSupplyId="route.query.supplyId" />
           </div>
@@ -202,7 +203,7 @@ export default {
     { key: 'supply', label: '供给信息发布', guard: canAccessSupply },
     { key: 'demand', label: '需求信息发布', guard: canAccessDemand },
     { key: 'list', label: '查看供应信息', guard: canAccessSupplyList },
-    { key: 'order', label: '模拟下单', guard: computed(() => true) }
+    { key: 'order', label: '下单', guard: computed(() => true) }
   ]
 
   const visibleTabs = computed(() => tabMatrix.filter(tab => tab.guard.value))
@@ -300,6 +301,16 @@ export default {
       switch(page) {
         case 'home': router.push('/') ; break
         case 'inventory': router.push('/inventory') ; break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers') ; break
         case 'b2b': router.push('/b2b') ; break
         case 'circulation': router.push('/circulation') ; break
         case 'analysis': router.push('/analysis') ; break

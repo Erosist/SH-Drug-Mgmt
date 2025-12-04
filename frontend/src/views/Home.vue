@@ -22,6 +22,12 @@
               @click="navigateTo('inventory')"
             >库存管理</div>
             <div 
+              v-if="isPharmacy"
+              class="nav-item" 
+              :class="{ active: activeNav === 'nearby' }"
+              @click="navigateTo('nearby')"
+            >就近推荐</div>
+            <div 
               v-if="!isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'b2b' }"
@@ -116,6 +122,8 @@
             </div>
           </div>
           
+          <!-- 就近供应商推荐（已移除） -->
+          
           <!-- 重要提醒与公告 -->
           <div class="section notices">
             <h2 class="section-title">重要提醒与公告</h2>
@@ -177,6 +185,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   name: 'Home',
@@ -188,6 +197,7 @@ export default {
       if (!name) return 'home'
       if (name === 'home') return 'home'
       if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+      if (name === 'nearby-suppliers') return 'nearby'
       if (name === 'b2b') return 'b2b'
       if (name === 'circulation') return 'circulation'
       if (name === 'analysis') return 'analysis'
@@ -215,6 +225,7 @@ export default {
       const d = now.getDate()
       return `${y}年${m}月${d}日`
     })
+    
     
     const goToLogin = () => {
       router.push('/login')
@@ -288,6 +299,16 @@ export default {
             break
           }
           router.push('/inventory'); break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers'); break
         case 'b2b':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/b2b' } })
@@ -359,7 +380,8 @@ export default {
       canViewAnalysis,
       userDisplayName,
       userRoleLabel,
-      currentDate
+      currentDate,
+      // （就近供应商相关已移除）
     }
   }
 }
@@ -803,6 +825,176 @@ export default {
   }
 }
 
+/* 就近供应商推荐样式 */
+.nearby-suppliers {
+  margin-top: 20px;
+}
+
+.nearby-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nearby-intro {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #1a73e8;
+}
+
+.intro-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.intro-text h3 {
+  font-size: 18px;
+  color: #1a73e8;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.intro-text p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.nearby-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.stat-item {
+  background-color: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.1);
+  border-color: #1a73e8;
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1a73e8;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.nearby-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.primary-action-btn {
+  background: linear-gradient(135deg, #1a73e8 0%, #0d62d9 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+}
+
+.primary-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+}
+
+.primary-action-btn:active {
+  transform: translateY(0);
+}
+
+.secondary-action-btn {
+  background-color: white;
+  color: #1a73e8;
+  border: 2px solid #1a73e8;
+  padding: 12px 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+}
+
+.secondary-action-btn:hover {
+  background-color: #f0f9ff;
+  transform: translateY(-2px);
+}
+
+.secondary-action-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.location-preview {
+  background-color: #f8fafc;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.location-label {
+  color: #666;
+  font-weight: 600;
+}
+
+.location-name {
+  color: #333;
+  font-weight: bold;
+}
+
+.location-coords {
+  color: #999;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .function-cards.three-columns {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .nearby-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 992px) {
   .content-wrapper {
     grid-template-columns: 1fr;
@@ -814,6 +1006,20 @@ export default {
   
   .nav-menu {
     gap: 15px;
+  }
+  
+  .nearby-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .nearby-actions {
+    flex-direction: column;
+  }
+  
+  .primary-action-btn,
+  .secondary-action-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
