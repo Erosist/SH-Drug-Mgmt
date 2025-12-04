@@ -25,7 +25,7 @@ test-backend:
     - Write-Host "=== Backend Test Completed ==="
   artifacts:
     reports:
-      coverage: backend/coverage.xml
+      cobertura: backend/coverage.xml
     paths:
       - backend/htmlcov/
     expire_in: 1 week
