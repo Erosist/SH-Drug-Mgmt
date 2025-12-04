@@ -8,6 +8,7 @@
         <div class="sider-title">管理目录</div>
         <ul class="menu">
           <li class="menu-item active">监管概览</li>
+          <li class="menu-item" @click="goCompliance">合规分析报告</li>
           <li class="menu-item">异常预警</li>
           <li class="menu-item">企业监管</li>
           <li class="menu-item">药品流通</li>
@@ -199,6 +200,9 @@ export default {
     resize() { this.chart && this.chart.resize() },
     editProfile() {
       this.$message && this.$message.info('编辑信息功能待实现')
+    },
+    goCompliance() {
+      this.$router.push({ name: 'compliance-report' })
     },
   },
 }
