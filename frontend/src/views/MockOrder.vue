@@ -470,6 +470,7 @@
             :max="selectedSupplyInfo?.available_quantity || 9999"
             placeholder="请输入采购数量"
             style="width: 100%"
+            @change="handleQuantityChange"
           />
           <div v-if="selectedSupplyInfo" class="quantity-tips">
             起订量: {{ selectedSupplyInfo.min_order_quantity }}，
@@ -971,6 +972,30 @@ const onSupplyInfoChange = () => {
   }
 }
 
+// 监听数量变化，检查是否超过可供数量
+const handleQuantityChange = (value) => {
+  if (!selectedSupplyInfo.value) return
+  
+  const availableQty = selectedSupplyInfo.value.available_quantity
+  const minOrderQty = selectedSupplyInfo.value.min_order_quantity
+  
+  // 如果输入的数量超过可供数量，仅弹窗提示，不自动调整
+  if (value > availableQty) {
+    // 使用美观的弹窗提示
+    ElMessageBox.alert(
+      `该药品当前库存不足，最大可购买数量为 ${availableQty} 个。请调整采购数量。`,
+      '供应量不足提示',
+      {
+        confirmButtonText: '我知道了',
+        type: 'warning',
+        dangerouslyUseHTMLString: false,
+        customClass: 'supply-shortage-alert',
+        center: true
+      }
+    ).catch(() => {})
+  }
+}
+
 const resetCreateForm = () => {
   Object.assign(createForm, {
     supply_info_id: null,
@@ -1015,8 +1040,40 @@ const submitOrder = async () => {
     refreshOrders()
   } catch (error) {
     console.error('提交订单失败:', error)
-    const message = error.response?.data?.msg || '订单提交失败，请稍后重试'
-    ElMessage.error(message)
+    const errorData = error.response?.data
+    const message = errorData?.msg || '订单提交失败，请稍后重试'
+    
+    // 如果是库存不足错误，使用友好的弹窗提示
+    if (message.includes('库存不足') || message.includes('供应量不足')) {
+      const availableQty = errorData?.available_quantity
+      const requestedQty = errorData?.requested_quantity
+      
+      let alertMessage = message
+      if (availableQty !== undefined && requestedQty !== undefined) {
+        alertMessage = `抱歉，该药品当前供应量不足！
+
+您需要采购：${requestedQty} 个
+当前库存：${availableQty} 个
+缺少数量：${requestedQty - availableQty} 个
+
+请调整采购数量或联系供应商补货。`
+      }
+      
+      ElMessageBox.alert(
+        alertMessage,
+        '供应量不足',
+        {
+          confirmButtonText: '我知道了',
+          type: 'warning',
+          dangerouslyUseHTMLString: false,
+          customClass: 'supply-shortage-alert',
+          center: true
+        }
+      ).catch(() => {})
+    } else {
+      // 其他错误使用普通消息提示
+      ElMessage.error(message)
+    }
   } finally {
     submitLoading.value = false
   }
@@ -2030,5 +2087,53 @@ onBeforeUnmount(() => {
 
 :deep(.el-table__row:hover) {
   background-color: #f5f7fa;
+}
+
+/* 自定义供应量不足弹窗样式 */
+:deep(.supply-shortage-alert) {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+:deep(.supply-shortage-alert .el-message-box__header) {
+  padding: 24px 24px 16px;
+  background: linear-gradient(135deg, #fff5f0 0%, #ffe8e0 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+:deep(.supply-shortage-alert .el-message-box__title) {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e6a23c;
+}
+
+:deep(.supply-shortage-alert .el-message-box__content) {
+  padding: 24px;
+}
+
+:deep(.supply-shortage-alert .el-message-box__message) {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #606266;
+  white-space: pre-line;
+}
+
+:deep(.supply-shortage-alert .el-message-box__btns) {
+  padding: 16px 24px 24px;
+}
+
+:deep(.supply-shortage-alert .el-button--primary) {
+  padding: 10px 32px;
+  font-size: 15px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e6a23c 0%, #f0a800 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+  transition: all 0.3s ease;
+}
+
+:deep(.supply-shortage-alert .el-button--primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.4);
 }
 </style>
