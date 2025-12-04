@@ -76,6 +76,12 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const user = getCurrentUser()
 
+  // 管理员访问首页时直接跳转到用户管理界面
+  if (user?.role === 'admin' && to.name === 'home') {
+    next({ name: 'admin-users' })
+    return
+  }
+
   // 如果页面要求登录且用户未登录 -> 跳转登录
   if (to.meta?.requiresAuth && !user) {
     next({ name: 'login', query: { redirect: to.fullPath } })

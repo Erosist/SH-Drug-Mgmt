@@ -40,3 +40,8 @@ Thumbs.db
 
 # Node modules (for frontend)
 node_modules/
+
+
+./backend/.venv
+
+./backend/.venv/*
