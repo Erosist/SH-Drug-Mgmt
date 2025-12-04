@@ -17,10 +17,8 @@ test-backend:
     - python -m pip install --quiet -r requirements.txt
     - python -m pip install --quiet pytest pytest-flask pytest-mock pytest-cov
     - echo "Initializing database..."
-    - export FLASK_ENV=testing
-    - python -c "from app import create_app, db; app = create_app('testing'); ctx = app.app_context(); ctx.push(); db.create_all(); print('Database initialized successfully'); ctx.pop()"
+    - python -c "import os; os.environ['FLASK_ENV'] = 'testing'; from app import create_app, db; app = create_app('testing'); ctx = app.app_context(); ctx.push(); db.create_all(); print('Database initialized successfully'); ctx.pop()"
     - echo "Running tests..."
-    - export PYTHONPATH=".:$PYTHONPATH"
     - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=html
     - echo "=== Backend Test Completed ==="
   artifacts:
