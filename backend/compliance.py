@@ -24,10 +24,14 @@ try:  # optional heavy deps; imported lazily below too
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 except Exception:  # pragma: no cover - if not installed, export_pdf will fail explicitly
     A4 = None  # type: ignore
     getSampleStyleSheet = None  # type: ignore
     canvas = None  # type: ignore
+    pdfmetrics = None  # type: ignore
+    UnicodeCIDFont = None  # type: ignore
 
 try:
     from openpyxl import Workbook
@@ -399,61 +403,65 @@ def _export_pdf(payload: Dict[str, Any]) -> BytesIO:
     if not canvas or not A4 or not getSampleStyleSheet:
         raise RuntimeError("PDF 导出依赖 reportlab，请先在后端安装该依赖")
 
+    # Use Latin font only; all labels below are English to avoid CJK garbling
+    font_name = "Helvetica"
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
     styles = getSampleStyleSheet()
     textobject = c.beginText(40, height - 50)
-    textobject.setFont("Helvetica-Bold", 14)
-    textobject.textLine("药品流通合规分析报告")
+    textobject.setFont(font_name, 16)
+    textobject.textLine("Drug Circulation Compliance Analysis Report")
 
-    textobject.setFont("Helvetica", 10)
+    textobject.setFont(font_name, 11)
     r = payload["range"]
     textobject.textLine(
-        f"时间范围: {r['start'][:19]} 至 {r['end'][:19]}   区域: {r['region'] or '全部'}"
+        f"Time range: {r['start'][:19]} to {r['end'][:19]}   Region: {r['region'] or 'All'}"
     )
     textobject.textLine("")
 
-    # 库存合规摘要
+    # Inventory compliance summary
     inv = payload["inventory"]["summary"]
-    textobject.setFont("Helvetica-Bold", 12)
-    textobject.textLine("一、库存合规分析")
-    textobject.setFont("Helvetica", 10)
+    textobject.setFont(font_name, 13)
+    textobject.textLine("1. Inventory Compliance Analysis")
+    textobject.setFont(font_name, 11)
     textobject.textLine(
-        f"- 总批次数: {inv['total_batches']}  异常批次: {inv['total_abnormal_batches']}  "
-        f"异常比例: {inv['abnormal_ratio'] * 100:.2f}%"
+        f"- Total batches: {inv['total_batches']}  Abnormal batches: {inv['total_abnormal_batches']}  "
+        f"Abnormal ratio: {inv['abnormal_ratio'] * 100:.2f}%"
     )
     textobject.textLine("")
 
-    # 流通合规摘要
+    # Circulation compliance summary
     circ = payload["circulation"]["summary"]
-    textobject.setFont("Helvetica-Bold", 12)
-    textobject.textLine("二、流通合规分析")
-    textobject.setFont("Helvetica", 10)
+    textobject.setFont(font_name, 13)
+    textobject.textLine("2. Circulation Compliance Analysis")
+    textobject.setFont(font_name, 11)
     textobject.textLine(
-        f"- 记录总数: {circ['total_records']}  发运批次: {circ['total_shipments']}  "
-        f"延迟批次: {circ['delayed_shipments']}  延迟比例: {circ['delayed_ratio'] * 100:.2f}%"
+        f"- Total records: {circ['total_records']}  Shipments: {circ['total_shipments']}  "
+        f"Delayed shipments: {circ['delayed_shipments']}  Delay ratio: {circ['delayed_ratio'] * 100:.2f}%"
     )
     textobject.textLine("")
 
-    # 企业合规摘要
+    # Enterprise compliance summary
     ent_items = payload["enterprise"]["items"]
     high_risk = [e for e in ent_items if e["risk_level"] == "high"][:10]
-    textobject.setFont("Helvetica-Bold", 12)
-    textobject.textLine("三、企业合规分析")
-    textobject.setFont("Helvetica", 10)
-    textobject.textLine(f"- 纳入统计企业数量: {len(ent_items)}")
+    textobject.setFont(font_name, 13)
+    textobject.textLine("3. Enterprise Compliance Analysis")
+    textobject.setFont(font_name, 11)
+    textobject.textLine(f"- Enterprises in scope: {len(ent_items)}")
     if high_risk:
-        textobject.textLine("- 高风险企业（违规次数较多，前10）：")
+        textobject.textLine("- High-risk enterprises (top 10 by violations):")
         for e in high_risk:
             line = (
-                f"  · {e['tenant_name']}（类型: {e['type']}，总违规: {e['total_violations']}，"
-                f"合规率: {e['compliance_rate'] * 100:.2f}%）"
+                f"  · {e['tenant_name']} (Type: {e['type']}, "
+                f"Total violations: {e['total_violations']}, "
+                f"Compliance rate: {e['compliance_rate'] * 100:.2f}%)"
             )
             textobject.textLine(line)
     else:
-        textobject.textLine("- 当前无高风险企业。")
+        textobject.textLine("- No high-risk enterprises in current range.")
 
     c.drawText(textobject)
     c.showPage()

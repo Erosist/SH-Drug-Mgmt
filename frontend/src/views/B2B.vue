@@ -14,6 +14,7 @@
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
+            <div v-if="isRegulator" class="nav-item" :class="{ active: activeNav === 'compliance' }" @click="navigateTo('compliance')">合规分析报告</div>
             <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
           </div>
           <div class="user-actions">
@@ -298,6 +299,17 @@ export default {
         case 'circulation': router.push('/circulation') ; break
         case 'analysis': router.push('/analysis') ; break
         case 'service': router.push('/service') ; break
+        case 'compliance':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/compliance-report' } })
+            break
+          }
+          if (currentUser.value.role !== 'regulator') {
+            router.push('/')
+            break
+          }
+          router.push({ name: 'compliance-report' })
+          break
         default: router.push('/')
       }
     }
