@@ -300,6 +300,7 @@ def create_order(current_user):
         order = Order(
             buyer_tenant_id=current_user.tenant_id,
             supplier_tenant_id=supply_info.tenant_id,
+            supply_info_id=supply_info_id,  # 关联供应信息ID
             expected_delivery_date=expected_delivery_date,
             notes=notes,
             status='PENDING',
