@@ -274,161 +274,6 @@
               <InventoryWarning />
             </div>
           </div>
-          
-          <!-- 药品定位与就近推荐 -->
-          <div class="section drug-location">
-            <h2 class="section-title">药品定位与就近推荐</h2>
-            
-            <!-- 搜索筛选区域 -->
-            <div class="search-filters">
-              <div class="filter-row">
-                <div class="filter-group">
-                  <label>药品名称/ID</label>
-                  <div class="search-input-group">
-                    <input type="text" placeholder="输入药品名称或ID" class="search-field">
-                    <button class="search-btn">搜索</button>
-                  </div>
-                </div>
-                
-                <div class="filter-group">
-                  <label>供应商类型</label>
-                  <select class="filter-select">
-                    <option>全部</option>
-                    <option>医院药房</option>
-                    <option>连锁药店</option>
-                    <option>个体药店</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div class="filter-row">
-                <div class="filter-group">
-                  <label>金额</label>
-                  <input type="text" placeholder="输入金额范围" class="filter-field">
-                </div>
-                
-                <div class="filter-group">
-                  <label class="checkbox-label">
-                    <input type="checkbox" v-model="within5km">
-                    <span class="checkmark"></span>
-                    5公里内
-                  </label>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 推荐供应商列表 -->
-            <div class="recommended-suppliers">
-              <h3 class="subsection-title">推荐供应商</h3>
-              
-              <div class="supplier-list">
-                <div 
-                  class="supplier-card" 
-                  :class="{ active: selectedSupplier === 'renji' }"
-                  @click="selectSupplier('renji')"
-                >
-                  <div class="supplier-name">仁济医院药房</div>
-                  <div class="supplier-info">
-                    <span class="medical-insurance">医保</span>
-                    <span class="distance">1.2公里</span>
-                  </div>
-                </div>
-                
-                <div 
-                  class="supplier-card" 
-                  :class="{ active: selectedSupplier === 'baixin' }"
-                  @click="selectSupplier('baixin')"
-                >
-                  <div class="supplier-name">百信连锁药店</div>
-                  <div class="supplier-info">
-                    <span class="medical-insurance">医保</span>
-                    <span class="distance">3.5公里</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 右侧供应商详情 -->
-        <div v-if="!isLogistics" class="right-content">
-          <!-- 供应商详情 -->
-          <div class="section supplier-detail">
-            <h2 class="section-title">供应商详情</h2>
-            
-            <div v-if="selectedSupplier === 'renji'" class="supplier-info-panel">
-              <div class="supplier-header">
-                <h3 class="supplier-title">仁济医院药房</h3>
-              </div>
-              
-              <div class="supplier-metrics">
-                <div class="metric-item">
-                  <span class="metric-label">有效率</span>
-                  <span class="metric-value">4.9</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">配送时间</span>
-                  <span class="metric-value">1.2公里</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">库存用量</span>
-                  <span class="metric-value">充足</span>
-                </div>
-              </div>
-            </div>
-            
-            <div v-if="selectedSupplier === 'baixin'" class="supplier-info-panel">
-              <div class="supplier-header">
-                <h3 class="supplier-title">百信连锁药店</h3>
-              </div>
-              
-              <div class="supplier-metrics">
-                <div class="metric-item">
-                  <span class="metric-label">有效率</span>
-                  <span class="metric-value">4.7</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">配送时间</span>
-                  <span class="metric-value">3.5公里</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">库存用量</span>
-                  <span class="metric-value">一般</span>
-                </div>
-              </div>
-            </div>
-            
-            <div v-if="!selectedSupplier" class="no-supplier-selected">
-              请选择左侧的供应商查看详情
-            </div>
-          </div>
-          
-          <!-- 供应商位置分布 -->
-          <div class="section supplier-distribution">
-            <h2 class="section-title">供应商位置分布</h2>
-            
-            <div class="distribution-metrics">
-              <div class="distribution-item">
-                <span class="distribution-label">有效率</span>
-                <span class="distribution-value">0.8</span>
-              </div>
-              <div class="distribution-item">
-                <span class="distribution-label">库存数量</span>
-                <span class="distribution-value">1.6</span>
-              </div>
-              <div class="distribution-item">
-                <span class="distribution-label">运输时间</span>
-                <span class="distribution-value">1.7</span>
-              </div>
-            </div>
-            
-            <!-- 订单信息 -->
-            <div class="order-info">
-              <div class="order-code">平码至36开间</div>
-              <div class="order-time">23分钟</div>
-              <div class="order-status">当前订单</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -474,8 +319,6 @@ export default {
           return 'home'
       }
     }
-    const selectedSupplier = ref('renji')
-    const within5km = ref(true)
     const currentUser = ref(getCurrentUser())
     const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
     const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
@@ -740,10 +583,6 @@ export default {
       }
     }
 
-    const selectSupplier = (supplier) => {
-      selectedSupplier.value = supplier
-    }
-
     const goToMyTenantInventory = () => {
       if (!myTenantId.value) return
       router.push({ name: 'tenant-inventory', params: { tenantId: myTenantId.value } })
@@ -771,9 +610,6 @@ export default {
       goToAdminUsers,
       navigateTo,
       activeNav,
-      selectedSupplier,
-      selectSupplier,
-      within5km,
       currentDate,
       currentUser,
       isAuthenticatedViewer,
@@ -1049,8 +885,8 @@ export default {
 }
 
 .content-wrapper {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   height: 100%;
 }
@@ -1258,45 +1094,6 @@ export default {
   flex-wrap: wrap;
 }
 
-/* 搜索筛选区域样式 */
-.search-filters {
-  margin-bottom: 14px;
-}
-
-.filter-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.filter-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.filter-group label {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-.search-input-group {
-  display: flex;
-}
-
-.search-field {
-  flex-grow: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px 0 0 4px;
-  outline: none;
-}
-
-.search-field:focus {
-  border-color: #1a73e8;
-}
-
 .search-btn {
   background-color: #1a73e8;
   color: white;
@@ -1306,189 +1103,7 @@ export default {
   cursor: pointer;
 }
 
-.filter-select, .filter-field {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  outline: none;
-}
-
-.filter-select:focus, .filter-field:focus {
-  border-color: #1a73e8;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  margin-top: 8px;
-}
-
-.checkbox-label input {
-  margin-right: 8px;
-}
-
-/* 推荐供应商样式 */
-.subsection-title {
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.supplier-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.supplier-card {
-  border: 1px solid #eef2f6;
-  border-radius: 6px;
-  padding: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.supplier-card:hover {
-  border-color: #cfe7ff;
-  box-shadow: 0 6px 18px rgba(26, 115, 232, 0.06);
-}
-
-.supplier-card.active {
-  border-color: #cfe7ff;
-  background-color: #fbfdff;
-}
-
-.supplier-name {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.supplier-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-}
-
-.medical-insurance {
-  color: #27ae60;
-  font-weight: bold;
-}
-
-.distance {
-  color: #666;
-}
-
-/* 供应商详情样式 */
-.supplier-info-panel {
-  padding: 10px 0;
-}
-
-.supplier-header {
-  margin-bottom: 20px;
-}
-
-.supplier-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.supplier-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.metric-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.metric-label {
-  color: #666;
-  font-size: 14px;
-}
-
-.metric-value {
-  font-weight: bold;
-  color: #333;
-}
-
-.no-supplier-selected {
-  text-align: center;
-  color: #999;
-  padding: 48px 0;
-  font-style: italic;
-}
-
-/* 供应商位置分布样式 */
-.distribution-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.distribution-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.distribution-label {
-  color: #666;
-  font-size: 14px;
-}
-
-.distribution-value {
-  font-weight: bold;
-  color: #333;
-}
-
-.order-info {
-  padding: 12px;
-  background-color: #fbfbfb;
-  border-radius: 6px;
-  text-align: center;
-}
-
-.order-code {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.order-time {
-  color: #1a73e8;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.order-status {
-  color: #666;
-  font-size: 14px;
-}
-
 /* 响应式设计 */
-@media (max-width: 992px) {
-  .content-wrapper {
-    grid-template-columns: 1fr;
-  }
-  
-  .filter-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-}
-
 @media (max-width: 768px) {
   .platform-info {
     flex-direction: column;
