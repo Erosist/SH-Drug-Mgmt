@@ -16,10 +16,13 @@ import EnterpriseAuth from '../views/EnterpriseAuth.vue'
 import EnterpriseReview from '../views/EnterpriseReview.vue'
 import AdminUsers from '../views/AdminUsers.vue'
 import SystemStatus from '../views/SystemStatus.vue'
+import AdminAuditLogs from '../views/AdminAuditLogs.vue'
 import ChangePassword from '../views/ChangePassword.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
+import NearbySuppliers from '../views/NearbySuppliers.vue'
 import { getCurrentUser } from '@/utils/authSession'
+import ComplianceReport from '../views/ComplianceReport.vue'
 
 // 允许未完成企业认证（role === 'unauth'）的登录用户仍可浏览的公共路由
 // 若以后需要更精细的控制，可改为基于 route.meta 来判断
@@ -32,7 +35,8 @@ const UNAUDITED_ALLOWED_ROUTE_NAMES = new Set([
   'circulation',
   'analysis',
   'service',
-  'tenant-inventory'
+  'tenant-inventory',
+  'nearby-suppliers'
 ])
 
 const router = createRouter({
@@ -45,14 +49,17 @@ const router = createRouter({
     { path: '/change-password', name: 'change-password', component: ChangePassword, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: inventory },
     { path: '/tenants/:tenantId', name: 'tenant-inventory', component: TenantInventory, props: true, meta: { requiresAuth: true, requiresVerified: true } },
+    { path: '/nearby-suppliers', name: 'nearby-suppliers', component: NearbySuppliers, meta: { requiresAuth: true } },
     { path: '/b2b', name: 'b2b', component: b2b, meta: { requiresAuth: true, requiresVerified: true } },
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },
     { path: '/service', name: 'service', component: service, meta: { requiresAuth: true, requiresVerified: true } },
+  { path: '/compliance-report', name: 'compliance-report', component: ComplianceReport, meta: { requiresAuth: true, requiresRole: 'regulator' } },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/status', name: 'admin-status', component: SystemStatus, meta: { requiresAuth: true, requiresRole: 'admin' } },
+  { path: '/admin/audit-logs', name: 'admin-audit-logs', component: AdminAuditLogs, meta: { requiresAuth: true, requiresRole: 'admin' } },
 
     // 基于角色的用户界面（无后端，使用前端mock登录）
     { path: '/pharmacy', name: 'pharmacy', component: PharmacyUser, meta: { requiresAuth: true } },

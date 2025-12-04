@@ -11,6 +11,7 @@
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
             <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="isPharmacy" class="nav-item" :class="{ active: activeNav === 'nearby' }" @click="navigateTo('nearby')">就近推荐</div>
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监测</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
@@ -21,12 +22,17 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
-            <button v-else class="login-btn" @click="goToUserHome">我的主页</button>
+            <button v-else class="login-btn" @click="handleLogout">退出登录</button>
           </div>
         </div>
       </div>
@@ -189,9 +195,8 @@
 <script>
 import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { getCurrentUser } from '@/utils/authSession'
+import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { fetchInventory, fetchTenantDetail } from '@/api/catalog'
-import { roleToRoute } from '@/utils/roleRoute'
 import { getRoleLabel } from '@/utils/roleLabel'
 export default {
   name: 'TenantInventory',
@@ -316,6 +321,18 @@ export default {
     })
 
     const goToLogin = () => router.push('/login')
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
+    const handleLogout = () => {
+      clearAuth()
+      currentUser.value = null
+      router.push('/login')
+    }
     const goToEnterpriseAuth = () => {
       if (!currentUser.value) {
         router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
@@ -345,12 +362,6 @@ export default {
       currentUser.value = getCurrentUser()
     }
 
-    const goToUserHome = () => {
-      const u = currentUser.value
-      if (!u) return router.push('/login')
-      router.push(roleToRoute(u.role))
-    }
-
     const navigateTo = (page) => {
       activeNav.value = page
       switch (page) {
@@ -359,6 +370,17 @@ export default {
           break
         case 'inventory':
           router.push('/inventory')
+          break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers')
           break
         case 'b2b':
           router.push('/b2b')
@@ -402,11 +424,12 @@ export default {
       userDisplayName,
       userRoleLabel,
       goToLogin,
+      goToChangePassword,
+      handleLogout,
       goToEnterpriseAuth,
       goToEnterpriseReview,
       goToSystemStatus,
       goToAdminUsers,
-      goToUserHome,
       navigateTo,
       currentDate,
       tenant,
@@ -581,6 +604,21 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
+}
+
+.change-btn {
+  border: 1px solid #1a73e8;
+  background-color: transparent;
+  color: #1a73e8;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.3s;
+}
+
+.change-btn:hover {
+  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn {

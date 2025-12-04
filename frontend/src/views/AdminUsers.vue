@@ -20,6 +20,7 @@
           <el-option label="禁用" value="disabled" />
         </el-select>
         <el-button type="primary" @click="loadData" :loading="loading">查询</el-button>
+        <el-button type="success" plain :loading="exportLoading" @click="handleExport">导出用户</el-button>
         <el-button type="info" plain @click="goToSystemStatus">系统状态</el-button>
         <el-button type="danger" plain @click="handleLogout">退出登录</el-button>
       </div>
@@ -234,6 +235,7 @@ import {
   getUserDetail,
   deleteUser as deleteUserApi,
   updateUserRole as updateUserRoleApi,
+  exportUsersFile,
 } from '@/api/admin'
 import { adminResetUserPassword } from '@/api/auth'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
@@ -260,6 +262,7 @@ const activeUser = ref(null)
 const statusLoadingId = ref(null)
 const deleteLoadingId = ref(null)
 const roleSaving = ref(false)
+const exportLoading = ref(false)
 const roleForm = reactive({ role: '', isAuthenticated: true })
 
 const roleOptions = [
@@ -437,6 +440,28 @@ const handleLogout = () => {
   clearAuth()
   ElMessage.success('已退出登录')
   router.push({ name: 'login' })
+}
+
+const handleExport = async () => {
+  exportLoading.value = true
+  try {
+    const res = await exportUsersFile('csv')
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const dateStr = new Date().toISOString().slice(0, 10)
+    link.href = url
+    link.download = `用户列表_${dateStr}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('用户列表已导出')
+  } catch (err) {
+    ElMessage.error(err?.message || '导出失败')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 const openResetDialog = (row) => {

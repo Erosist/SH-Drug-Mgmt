@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
+from audit import record_admin_action
 from models import EnterpriseCertification, EnterpriseReviewLog, User, Tenant, to_iso
 from auth import get_authenticated_user
 
@@ -384,7 +385,145 @@ def review_certification(cert_id):
             user.is_authenticated = True
             user.updated_at = datetime.utcnow()
 
+    audit_action = 'approve_enterprise_cert' if decision == 'approved' else 'reject_enterprise_cert'
+    record_admin_action(
+        reviewer,
+        audit_action,
+        target_user_id=record.user_id,
+        resource_type='enterprise_cert',
+        resource_id=record.id,
+        details={
+            'decision': decision,
+            'company_name': record.company_name,
+            'role': record.role,
+            'reason_code': reason_code if decision == 'rejected' else None,
+            'remark': remark,
+        },
+    )
+
     _record_review_log(record.id, reviewer.id, decision, reason_code if decision == 'rejected' else None, reject_reason)
     db.session.commit()
 
     return jsonify({'msg': '审核结果已记录', 'application': record.to_dict()})
+
+
+@bp.route('/tenants/batch-update-location', methods=['POST'])
+@jwt_required()
+def batch_update_tenant_locations():
+    """
+    批量更新租户的地理位置坐标（管理员功能）
+    
+    请求体:
+    {
+        "auto_geocode": true,  // 是否自动根据地址进行地理编码
+        "tenant_ids": [1, 2, 3]  // 可选，指定要更新的租户ID列表，不提供则更新所有
+    }
+    
+    返回:
+    {
+        "success": true,
+        "updated": 10,
+        "failed": 2,
+        "details": [...]
+    }
+    """
+    from amap import AmapService
+    
+    try:
+        user = get_authenticated_user()
+        
+        # 检查权限（仅管理员或监管用户）
+        if user.role not in ['admin', 'regulator']:
+            return jsonify({
+                'success': False,
+                'message': '权限不足，仅管理员可以批量更新位置'
+            }), 403
+        
+        data = request.get_json() or {}
+        auto_geocode = data.get('auto_geocode', True)
+        tenant_ids = data.get('tenant_ids')
+        
+        # 查询要更新的租户
+        query = Tenant.query.filter_by(is_active=True)
+        if tenant_ids:
+            query = query.filter(Tenant.id.in_(tenant_ids))
+        
+        tenants = query.all()
+        
+        updated = 0
+        failed = 0
+        details = []
+        
+        for tenant in tenants:
+            try:
+                # 如果已有坐标，跳过
+                if tenant.longitude and tenant.latitude:
+                    details.append({
+                        'tenant_id': tenant.id,
+                        'name': tenant.name,
+                        'status': 'skipped',
+                        'message': '已有坐标'
+                    })
+                    continue
+                
+                # 如果没有地址，无法地理编码
+                if not tenant.address:
+                    details.append({
+                        'tenant_id': tenant.id,
+                        'name': tenant.name,
+                        'status': 'failed',
+                        'message': '缺少地址信息'
+                    })
+                    failed += 1
+                    continue
+                
+                # 执行地理编码
+                if auto_geocode:
+                    geocode_result = AmapService.geocode_address(tenant.address)
+                    
+                    if geocode_result:
+                        tenant.longitude = geocode_result['longitude']
+                        tenant.latitude = geocode_result['latitude']
+                        updated += 1
+                        details.append({
+                            'tenant_id': tenant.id,
+                            'name': tenant.name,
+                            'status': 'success',
+                            'longitude': tenant.longitude,
+                            'latitude': tenant.latitude
+                        })
+                    else:
+                        details.append({
+                            'tenant_id': tenant.id,
+                            'name': tenant.name,
+                            'status': 'failed',
+                            'message': '地理编码失败'
+                        })
+                        failed += 1
+                
+            except Exception as e:
+                details.append({
+                    'tenant_id': tenant.id,
+                    'name': tenant.name,
+                    'status': 'error',
+                    'message': str(e)
+                })
+                failed += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'updated': updated,
+            'failed': failed,
+            'total': len(tenants),
+            'details': details
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'批量更新失败: {str(e)}'
+        }), 500
+

@@ -28,6 +28,16 @@
           clearable
           @input="handleFilter"
         />
+        <el-select
+          v-model="filters.priceSort"
+          placeholder="价格排序"
+          style="width: 140px"
+          clearable
+          @change="handleFilter"
+        >
+          <el-option label="价格从低到高" value="asc" />
+          <el-option label="价格从高到低" value="desc" />
+        </el-select>
         <el-button type="primary" @click="handleFilter" :loading="loading">
           <el-icon><Search /></el-icon>
           搜索
@@ -244,11 +254,15 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElNotification } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { 
   Search, Shop, Phone, Message, ShoppingCart, InfoFilled, Refresh 
 } from '@element-plus/icons-vue'
 import { supplyApi } from '@/api/supply'
 import { formatDate } from '@/utils/date'
+
+// 路由
+const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -261,7 +275,8 @@ const supplyList = ref([])
 // 筛选条件
 const filters = reactive({
   drugName: '',
-  supplierName: ''
+  supplierName: '',
+  priceSort: '' // 价格排序：'asc' 或 'desc'
 })
 
 // 分页
@@ -285,7 +300,18 @@ const fetchSupplyList = async () => {
     const response = await supplyApi.getSupplyList(params)
     
     if (response.data && response.data.data) {
-      supplyList.value = response.data.data.items || []
+      let items = response.data.data.items || []
+      
+      // 前端价格排序
+      if (filters.priceSort) {
+        items = items.sort((a, b) => {
+          const priceA = parseFloat(a.unit_price)
+          const priceB = parseFloat(b.unit_price)
+          return filters.priceSort === 'asc' ? priceA - priceB : priceB - priceA
+        })
+      }
+      
+      supplyList.value = items
       pagination.total = response.data.data.pagination?.total || 0
       
       if (supplyList.value.length === 0 && filters.drugName) {
@@ -312,6 +338,7 @@ const handleFilter = () => {
 const resetFilters = () => {
   filters.drugName = ''
   filters.supplierName = ''
+  filters.priceSort = ''
   handleFilter()
 }
 
@@ -345,8 +372,37 @@ const contactSupplier = (item) => {
 }
 
 const createOrder = (item) => {
-  ElMessage.info('采购功能正在开发中，敬请期待')
-  // 这里可以跳转到订单创建页面或打开采购对话框
+  console.log('SupplierList - createOrder called for item:', item.id)
+  
+  // 添加时间戳确保每次导航都是唯一的
+  const timestamp = Date.now()
+  
+  const targetRoute = { 
+    path: '/b2b', 
+    query: { 
+      tab: 'order', 
+      supplyId: item.id,
+      t: timestamp
+    } 
+  }
+  
+  console.log('SupplierList - navigating to:', targetRoute)
+  
+  // 检查当前是否已经在目标页面
+  const currentRoute = router.currentRoute.value
+  if (currentRoute.path === '/b2b' && currentRoute.query.tab === 'order') {
+    console.log('SupplierList - already on B2B order page, forcing navigation')
+    // 如果已经在B2B订单页面，先跳转到其他页面再跳回来
+    router.replace({ path: '/b2b', query: { tab: 'supply' } }).then(() => {
+      // 等待一下再跳转回订单页面
+      setTimeout(() => {
+        router.push(targetRoute)
+      }, 10)
+    })
+  } else {
+    // 正常导航
+    router.push(targetRoute)
+  }
 }
 
 const getValidityClass = (dateStr) => {

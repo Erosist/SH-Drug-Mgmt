@@ -27,6 +27,11 @@ class Tenant(db.Model):
     address = db.Column(db.String(255), nullable=False)
     business_scope = db.Column(db.Text, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    
+    # 地理位置信息（用于就近推荐）
+    latitude = db.Column(db.Float, nullable=True)  # 纬度
+    longitude = db.Column(db.Float, nullable=True)  # 经度
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -47,6 +52,8 @@ class Tenant(db.Model):
             'address': self.address,
             'business_scope': self.business_scope,
             'is_active': self.is_active,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
             'created_at': to_iso(self.created_at),
             'updated_at': to_iso(self.updated_at)
         }
@@ -270,6 +277,44 @@ class EnterpriseReviewLog(db.Model):
             'reason_text': self.reason_text,
             'created_at': to_iso(self.created_at),
         }
+
+
+class AdminAuditLog(db.Model):
+    __tablename__ = 'admin_audit_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(80), nullable=False)
+    target_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    resource_type = db.Column(db.String(80), nullable=True)
+    resource_id = db.Column(db.String(120), nullable=True)
+    request_method = db.Column(db.String(10), nullable=True)
+    request_path = db.Column(db.String(255), nullable=True)
+    request_ip = db.Column(db.String(64), nullable=True)
+    details = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    admin = db.relationship('User', foreign_keys=[admin_id], backref=db.backref('admin_audit_logs', lazy=True))
+    target_user = db.relationship('User', foreign_keys=[target_user_id], post_update=True)
+
+    def to_dict(self, include_users: bool = False):
+        data = {
+            'id': self.id,
+            'admin_id': self.admin_id,
+            'action': self.action,
+            'target_user_id': self.target_user_id,
+            'resource_type': self.resource_type,
+            'resource_id': self.resource_id,
+            'request_method': self.request_method,
+            'request_path': self.request_path,
+            'request_ip': self.request_ip,
+            'details': self.details or {},
+            'created_at': to_iso(self.created_at),
+        }
+        if include_users:
+            data['admin'] = self.admin.to_dict() if self.admin else None
+            data['target_user'] = self.target_user.to_dict() if self.target_user else None
+        return data
 
 
 class InventoryItem(db.Model):
@@ -577,3 +622,33 @@ class CirculationRecord(db.Model):
                 result['reporter'] = self.reporter.to_dict()
         
         return result
+
+
+class Announcement(db.Model):
+    """公告通知模型 - 包括健康资讯和紧急通知"""
+    __tablename__ = 'announcements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 'health_news', 'urgent_notice'
+    level = db.Column(db.String(50))  # 'normal', 'important', 'urgent'
+    publish_date = db.Column(db.Date, nullable=False)
+    source = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='active')  # 'active', 'inactive'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'type': self.type,
+            'level': self.level,
+            'publish_date': self.publish_date.isoformat() if self.publish_date else None,
+            'source': self.source,
+            'status': self.status,
+            'created_at': to_iso(self.created_at),
+            'updated_at': to_iso(self.updated_at)
+        }

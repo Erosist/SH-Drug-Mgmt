@@ -7,3 +7,5 @@ python-dotenv>=0.21
 Werkzeug>=2.0
 schedule>=1.2.0
 requests>=2.28.0
+reportlab>=4.0
+openpyxl>=3.1
