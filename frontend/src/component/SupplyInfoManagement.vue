@@ -144,6 +144,20 @@
       width="600px"
       @closed="resetForm"
     >
+      <!-- 如果编辑时有待确认订单，显示提示信息 -->
+      <el-alert
+        v-if="editingItem && hasPendingOrders"
+        title="该供应信息有待确认订单，仅允许修改备注字段"
+        type="warning"
+        :closable="false"
+        style="margin-bottom: 16px"
+      >
+        <template #default>
+          当前有 {{ pendingOrdersCount }} 个待确认订单需要处理。<br>
+          在处理完所有待确认订单之前，您只能修改备注字段，不能修改药品、数量、价格等核心信息。
+        </template>
+      </el-alert>
+      
       <el-form
         ref="formRef"
         :model="form"
@@ -159,6 +173,7 @@
             remote
             :remote-method="searchDrugs"
             :loading="drugsLoading"
+            :disabled="editingItem !== null"
             @change="onDrugChange"
           >
             <el-option
@@ -182,6 +197,7 @@
             v-model="form.available_quantity"
             :min="1"
             :max="999999"
+            :disabled="hasPendingOrders"
             controls-position="right"
             style="width: 100%"
           />
@@ -192,6 +208,7 @@
             v-model="form.unit_price"
             :min="0.01"
             :precision="2"
+            :disabled="hasPendingOrders"
             controls-position="right"
             style="width: 100%"
           />
@@ -202,6 +219,7 @@
             v-model="form.min_order_quantity"
             :min="1"
             :max="form.available_quantity || 999999"
+            :disabled="hasPendingOrders"
             controls-position="right"
             style="width: 100%"
           />
@@ -213,6 +231,7 @@
             type="date"
             placeholder="选择有效期"
             style="width: 100%"
+            :disabled="hasPendingOrders"
             :disabled-date="disabledDate"
           />
         </el-form-item>
@@ -258,6 +277,8 @@ const drugsLoading = ref(false)
 const showCreateDialog = ref(false)
 const editingItem = ref(null)
 const formRef = ref(null)
+const hasPendingOrders = ref(false)
+const pendingOrdersCount = ref(0)
 
 // 供应信息列表
 const supplyList = ref([])
@@ -399,13 +420,15 @@ const resetForm = () => {
     description: ''
   })
   editingItem.value = null
+  hasPendingOrders.value = false
+  pendingOrdersCount.value = 0
   drugOptions.value = []
   if (formRef.value) {
     formRef.value.resetFields()
   }
 }
 
-const editSupplyInfo = (item) => {
+const editSupplyInfo = async (item) => {
   editingItem.value = item
   Object.assign(form, {
     drug_id: item.drug_id,
@@ -421,7 +444,32 @@ const editSupplyInfo = (item) => {
     drugOptions.value = [item.drug]
   }
   
+  // 检查是否有待确认订单
+  await checkPendingOrders(item.id)
+  
   showCreateDialog.value = true
+}
+
+// 检查供应信息是否有待确认订单
+const checkPendingOrders = async (supplyId) => {
+  try {
+    // 调用后端接口获取详情，后端会返回关联订单信息
+    const response = await supplyApi.getSupplyInfo(supplyId)
+    const supplyInfo = response.data?.data
+    
+    // 从后端返回的数据中获取待确认订单数量
+    if (supplyInfo?.has_pending_orders) {
+      hasPendingOrders.value = true
+      pendingOrdersCount.value = supplyInfo.pending_orders_count || 0
+    } else {
+      hasPendingOrders.value = false
+      pendingOrdersCount.value = 0
+    }
+  } catch (error) {
+    console.error('检查待确认订单失败:', error)
+    hasPendingOrders.value = false
+    pendingOrdersCount.value = 0
+  }
 }
 
 const handleSubmit = async () => {
@@ -453,7 +501,26 @@ const handleSubmit = async () => {
       fetchSupplyList()
     } catch (error) {
       console.error('提交失败:', error)
-      ElMessage.error(error.response?.data?.msg || '操作失败')
+      const errorData = error.response?.data
+      const message = errorData?.msg || '操作失败'
+      
+      // 如果有待确认订单，显示详细提示并更新状态
+      if (errorData?.pending_orders_count) {
+        hasPendingOrders.value = true
+        pendingOrdersCount.value = errorData.pending_orders_count
+        
+        ElMessageBox.alert(
+          `${message}\n\n当前有 ${errorData.pending_orders_count} 个待确认订单需要先处理。`,
+          '操作受限提示',
+          {
+            confirmButtonText: '我知道了',
+            type: 'warning',
+            center: true
+          }
+        )
+      } else {
+        ElMessage.error(message)
+      }
     } finally {
       submitting.value = false
     }
@@ -475,7 +542,23 @@ const toggleStatus = async (item, newStatus) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('状态切换失败:', error)
-      ElMessage.error('操作失败')
+      const errorData = error.response?.data
+      const message = errorData?.msg || '操作失败'
+      
+      // 如果有待确认订单，显示详细提示
+      if (errorData?.pending_orders_count) {
+        ElMessageBox.alert(
+          `${message}\n\n当前有 ${errorData.pending_orders_count} 个待确认订单需要先处理。`,
+          '下架受限提示',
+          {
+            confirmButtonText: '我知道了',
+            type: 'warning',
+            center: true
+          }
+        )
+      } else {
+        ElMessage.error(message)
+      }
     }
   }
 }
@@ -494,7 +577,23 @@ const deleteSupplyInfo = async (item) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      const errorData = error.response?.data
+      const message = errorData?.msg || '删除失败'
+      
+      // 如果有待确认订单，显示详细提示
+      if (errorData?.pending_orders_count) {
+        ElMessageBox.alert(
+          `${message}\n\n当前有 ${errorData.pending_orders_count} 个待确认订单需要先处理。`,
+          '删除受限提示',
+          {
+            confirmButtonText: '我知道了',
+            type: 'warning',
+            center: true
+          }
+        )
+      } else {
+        ElMessage.error(message)
+      }
     }
   }
 }

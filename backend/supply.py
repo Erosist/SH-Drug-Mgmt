@@ -233,9 +233,24 @@ def get_supply_info_detail(supply_id):
         if not supply_info:
             return jsonify({'msg': '供应信息不存在'}), 404
         
+        result_data = supply_info.to_dict(include_relations=True)
+        
+        # 如果是供应商用户，返回待确认订单信息
+        if current_user.role == 'supplier' and supply_info.tenant_id == current_user.tenant_id:
+            from models import Order
+            pending_orders = Order.query.filter(
+                Order.supply_info_id == supply_id,
+                Order.status == 'PENDING'
+            ).count()
+            
+            current_app.logger.info(f'[GET] supply_id={supply_id}, pending_orders={pending_orders}')
+            
+            result_data['pending_orders_count'] = pending_orders
+            result_data['has_pending_orders'] = pending_orders > 0
+        
         return jsonify({
             'msg': '获取供应信息详情成功',
-            'data': supply_info.to_dict(include_relations=True)
+            'data': result_data
         })
         
     except Exception as e:
@@ -251,6 +266,11 @@ def update_supply_info(current_user, supply_id):
     更新供应信息
     
     只能更新自己企业的供应信息
+    
+    业务规则：
+    - 如果没有关联订单：可以修改所有字段
+    - 如果有PENDING状态订单：只能修改备注字段
+    - 如果有PENDING状态订单：不能下架（修改status为INACTIVE）
     """
     try:
         supply_info = SupplyInfo.query.get(supply_id)
@@ -263,12 +283,59 @@ def update_supply_info(current_user, supply_id):
         
         data = request.get_json() or {}
         
-        # 可更新的字段
+        # 检查是否有关联的PENDING状态订单
+        from models import Order
+        pending_orders = Order.query.filter(
+            Order.supply_info_id == supply_id,
+            Order.status == 'PENDING'
+        ).count()
+        
+        current_app.logger.info(f'[UPDATE] supply_id={supply_id}, pending_orders={pending_orders}')
+        
+        has_pending_orders = pending_orders > 0
+        
+        # 如果有待确认订单，限制可修改的字段
+        if has_pending_orders:
+            # 检查是否尝试修改核心字段
+            core_fields = ['drug_id', 'available_quantity', 'unit_price', 'min_order_quantity', 'valid_until']
+            for field in core_fields:
+                if field in data:
+                    return jsonify({
+                        'msg': f'该供应信息有待确认订单，不能修改{field}字段。请先处理完所有待确认订单。',
+                        'pending_orders_count': pending_orders
+                    }), 400
+            
+            # 检查是否尝试下架
+            if 'status' in data and data['status'] == 'INACTIVE':
+                return jsonify({
+                    'msg': '该供应信息有待确认订单，不能下架。请先处理完所有待确认订单。',
+                    'pending_orders_count': pending_orders
+                }), 400
+            
+            # 只允许修改备注
+            if 'description' in data:
+                supply_info.description = data['description']
+                supply_info.updated_at = datetime.utcnow()
+                db.session.commit()
+                
+                return jsonify({
+                    'msg': '备注更新成功（该供应信息有待确认订单，仅允许修改备注）',
+                    'data': supply_info.to_dict(include_relations=True),
+                    'pending_orders_count': pending_orders
+                })
+            else:
+                return jsonify({
+                    'msg': '该供应信息有待确认订单，仅允许修改备注字段',
+                    'pending_orders_count': pending_orders
+                }), 400
+        
+        # 没有待确认订单，可以修改所有字段
         updatable_fields = [
             'available_quantity', 'unit_price', 'valid_until', 
             'min_order_quantity', 'description', 'status'
         ]
         
+        updated = False
         for field in updatable_fields:
             if field in data:
                 value = data[field]
@@ -293,14 +360,18 @@ def update_supply_info(current_user, supply_id):
                     return jsonify({'msg': '状态只能是 ACTIVE 或 INACTIVE'}), 400
                 
                 setattr(supply_info, field, value)
+                updated = True
         
-        supply_info.updated_at = datetime.utcnow()
-        db.session.commit()
-        
-        return jsonify({
-            'msg': '供应信息更新成功',
-            'data': supply_info.to_dict(include_relations=True)
-        })
+        if updated:
+            supply_info.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'msg': '供应信息更新成功',
+                'data': supply_info.to_dict(include_relations=True)
+            })
+        else:
+            return jsonify({'msg': '没有需要更新的字段'}), 400
         
     except Exception as e:
         db.session.rollback()
@@ -313,9 +384,13 @@ def update_supply_info(current_user, supply_id):
 @require_supplier_role
 def delete_supply_info(current_user, supply_id):
     """
-    删除供应信息
+    删除/下架供应信息
     
     只能删除自己企业的供应信息
+    
+    业务规则：
+    - 如果有PENDING状态订单：不能删除/下架，必须先处理完所有待确认订单
+    - 如果没有待确认订单：可以删除
     """
     try:
         supply_info = SupplyInfo.query.get(supply_id)
@@ -325,6 +400,22 @@ def delete_supply_info(current_user, supply_id):
         # 权限检查
         if supply_info.tenant_id != current_user.tenant_id:
             return jsonify({'msg': '无权限删除此供应信息'}), 403
+        
+        # 检查是否有关联的PENDING状态订单
+        from models import Order
+        pending_orders = Order.query.filter(
+            Order.supply_info_id == supply_id,
+            Order.status == 'PENDING'
+        ).count()
+        
+        current_app.logger.info(f'[DELETE] supply_id={supply_id}, pending_orders={pending_orders}')
+        
+        if pending_orders > 0:
+            current_app.logger.warning(f'[DELETE] 阻止删除: 有{pending_orders}个待确认订单')
+            return jsonify({
+                'msg': '该供应信息有待确认订单，不能删除。请先处理完所有待确认订单。',
+                'pending_orders_count': pending_orders
+            }), 400
         
         db.session.delete(supply_info)
         db.session.commit()
