@@ -54,6 +54,49 @@ export function fetchSystemStatus() {
   return request('/system/status')
 }
 
+export async function exportUsersFile(format = 'csv') {
+  const token = getToken()
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const params = buildQuery({ format })
+  const res = await fetch(`${BASE}/users/export${params}`, { headers })
+  if (!res.ok) {
+    let message = '导出用户失败'
+    try {
+      const data = await res.json()
+      if (data?.msg) message = data.msg
+    } catch {
+      const text = await res.text()
+      if (text) message = text
+    }
+    throw new Error(message)
+  }
+  return res
+}
+
+export function fetchAdminAuditLogs({
+  adminId,
+  action,
+  targetUserId,
+  start,
+  end,
+  page = 1,
+  perPage = 20,
+} = {}) {
+  return request('/audit-logs', {
+    params: {
+      admin_id: adminId,
+      action,
+      target_user_id: targetUserId,
+      start,
+      end,
+      page,
+      per_page: perPage,
+    },
+  })
+}
+
 export default {
   fetchUsers,
   updateUserStatus,
@@ -61,4 +104,6 @@ export default {
   deleteUser,
   updateUserRole,
   fetchSystemStatus,
+  fetchAdminAuditLogs,
+  exportUsersFile,
 }

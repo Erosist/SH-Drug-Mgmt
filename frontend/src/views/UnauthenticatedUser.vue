@@ -23,6 +23,11 @@
               <span class="user-name">{{ userDisplayName }}</span>
               <span class="user-role">{{ userRoleLabel }}</span>
             </div>
+            <button
+              v-if="currentUser"
+              class="change-btn"
+              @click="goToChangePassword"
+            >修改密码</button>
             <button v-if="!currentUser || currentUser.role === 'unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
             <button v-if="currentUser && currentUser.role === 'admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role === 'admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
@@ -97,6 +102,14 @@ export default {
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
 
     const goToLogin = () => router.push({ name: 'login' })
+
+    const goToChangePassword = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/change-password' } })
+        return
+      }
+      router.push({ name: 'change-password' })
+    }
 
     const handleLogout = () => {
       clearAuth()
@@ -190,6 +203,7 @@ export default {
       goToSystemStatus,
       goToAdminUsers,
       goToLogin,
+      goToChangePassword,
       handleLogout
     }
   }
@@ -300,7 +314,8 @@ export default {
 .login-btn,
 .logout-btn,
 .admin-btn,
-.review-btn {
+.review-btn,
+.change-btn {
   border-radius: 4px;
   border: none;
   padding: 8px 16px;
@@ -337,6 +352,16 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
+}
+
+.change-btn {
+  background-color: #fff;
+  color: #1a73e8;
+  border: 1px solid #1a73e8;
+}
+
+.change-btn:hover {
+  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn,

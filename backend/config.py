@@ -28,3 +28,5 @@ class TestingConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    # 生产环境数据库路径
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:////var/www/SH-Drug-Mgmt/backend/data.db')

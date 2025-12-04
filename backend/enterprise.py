@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
+from audit import record_admin_action
 from models import EnterpriseCertification, EnterpriseReviewLog, User, Tenant, to_iso
 from auth import get_authenticated_user
 
@@ -383,6 +384,22 @@ def review_certification(cert_id):
             user.company_name = record.company_name
             user.is_authenticated = True
             user.updated_at = datetime.utcnow()
+
+    audit_action = 'approve_enterprise_cert' if decision == 'approved' else 'reject_enterprise_cert'
+    record_admin_action(
+        reviewer,
+        audit_action,
+        target_user_id=record.user_id,
+        resource_type='enterprise_cert',
+        resource_id=record.id,
+        details={
+            'decision': decision,
+            'company_name': record.company_name,
+            'role': record.role,
+            'reason_code': reason_code if decision == 'rejected' else None,
+            'remark': remark,
+        },
+    )
 
     _record_review_log(record.id, reviewer.id, decision, reason_code if decision == 'rejected' else None, reject_reason)
     db.session.commit()
