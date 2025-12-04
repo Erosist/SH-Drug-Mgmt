@@ -622,3 +622,33 @@ class CirculationRecord(db.Model):
                 result['reporter'] = self.reporter.to_dict()
         
         return result
+
+
+class Announcement(db.Model):
+    """公告通知模型 - 包括健康资讯和紧急通知"""
+    __tablename__ = 'announcements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 'health_news', 'urgent_notice'
+    level = db.Column(db.String(50))  # 'normal', 'important', 'urgent'
+    publish_date = db.Column(db.Date, nullable=False)
+    source = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='active')  # 'active', 'inactive'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'type': self.type,
+            'level': self.level,
+            'publish_date': self.publish_date.isoformat() if self.publish_date else None,
+            'source': self.source,
+            'status': self.status,
+            'created_at': to_iso(self.created_at),
+            'updated_at': to_iso(self.updated_at)
+        }
