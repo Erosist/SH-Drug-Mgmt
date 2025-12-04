@@ -11,6 +11,7 @@
           <div class="nav-menu">
             <div class="nav-item" :class="{ active: activeNav === 'home' }" @click="navigateTo('home')">首页</div>
             <div v-if="!isLogistics && !isRegulator" class="nav-item" :class="{ active: activeNav === 'inventory' }" @click="navigateTo('inventory')">库存管理</div>
+            <div v-if="isPharmacy" class="nav-item" :class="{ active: activeNav === 'nearby' }" @click="navigateTo('nearby')">就近推荐</div>
             <div v-if="!isLogistics" class="nav-item" :class="{ active: activeNav === 'b2b' }" @click="navigateTo('b2b')">B2B供求平台</div>
             <div class="nav-item" :class="{ active: activeNav === 'circulation' }" @click="navigateTo('circulation')">流通监管</div>
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
@@ -65,11 +66,12 @@ export default {
     const mapRouteToNav = (name) => {
       if (!name) return 'home'
       if (name === 'home') return 'home'
-      if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
-      if (name === 'b2b') return 'b2b'
-      if (name === 'circulation') return 'circulation'
-      if (name === 'analysis') return 'analysis'
-      if (name === 'service') return 'service'
+  if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+  if (name === 'b2b') return 'b2b'
+  if (name === 'circulation') return 'circulation'
+  if (name === 'analysis') return 'analysis'
+  if (name === 'service') return 'service'
+  if (name === 'nearby-suppliers') return 'nearby'
       return 'home'
     }
 
@@ -148,6 +150,16 @@ export default {
           router.push('/'); break
         case 'inventory':
           router.push('/inventory'); break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers'); break
         case 'b2b':
           router.push('/b2b'); break
         case 'circulation':

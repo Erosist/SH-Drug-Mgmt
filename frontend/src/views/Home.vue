@@ -9,7 +9,7 @@
         </div>
         
         <div class="nav-section">
-          <div class="nav-menu">
+          <div class="nav-menu" v-if="!isAdmin">
             <div 
               class="nav-item" 
               :class="{ active: activeNav === 'home' }"
@@ -21,6 +21,12 @@
               :class="{ active: activeNav === 'inventory' }"
               @click="navigateTo('inventory')"
             >库存管理</div>
+            <div 
+              v-if="isPharmacy"
+              class="nav-item" 
+              :class="{ active: activeNav === 'nearby' }"
+              @click="navigateTo('nearby')"
+            >就近推荐</div>
             <div 
               v-if="!isLogistics"
               class="nav-item" 
@@ -38,11 +44,20 @@
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
+            <div 
+              v-if="isRegulator"
+              class="nav-item" 
+              :class="{ active: activeNav === 'compliance' }"
+              @click="navigateTo('compliance')"
+            >合规分析报告</div>
             <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
             >智能调度</div>
+          </div>
+          <div v-else class="nav-menu disabled-nav">
+            <span class="nav-disabled-text">管理员账号无法访问业务功能</span>
           </div>
           
           <div class="user-actions">
@@ -52,11 +67,11 @@
             </div>
             <button
               v-if="currentUser"
-              class="change-btn"
+              class="admin-btn"
               @click="goToChangePassword"
             >修改密码</button>
             <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
-            <button v-if="currentUser && currentUser.role==='admin'" class="review-btn" @click="goToEnterpriseReview">认证审核</button>
+            <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToEnterpriseReview">认证审核</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
             <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAuditLogs">审计日志</button>
@@ -98,36 +113,36 @@
                 <h3>健康资讯中心</h3>
                 <p>获取最新健康资讯、疾病预防知识和健康生活方式建议</p>
                 <div class="health-news-list">
-                  <div class="news-item">
-                    <span class="news-title">疫情防控指南更新</span>
-                    <span class="news-date">01-01</span>
+                  <div v-for="news in healthNewsList" :key="news.id" class="news-item">
+                    <span class="news-title">{{ news.title }}</span>
+                    <span class="news-date">{{ formatNewsDate(news.publish_date) }}</span>
                   </div>
-                  <div class="news-item">
-                    <span class="news-title">冬季流感预防措施</span>
-                    <span class="news-date">12-28</span>
-                  </div>
-                  <div class="news-item">
-                    <span class="news-title">健康饮食推荐</span>
-                    <span class="news-date">12-25</span>
+                  <div v-if="healthNewsList.length === 0" class="news-item">
+                    <span class="news-title" style="color: #999;">暂无资讯</span>
                   </div>
                 </div>
-                <button class="action-btn">更多资讯</button>
+                <button class="action-btn" @click="loadMoreNews">更多资讯</button>
               </div>
             </div>
           </div>
+          
+          <!-- 就近供应商推荐（已移除） -->
           
           <!-- 重要提醒与公告 -->
           <div class="section notices">
             <h2 class="section-title">重要提醒与公告</h2>
             <div class="notice-content">
-              <div class="urgent-notice">
-                <div class="notice-title">紧急通知：某批次清关药品召回通知</div>
-                <div class="notice-desc">即产品到期后，国家药品监督管理局2025年6月报2004年1月发布。</div>
+              <div v-if="urgentNotice" class="urgent-notice">
+                <div class="notice-title">{{ urgentNotice.title }}</div>
+                <div class="notice-desc">{{ urgentNotice.content }}</div>
+              </div>
+              <div v-else class="urgent-notice">
+                <div class="notice-title" style="color: #999;">暂无紧急通知</div>
               </div>
               
               <div class="report-input">
-                <input type="text" placeholder="本市2024年度报告请输入" class="report-field">
-                <button class="submit-btn">提交</button>
+                <input type="text" v-model="reportText" placeholder="本市2024年度报告请输入" class="report-field">
+                <button class="submit-btn" @click="submitReport">提交</button>
               </div>
             </div>
           </div>
@@ -177,6 +192,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { homeApi } from '@/api/home'
 
 export default {
   name: 'Home',
@@ -188,6 +205,7 @@ export default {
       if (!name) return 'home'
       if (name === 'home') return 'home'
       if (name === 'inventory' || name === 'tenant-inventory') return 'inventory'
+      if (name === 'nearby-suppliers') return 'nearby'
       if (name === 'b2b') return 'b2b'
       if (name === 'circulation') return 'circulation'
       if (name === 'analysis') return 'analysis'
@@ -207,6 +225,13 @@ export default {
     const userDisplayName = computed(() => currentUser.value?.displayName || currentUser.value?.username || '')
     const userRoleLabel = computed(() => getRoleLabel(currentUser.value?.role))
 
+    // 主页数据
+    const platformStats = ref({})
+    const healthNewsList = ref([])
+    const urgentNotice = ref(null)
+    const userStats = ref({})
+    const reportText = ref('')
+
     // 动态日期
     const currentDate = computed(() => {
       const now = new Date()
@@ -215,6 +240,7 @@ export default {
       const d = now.getDate()
       return `${y}年${m}月${d}日`
     })
+    
     
     const goToLogin = () => {
       router.push('/login')
@@ -252,13 +278,13 @@ export default {
     const goToAdminUsers = () => {
       if (!currentUser.value) return router.push('/login')
       if (currentUser.value.role !== 'admin') return
-      router.push('/admin/users')
+      router.push({ name: 'admin-users' })
     }
 
     const goToAuditLogs = () => {
       if (!currentUser.value) return router.push('/login')
       if (currentUser.value.role !== 'admin') return
-      router.push('/admin/audit-logs')
+      router.push({ name: 'admin-audit-logs' })
     }
 
     const refreshUser = () => {
@@ -288,6 +314,16 @@ export default {
             break
           }
           router.push('/inventory'); break
+        case 'nearby':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'nearby' } })
+            break
+          }
+          router.push('/nearby-suppliers'); break
         case 'b2b':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/b2b' } })
@@ -328,12 +364,101 @@ export default {
             break
           }
           router.push('/service'); break
+        case 'compliance':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/compliance-report' } })
+            break
+          }
+          if (currentUser.value.role !== 'regulator') {
+            // 非监管用户无权访问，统一回首页
+            router.push('/')
+            break
+          }
+          router.push({ name: 'compliance-report' }); break
         default:
           router.push('/');
       }
     }
+
+    // 加载平台统计数据
+    const loadPlatformStats = async () => {
+      try {
+        const response = await homeApi.getPlatformStats()
+        if (response.data?.data) {
+          platformStats.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载平台统计失败:', error)
+      }
+    }
+
+    // 加载健康资讯
+    const loadHealthNews = async () => {
+      try {
+        const response = await homeApi.getHealthNews({ limit: 3 })
+        if (response.data?.data) {
+          healthNewsList.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载健康资讯失败:', error)
+      }
+    }
+
+    // 加载紧急通知
+    const loadUrgentNotices = async () => {
+      try {
+        const response = await homeApi.getUrgentNotices({ limit: 1 })
+        if (response.data?.data && response.data.data.length > 0) {
+          urgentNotice.value = response.data.data[0]
+        }
+      } catch (error) {
+        console.error('加载紧急通知失败:', error)
+      }
+    }
+
+    // 加载用户统计数据
+    const loadUserStats = async () => {
+      if (!currentUser.value) return
+      try {
+        const response = await homeApi.getUserStats()
+        if (response.data?.data) {
+          userStats.value = response.data.data
+        }
+      } catch (error) {
+        console.error('加载用户统计失败:', error)
+      }
+    }
+
+    // 格式化新闻日期
+    const formatNewsDate = (dateStr) => {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      const month = date.getMonth() + 1
+      const day = date.getDate()
+      return `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    }
+
+    // 加载更多资讯
+    const loadMoreNews = () => {
+      ElMessage.info('更多资讯功能开发中...')
+    }
+
+    // 提交报告
+    const submitReport = () => {
+      if (!reportText.value.trim()) {
+        ElMessage.warning('请输入报告内容')
+        return
+      }
+      ElMessage.success('报告提交成功')
+      reportText.value = ''
+    }
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
+      // 加载主页数据
+      loadPlatformStats()
+      loadHealthNews()
+      loadUrgentNotices()
+      loadUserStats()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -359,7 +484,17 @@ export default {
       canViewAnalysis,
       userDisplayName,
       userRoleLabel,
-      currentDate
+      currentDate,
+      // 主页数据
+      platformStats,
+      healthNewsList,
+      urgentNotice,
+      userStats,
+      reportText,
+      // 主页方法
+      formatNewsDate,
+      loadMoreNews,
+      submitReport
     }
   }
 }
@@ -427,6 +562,18 @@ export default {
   gap: 30px;
 }
 
+.nav-menu.disabled-nav {
+  flex: 1;
+  align-items: center;
+  gap: 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.nav-disabled-text {
+  color: #999;
+}
+
 .nav-item {
   font-size: 16px;
   color: #333;
@@ -488,20 +635,6 @@ export default {
   background-color: rgba(26, 115, 232, 0.08);
 }
 
-.review-btn {
-  background-color: #fff7e6;
-  color: #b76c00;
-  border: 1px solid #f3e5b8;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.review-btn:hover {
-  background-color: #ffeccc;
-}
-
 .admin-btn {
   background-color: #f0f5ff;
   color: #1a73e8;
@@ -514,21 +647,6 @@ export default {
 
 .admin-btn:hover {
   background-color: #e5edff;
-}
-
-.change-btn {
-  border: 1px solid #1a73e8;
-  background-color: transparent;
-  color: #1a73e8;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-  transition: background-color 0.3s;
-}
-
-.change-btn:hover {
-  background-color: rgba(26, 115, 232, 0.08);
 }
 
 .login-btn {
@@ -803,6 +921,176 @@ export default {
   }
 }
 
+/* 就近供应商推荐样式 */
+.nearby-suppliers {
+  margin-top: 20px;
+}
+
+.nearby-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nearby-intro {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #1a73e8;
+}
+
+.intro-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.intro-text h3 {
+  font-size: 18px;
+  color: #1a73e8;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.intro-text p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.nearby-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.stat-item {
+  background-color: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.1);
+  border-color: #1a73e8;
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1a73e8;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.nearby-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.primary-action-btn {
+  background: linear-gradient(135deg, #1a73e8 0%, #0d62d9 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+}
+
+.primary-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+}
+
+.primary-action-btn:active {
+  transform: translateY(0);
+}
+
+.secondary-action-btn {
+  background-color: white;
+  color: #1a73e8;
+  border: 2px solid #1a73e8;
+  padding: 12px 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+}
+
+.secondary-action-btn:hover {
+  background-color: #f0f9ff;
+  transform: translateY(-2px);
+}
+
+.secondary-action-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.location-preview {
+  background-color: #f8fafc;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.location-label {
+  color: #666;
+  font-weight: 600;
+}
+
+.location-name {
+  color: #333;
+  font-weight: bold;
+}
+
+.location-coords {
+  color: #999;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .function-cards.three-columns {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .nearby-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 992px) {
   .content-wrapper {
     grid-template-columns: 1fr;
@@ -814,6 +1102,20 @@ export default {
   
   .nav-menu {
     gap: 15px;
+  }
+  
+  .nearby-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .nearby-actions {
+    flex-direction: column;
+  }
+  
+  .primary-action-btn,
+  .secondary-action-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
