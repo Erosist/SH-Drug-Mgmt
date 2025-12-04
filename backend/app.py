@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from flask_cors import CORS
-from config import DevelopmentConfig, ProductionConfig
+from config import DevelopmentConfig, ProductionConfig, TestingConfig
 from extensions import db, migrate, jwt
 from auth import bp as auth_bp
 from supply import bp as supply_bp
