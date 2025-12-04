@@ -21,17 +21,17 @@
               @click="navigateTo('inventory')"
             >库存管理</div>
             <div 
-              v-if="!isLogistics"
-              class="nav-item" 
-              :class="{ active: activeNav === 'b2b' }"
-              @click="navigateTo('b2b')"
-            >B2B供求平台</div>
-            <div 
               v-if="isPharmacy"
               class="nav-item" 
               :class="{ active: activeNav === 'nearby' }"
               @click="navigateTo('nearby')"
             >就近推荐</div>
+            <div 
+              v-if="!isLogistics"
+              class="nav-item" 
+              :class="{ active: activeNav === 'b2b' }"
+              @click="navigateTo('b2b')"
+            >B2B供求平台</div>
             <div 
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
@@ -43,6 +43,12 @@
               :class="{ active: activeNav === 'analysis' }"
               @click="navigateTo('analysis')"
             >监管分析</div>
+            <div 
+              v-if="isRegulator"
+              class="nav-item" 
+              :class="{ active: activeNav === 'compliance' }"
+              @click="navigateTo('compliance')"
+            >合规分析报告</div>
             <div v-if="isLogistics"
               class="nav-item" 
               :class="{ active: activeNav === 'service' }"
@@ -276,6 +282,17 @@ export default {
           break
         case 'analysis':
           router.push('/analysis')
+          break
+        case 'compliance':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/compliance-report' } })
+            break
+          }
+          if (currentUser.value.role !== 'regulator') {
+            router.push('/')
+            break
+          }
+          router.push({ name: 'compliance-report' })
           break
         case 'service':
           router.push('/service')

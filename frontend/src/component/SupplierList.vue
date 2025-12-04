@@ -28,6 +28,16 @@
           clearable
           @input="handleFilter"
         />
+        <el-select
+          v-model="filters.priceSort"
+          placeholder="价格排序"
+          style="width: 140px"
+          clearable
+          @change="handleFilter"
+        >
+          <el-option label="价格从低到高" value="asc" />
+          <el-option label="价格从高到低" value="desc" />
+        </el-select>
         <el-button type="primary" @click="handleFilter" :loading="loading">
           <el-icon><Search /></el-icon>
           搜索
@@ -265,7 +275,8 @@ const supplyList = ref([])
 // 筛选条件
 const filters = reactive({
   drugName: '',
-  supplierName: ''
+  supplierName: '',
+  priceSort: '' // 价格排序：'asc' 或 'desc'
 })
 
 // 分页
@@ -289,7 +300,18 @@ const fetchSupplyList = async () => {
     const response = await supplyApi.getSupplyList(params)
     
     if (response.data && response.data.data) {
-      supplyList.value = response.data.data.items || []
+      let items = response.data.data.items || []
+      
+      // 前端价格排序
+      if (filters.priceSort) {
+        items = items.sort((a, b) => {
+          const priceA = parseFloat(a.unit_price)
+          const priceB = parseFloat(b.unit_price)
+          return filters.priceSort === 'asc' ? priceA - priceB : priceB - priceA
+        })
+      }
+      
+      supplyList.value = items
       pagination.total = response.data.data.pagination?.total || 0
       
       if (supplyList.value.length === 0 && filters.drugName) {
@@ -316,6 +338,7 @@ const handleFilter = () => {
 const resetFilters = () => {
   filters.drugName = ''
   filters.supplierName = ''
+  filters.priceSort = ''
   handleFilter()
 }
 
