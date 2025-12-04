@@ -18,6 +18,11 @@
             <div v-if="canViewAnalysis" class="nav-item" :class="{ active: activeNav === 'analysis' }" @click="navigateTo('analysis')">监管分析</div>
             <div v-if="isRegulator" class="nav-item" :class="{ active: activeNav === 'compliance' }" @click="navigateTo('compliance')">合规分析报告</div>
             <div v-if="isLogistics" class="nav-item" :class="{ active: activeNav === 'service' }" @click="navigateTo('service')">智能调度</div>
+            <div v-if="isLogistics"
+              class="nav-item"
+              :class="{ active: activeNav === 'orders' }"
+              @click="navigateTo('logistics-orders')"
+            >订单查看</div>
           </div>
 
           <div class="user-actions">
@@ -206,6 +211,10 @@ export default {
           if (!currentUser.value) { router.push({ name: 'login', query: { redirect: '/service' } }); break }
           if (currentUser.value.role === 'unauth') { router.push({ name: 'unauth', query: { active: 'service' } }); break }
           router.push('/service'); break
+        case 'logistics-orders':
+          if (!currentUser.value) { router.push({ name: 'login', query: { redirect: '/logistics-orders' } }); break }
+          if (currentUser.value.role === 'unauth') { router.push({ name: 'unauth', query: { active: 'orders' } }); break }
+          router.push('/logistics-orders'); break
         case 'compliance':
           if (!currentUser.value) { router.push({ name: 'login', query: { redirect: '/compliance-report' } }); break }
           if (currentUser.value.role !== 'regulator') { router.push('/'); break }

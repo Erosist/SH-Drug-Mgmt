@@ -23,6 +23,7 @@ import TenantInventory from '../views/TenantInventory.vue'
 import NearbySuppliers from '../views/NearbySuppliers.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import ComplianceReport from '../views/ComplianceReport.vue'
+import LogisticsOrders from '../views/LogisticsOrders.vue'
 
 // 允许未完成企业认证（role === 'unauth'）的登录用户仍可浏览的公共路由
 // 若以后需要更精细的控制，可改为基于 route.meta 来判断
@@ -54,6 +55,7 @@ const router = createRouter({
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },
     { path: '/service', name: 'service', component: service, meta: { requiresAuth: true, requiresVerified: true } },
+    { path: '/logistics-orders', name: 'logistics-orders', component: LogisticsOrders, meta: { requiresAuth: true, requiresRole: 'logistics' } },
   { path: '/compliance-report', name: 'compliance-report', component: ComplianceReport, meta: { requiresAuth: true, requiresRole: 'regulator' } },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },

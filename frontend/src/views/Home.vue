@@ -55,6 +55,11 @@
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
             >智能调度</div>
+            <div v-if="isLogistics"
+              class="nav-item"
+              :class="{ active: activeNav === 'orders' }"
+              @click="navigateTo('logistics-orders')"
+            >订单查看</div>
           </div>
           
           <div class="user-actions">
@@ -207,6 +212,7 @@ export default {
       if (name === 'circulation') return 'circulation'
       if (name === 'analysis') return 'analysis'
       if (name === 'service') return 'service'
+      if (name === 'logistics-orders') return 'orders'
       return 'home'
     }
 
@@ -361,6 +367,16 @@ export default {
             break
           }
           router.push('/service'); break
+        case 'logistics-orders':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/logistics-orders' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'orders' } })
+            break
+          }
+          router.push('/logistics-orders'); break
         case 'compliance':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/compliance-report' } })
