@@ -21,13 +21,10 @@ test-backend:
     - echo "Running tests..."
     - python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
     - echo "=== Backend Test Completed ==="
-  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
-    when: always
-    reports:
-      cobertura: backend/coverage.xml
     paths:
       - backend/htmlcov/
+      - backend/coverage.xml
     expire_in: 1 week
 
 test-frontend:
