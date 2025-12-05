@@ -62,6 +62,66 @@ def list_drugs():
     return jsonify(paginate_query(query, lambda d: d.to_dict()))
 
 
+@bp.route('/drugs/search', methods=['GET'])
+def search_drugs():
+    """
+    药品搜索接口
+    支持按药品通用名、商品名、厂家进行模糊搜索
+    
+    查询参数:
+    - q: 搜索关键词（必填）
+    - page: 页码，默认1
+    - per_page: 每页数量，默认10，最大50
+    """
+    keyword = (request.args.get('q') or '').strip()
+    
+    if not keyword:
+        return jsonify({
+            'success': False,
+            'msg': '请输入搜索关键词',
+            'items': [],
+            'total': 0
+        }), 400
+    
+    like = f"%{keyword}%"
+    query = Drug.query.filter(
+        or_(
+            Drug.generic_name.ilike(like),
+            Drug.brand_name.ilike(like),
+            Drug.manufacturer.ilike(like),
+        )
+    ).order_by(Drug.generic_name.asc())
+    
+    result = paginate_query(query, lambda d: d.to_dict())
+    result['success'] = True
+    result['msg'] = f'找到 {result["total"]} 个药品'
+    return jsonify(result)
+
+
+@bp.route('/drugs/<int:drug_id>', methods=['GET'])
+def get_drug_detail(drug_id):
+    """
+    获取药品详情
+    
+    返回完整的药品信息，包括：
+    - 基本信息：通用名、商品名、规格、剂型等
+    - 厂家信息：生产厂家、批准文号
+    - 分类信息：药品分类、处方类型
+    """
+    drug = Drug.query.get(drug_id)
+    
+    if not drug:
+        return jsonify({
+            'success': False,
+            'msg': '药品不存在'
+        }), 404
+    
+    return jsonify({
+        'success': True,
+        'data': drug.to_dict()
+    })
+
+
 @bp.route('/tenants', methods=['GET'])
 def list_tenants():
     keyword = (request.args.get('keyword') or '').strip()
