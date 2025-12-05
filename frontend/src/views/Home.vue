@@ -104,13 +104,28 @@
               </div>
               
               <!-- 附近药房定位 -->
-              <div class="function-card">
+              <div class="function-card nearby-pharmacy-card">
                 <h3>附近药房定位</h3>
-                <p>基于地理位置查找附近药房，实时获取查询时间与库存信息</p>
-                <div class="map-container">
-                  <div class="map-placeholder">地图定位区域</div>
+                <p>基于地理位置查找附近药房，实时获取库存信息</p>
+                <div class="mini-map-container">
+                  <div id="home-mini-map" class="mini-map"></div>
+                  <div v-if="nearbyLoading" class="map-loading">
+                    <span>加载中...</span>
+                  </div>
                 </div>
-                <div class="pharmacy-info">上海第一医药商城</div>
+                <div class="nearby-pharmacy-list">
+                  <div v-if="nearbyPharmacies.length > 0">
+                    <div v-for="pharmacy in nearbyPharmacies" :key="pharmacy.id" class="pharmacy-item">
+                      <div class="pharmacy-name">{{ pharmacy.name }}</div>
+                      <div class="pharmacy-distance">{{ pharmacy.distance_text || '计算中...' }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="!nearbyLoading" class="no-pharmacy">
+                    <span v-if="!currentUser">请登录查看附近药房</span>
+                    <span v-else>暂无附近药房数据</span>
+                  </div>
+                </div>
+                <button class="action-btn" @click="goToNearbySuppliers">查看更多</button>
               </div>
               
               <!-- 健康资讯中心 -->
@@ -194,11 +209,12 @@
 
 <script>
 import { useRouter, useRoute } from 'vue-router'
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { homeApi } from '@/api/home'
+import { nearbyApi } from '@/api/nearby'
 
 export default {
   name: 'Home',
@@ -237,6 +253,11 @@ export default {
     const urgentNotice = ref(null)
     const userStats = ref({})
     const reportText = ref('')
+
+    // 附近药房数据
+    const nearbyPharmacies = ref([])
+    const nearbyLoading = ref(false)
+    let miniMap = null
 
     // 动态日期
     const currentDate = computed(() => {
@@ -468,6 +489,101 @@ export default {
       ElMessage.success('报告提交成功')
       reportText.value = ''
     }
+
+    // 跳转到就近推荐页面
+    const goToNearbySuppliers = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+        return
+      }
+      router.push('/nearby-suppliers')
+    }
+
+    // 初始化迷你地图
+    const initMiniMap = async () => {
+      await nextTick()
+      const container = document.getElementById('home-mini-map')
+      if (!container || !window.AMap) {
+        console.warn('地图容器或AMap未加载')
+        return
+      }
+
+      try {
+        miniMap = new AMap.Map('home-mini-map', {
+          zoom: 12,
+          center: [121.4737, 31.2304], // 默认上海中心
+          viewMode: '2D',
+          dragEnable: false,
+          zoomEnable: false,
+          doubleClickZoom: false
+        })
+      } catch (error) {
+        console.error('初始化迷你地图失败:', error)
+      }
+    }
+
+    // 加载附近药房
+    const loadNearbyPharmacies = async () => {
+      if (!currentUser.value) return
+      
+      nearbyLoading.value = true
+      try {
+        // 获取所有供应商（这里简化处理，取前3个）
+        const response = await nearbyApi.getAllSuppliers()
+        if (response.data?.success && response.data.suppliers) {
+          const suppliers = response.data.suppliers.slice(0, 3)
+          
+          // 计算与默认中心点的距离
+          const centerLng = 121.4737
+          const centerLat = 31.2304
+          
+          nearbyPharmacies.value = suppliers.map(s => ({
+            ...s,
+            distance_text: formatDistance(calculateHaversine(centerLng, centerLat, s.longitude, s.latitude))
+          }))
+
+          // 在地图上添加标记
+          if (miniMap && suppliers.length > 0) {
+            suppliers.forEach(supplier => {
+              if (supplier.longitude && supplier.latitude) {
+                new AMap.Marker({
+                  position: [supplier.longitude, supplier.latitude],
+                  map: miniMap,
+                  title: supplier.name
+                })
+              }
+            })
+            // 调整视图到第一个供应商
+            if (suppliers[0]?.longitude && suppliers[0]?.latitude) {
+              miniMap.setCenter([suppliers[0].longitude, suppliers[0].latitude])
+            }
+          }
+        }
+      } catch (error) {
+        console.error('加载附近药房失败:', error)
+      } finally {
+        nearbyLoading.value = false
+      }
+    }
+
+    // Haversine公式计算距离（米）
+    const calculateHaversine = (lng1, lat1, lng2, lat2) => {
+      const R = 6371000
+      const toRad = (deg) => deg * Math.PI / 180
+      const dLat = toRad(lat2 - lat1)
+      const dLng = toRad(lng2 - lng1)
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng/2) * Math.sin(dLng/2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      return R * c
+    }
+
+    // 格式化距离
+    const formatDistance = (meters) => {
+      if (meters < 1000) return `${Math.round(meters)}m`
+      return `${(meters / 1000).toFixed(1)}km`
+    }
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -475,9 +591,17 @@ export default {
       loadHealthNews()
       loadUrgentNotices()
       loadUserStats()
+      // 初始化迷你地图并加载附近药房
+      initMiniMap()
+      loadNearbyPharmacies()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
+      // 清理地图实例
+      if (miniMap) {
+        miniMap.destroy()
+        miniMap = null
+      }
     })
 
     return {
@@ -507,6 +631,10 @@ export default {
       urgentNotice,
       userStats,
       reportText,
+      // 附近药房
+      nearbyPharmacies,
+      nearbyLoading,
+      goToNearbySuppliers,
       // 主页方法
       formatNewsDate,
       loadMoreNews,
@@ -783,6 +911,90 @@ export default {
   text-align: center;
   color: #333;
   margin-top: 10px;
+}
+
+/* 附近药房卡片样式 */
+.nearby-pharmacy-card {
+  background-color: #f8fafc;
+}
+
+.nearby-pharmacy-card p {
+  flex-grow: 0;
+  margin-bottom: 10px;
+}
+
+.mini-map-container {
+  position: relative;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.mini-map {
+  width: 100%;
+  height: 100%;
+  background-color: #e8f4f8;
+}
+
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 13px;
+}
+
+.nearby-pharmacy-list {
+  flex: 1;
+  min-height: 80px;
+  overflow-y: auto;
+}
+
+.pharmacy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.pharmacy-item:last-child {
+  border-bottom: none;
+}
+
+.pharmacy-name {
+  font-size: 13px;
+  color: #333;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 10px;
+}
+
+.pharmacy-distance {
+  font-size: 12px;
+  color: #1a73e8;
+  background-color: #e6f0ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.no-pharmacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 13px;
 }
 
 /* 健康资讯中心样式 */
