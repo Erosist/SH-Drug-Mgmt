@@ -1,8 +1,9 @@
+from datetime import date
 from flask import Blueprint, jsonify, request
 from sqlalchemy import or_, func
 from sqlalchemy.orm import joinedload
 
-from models import Drug, InventoryItem, Tenant
+from models import Drug, InventoryItem, Tenant, SupplyInfo
 from extensions import db
 from auth import get_authenticated_user
 from flask import abort
@@ -162,3 +163,89 @@ def list_inventory():
 
     query = query.order_by(InventoryItem.id.desc())
     return jsonify(paginate_query(query, lambda item: item.to_dict(include_related=True)))
+
+
+@bp.route('/price/compare', methods=['GET'])
+def compare_drug_prices():
+    """
+    药品价格对比接口
+    
+    查询参数:
+    - drug_name: 药品名称（必填）
+    - sort: 排序方式（price_asc/price_desc），默认 price_asc
+    
+    返回指定药品在各药房/供应商的价格列表
+    """
+    drug_name = (request.args.get('drug_name') or '').strip()
+    sort = (request.args.get('sort') or 'price_asc').strip()
+    
+    if not drug_name:
+        return jsonify({
+            'success': False,
+            'msg': '请输入药品名称',
+            'items': []
+        }), 400
+    
+    # 先查找匹配的药品
+    like = f"%{drug_name}%"
+    drugs = Drug.query.filter(
+        or_(
+            Drug.generic_name.ilike(like),
+            Drug.brand_name.ilike(like)
+        )
+    ).all()
+    
+    if not drugs:
+        return jsonify({
+            'success': True,
+            'msg': '未找到匹配的药品',
+            'items': [],
+            'total': 0
+        })
+    
+    drug_ids = [d.id for d in drugs]
+    
+    # 查询这些药品的有效供应信息
+    query = db.session.query(SupplyInfo).options(
+        joinedload(SupplyInfo.drug),
+        joinedload(SupplyInfo.tenant)
+    ).filter(
+        SupplyInfo.drug_id.in_(drug_ids),
+        SupplyInfo.status == 'ACTIVE',
+        SupplyInfo.valid_until > date.today(),
+        SupplyInfo.available_quantity > 0
+    )
+    
+    # 排序
+    if sort == 'price_desc':
+        query = query.order_by(SupplyInfo.unit_price.desc())
+    else:
+        query = query.order_by(SupplyInfo.unit_price.asc())
+    
+    supply_list = query.all()
+    
+    # 格式化结果
+    items = []
+    for s in supply_list:
+        items.append({
+            'supply_id': s.id,
+            'drug_id': s.drug_id,
+            'drug_name': s.drug.generic_name if s.drug else '',
+            'brand_name': s.drug.brand_name if s.drug else '',
+            'specification': s.drug.specification if s.drug else '',
+            'manufacturer': s.drug.manufacturer if s.drug else '',
+            'supplier_id': s.tenant_id,
+            'supplier_name': s.tenant.name if s.tenant else '',
+            'supplier_type': s.tenant.type if s.tenant else '',
+            'unit_price': float(s.unit_price) if s.unit_price else 0,
+            'available_quantity': s.available_quantity,
+            'min_order_quantity': s.min_order_quantity,
+            'valid_until': s.valid_until.isoformat() if s.valid_until else None
+        })
+    
+    return jsonify({
+        'success': True,
+        'msg': f'找到 {len(items)} 条价格信息',
+        'items': items,
+        'total': len(items)
+    })
