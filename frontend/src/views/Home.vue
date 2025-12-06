@@ -185,12 +185,23 @@
           <div class="section feature-services">
             <h2 class="section-title">特色服务</h2>
             <div class="feature-list">
-              <div class="feature-item">
+              <div class="feature-item reminder-card">
                 <div class="feature-icon">⏰</div>
                 <div class="feature-content">
                   <h3>个性化用药提醒</h3>
-                  <p>定制您的用药计划，维护健康生活，确保您享受健康</p>
-                  <button class="feature-btn">创建提醒</button>
+                  <div class="today-reminders" v-if="currentUser">
+                    <div v-if="todayRemindersLoading" class="reminder-loading">加载中...</div>
+                    <div v-else-if="todayReminders.length > 0" class="reminder-preview">
+                      <div class="reminder-count">今日待提醒: <strong>{{ todayReminders.length }}</strong> 条</div>
+                      <div v-for="item in todayReminders.slice(0, 2)" :key="item.id + item.remind_time" class="reminder-item">
+                        <span class="time">{{ item.remind_time }}</span>
+                        <span class="drug">{{ item.drug_name }}</span>
+                      </div>
+                    </div>
+                    <div v-else class="no-reminders">暂无今日提醒</div>
+                  </div>
+                  <div v-else class="login-hint">登录后可创建用药提醒</div>
+                  <button class="feature-btn" @click="goToReminders">创建提醒</button>
                 </div>
               </div>
               
@@ -321,6 +332,10 @@ export default {
     const priceSearching = ref(false)
     const priceSearched = ref(false)
     const priceSort = ref('price_asc')
+
+    // 今日用药提醒数据
+    const todayReminders = ref([])
+    const todayRemindersLoading = ref(false)
 
     // 动态日期
     const currentDate = computed(() => {
@@ -728,6 +743,31 @@ export default {
       }
     }
 
+    // 加载今日用药提醒
+    const loadTodayReminders = async () => {
+      if (!currentUser.value) return
+      todayRemindersLoading.value = true
+      try {
+        const response = await homeApi.getTodayReminders()
+        if (response.data?.success) {
+          todayReminders.value = response.data.items || []
+        }
+      } catch (error) {
+        console.error('加载今日提醒失败:', error)
+      } finally {
+        todayRemindersLoading.value = false
+      }
+    }
+
+    // 跳转到用药提醒页面
+    const goToReminders = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/medication-reminders' } })
+        return
+      }
+      router.push({ name: 'medication-reminders' })
+    }
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -738,6 +778,8 @@ export default {
       // 初始化迷你地图并加载附近药房
       initMiniMap()
       loadNearbyPharmacies()
+      // 加载今日用药提醒
+      loadTodayReminders()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -798,6 +840,10 @@ export default {
       priceSort,
       handlePriceCompare,
       togglePriceSort,
+      // 用药提醒
+      todayReminders,
+      todayRemindersLoading,
+      goToReminders,
       // 主页方法
       formatNewsDate,
       loadMoreNews,
@@ -1691,5 +1737,64 @@ export default {
   padding: 12px;
   text-align: center;
   color: #999;
+}
+
+/* 用药提醒卡片样式 */
+.reminder-card .today-reminders {
+  margin: 10px 0;
+  min-height: 60px;
+}
+
+.reminder-loading {
+  color: #999;
+  font-size: 13px;
+}
+
+.reminder-preview {
+  background: #f0f7ff;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.reminder-count {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.reminder-count strong {
+  color: #1a73e8;
+  font-size: 16px;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.reminder-item .time {
+  background: #1a73e8;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.reminder-item .drug {
+  color: #333;
+}
+
+.no-reminders {
+  color: #999;
+  font-size: 13px;
+}
+
+.login-hint {
+  color: #999;
+  font-size: 13px;
+  margin: 10px 0;
 }
 </style>
