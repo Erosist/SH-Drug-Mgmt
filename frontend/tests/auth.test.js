@@ -11,7 +11,7 @@ const mockedAxios = vi.mocked(axios)
 describe('Authentication Tests', () => {
   let wrapper
   let router
-  let pinia
+  let pinia  git reset --hard origin/main  git reset --hard origin/main  git reset --hard origin/main
 
   beforeEach(() => {
     // Reset mocks

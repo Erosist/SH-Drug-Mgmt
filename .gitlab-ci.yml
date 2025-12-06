@@ -15,9 +15,11 @@ test-backend:
     - echo "=== Backend Test Started ==="
     - Set-Location backend
     - echo "Installing dependencies..."
-    - python -m pip install --quiet -r requirements.txt
-    - python -m pip install --quiet pytest
+    # 🚀 修改1：加上清华源，并去掉 --quiet (方便看进度)
+    - python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+    - python -m pip install pytest -i https://pypi.tuna.tsinghua.edu.cn/simple
     - echo "Running basic tests..."
+    # ⚠️ 注意：|| true 表示即使测试挂了，流水线也显示成功。如果你希望测试失败时报警，请去掉 || true
     - python -m pytest tests/test_auth_simple.py -v --tb=short || true
     - echo "=== Backend Test Completed ==="
   allow_failure: true
@@ -30,8 +32,11 @@ test-frontend:
   script:
     - echo "=== Frontend Test Started ==="
     - Set-Location frontend
+    # 🚀 修改2：前端也配置国内镜像加速
+    - npm config set registry https://registry.npmmirror.com
     - echo "Checking if npm packages exist..."
-    - if (Test-Path node_modules) { echo "npm packages cached" } else { npm install --silent }
+    # 这里去掉了 --silent，让你能看到安装进度
+    - if (Test-Path node_modules) { echo "npm packages cached" } else { npm install }
     - echo "=== Frontend Test Completed ==="
   allow_failure: true
 
@@ -45,7 +50,8 @@ code-quality:
     - echo "=== Code Quality Check Started ==="
     - echo "Checking backend code quality..."
     - Set-Location backend
-    - python -m pip install --quiet flake8 black isort
+    # 🚀 修改3：工具包安装也加镜像源
+    - python -m pip install flake8 black isort -i https://pypi.tuna.tsinghua.edu.cn/simple
     - python -m flake8 . --max-line-length=88 --exclude=migrations,venv,__pycache__,tests || echo "Flake8 check completed"
     - echo "=== Code Quality Check Completed ==="
   allow_failure: true
