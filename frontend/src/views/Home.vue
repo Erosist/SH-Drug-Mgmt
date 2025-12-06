@@ -97,10 +97,22 @@
             <h2 class="section-title">核心功能服务</h2>
             <div class="function-cards three-columns">
               <!-- 药品信息查询 -->
-              <div class="function-card">
+              <div class="function-card drug-search-card">
                 <h3>药品信息查询</h3>
-                <p>快速查询超过10000种药品信息，包含药品成分、使用说明及注意事项</p>
-                <button class="action-btn">立即查询</button>
+                <div class="drug-search-box">
+                  <input type="text" v-model="drugSearchKeyword" placeholder="输入药品名称或厂家" class="drug-search-input" @keyup.enter="handleDrugSearch" />
+                  <button class="drug-search-btn" @click="handleDrugSearch" :disabled="drugSearching">{{ drugSearching ? '搜索中...' : '搜索' }}</button>
+                </div>
+                <div class="drug-search-results">
+                  <div v-if="drugSearchResults.length > 0" class="drug-list">
+                    <div v-for="drug in drugSearchResults" :key="drug.id" class="drug-item" @click="showDrugDetail(drug)">
+                      <div class="drug-name">{{ drug.generic_name }}</div>
+                      <div class="drug-brand">{{ drug.brand_name }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="drugSearched && !drugSearching" class="no-drug-result">未找到相关药品</div>
+                  <div v-else class="drug-search-hint">支持按药品名称、厂家搜索</div>
+                </div>
               </div>
               
               <!-- 附近药房定位 -->
@@ -205,6 +217,25 @@
       </div>
     </div>
   </div>
+  
+  <!-- 药品详情对话框 -->
+  <el-dialog v-model="drugDetailVisible" :title="currentDrug?.generic_name || '药品详情'" width="500px">
+    <div v-if="drugDetailLoading" class="drug-detail-loading">加载中...</div>
+    <div v-else-if="currentDrugDetail" class="drug-detail-content">
+      <div class="detail-row"><span class="label">通用名：</span><span>{{ currentDrugDetail.generic_name }}</span></div>
+      <div class="detail-row"><span class="label">商品名：</span><span>{{ currentDrugDetail.brand_name || '-' }}</span></div>
+      <div class="detail-row"><span class="label">制造商：</span><span>{{ currentDrugDetail.manufacturer || '-' }}</span></div>
+      <div class="detail-row"><span class="label">剖型：</span><span>{{ currentDrugDetail.dosage_form || '-' }}</span></div>
+      <div class="detail-row"><span class="label">规格：</span><span>{{ currentDrugDetail.specification || '-' }}</span></div>
+      <div class="detail-row"><span class="label">批准文号：</span><span>{{ currentDrugDetail.approval_number || '-' }}</span></div>
+      <div class="detail-row"><span class="label">分类：</span><span>{{ currentDrugDetail.category || '-' }}</span></div>
+      <div class="detail-row"><span class="label">OTC类型：</span><span>{{ currentDrugDetail.otc_type || '-' }}</span></div>
+      <div class="detail-row" v-if="currentDrugDetail.description"><span class="label">说明：</span><span>{{ currentDrugDetail.description }}</span></div>
+    </div>
+    <template #footer>
+      <el-button @click="drugDetailVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
@@ -258,6 +289,16 @@ export default {
     const nearbyPharmacies = ref([])
     const nearbyLoading = ref(false)
     let miniMap = null
+
+    // 药品搜索数据
+    const drugSearchKeyword = ref('')
+    const drugSearchResults = ref([])
+    const drugSearching = ref(false)
+    const drugSearched = ref(false)
+    const drugDetailVisible = ref(false)
+    const drugDetailLoading = ref(false)
+    const currentDrug = ref(null)
+    const currentDrugDetail = ref(null)
 
     // 动态日期
     const currentDate = computed(() => {
@@ -584,6 +625,53 @@ export default {
       if (meters < 1000) return `${Math.round(meters)}m`
       return `${(meters / 1000).toFixed(1)}km`
     }
+
+    // 药品搜索
+    const handleDrugSearch = async () => {
+      const keyword = drugSearchKeyword.value.trim()
+      if (!keyword) {
+        ElMessage.warning('请输入药品名称或厂家')
+        return
+      }
+      drugSearching.value = true
+      drugSearched.value = false
+      try {
+        const response = await homeApi.searchDrugs(keyword)
+        if (response.data?.success) {
+          drugSearchResults.value = response.data.items || []
+        } else {
+          drugSearchResults.value = []
+        }
+      } catch (error) {
+        console.error('药品搜索失败:', error)
+        drugSearchResults.value = []
+        ElMessage.error('搜索失败，请重试')
+      } finally {
+        drugSearching.value = false
+        drugSearched.value = true
+      }
+    }
+
+    // 显示药品详情
+    const showDrugDetail = async (drug) => {
+      currentDrug.value = drug
+      drugDetailVisible.value = true
+      drugDetailLoading.value = true
+      try {
+        const response = await homeApi.getDrugDetail(drug.id)
+        if (response.data?.success) {
+          currentDrugDetail.value = response.data.data
+        } else {
+          currentDrugDetail.value = drug
+        }
+      } catch (error) {
+        console.error('获取药品详情失败:', error)
+        currentDrugDetail.value = drug
+      } finally {
+        drugDetailLoading.value = false
+      }
+    }
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -635,6 +723,17 @@ export default {
       nearbyPharmacies,
       nearbyLoading,
       goToNearbySuppliers,
+      // 药品搜索
+      drugSearchKeyword,
+      drugSearchResults,
+      drugSearching,
+      drugSearched,
+      drugDetailVisible,
+      drugDetailLoading,
+      currentDrug,
+      currentDrugDetail,
+      handleDrugSearch,
+      showDrugDetail,
       // 主页方法
       formatNewsDate,
       loadMoreNews,
@@ -1367,5 +1466,87 @@ export default {
   .main-content {
     padding: 10px;
   }
+}
+
+/* 药品搜索样式 */
+.drug-search-card .drug-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.drug-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.drug-search-btn {
+  padding: 8px 16px;
+  background: #3498db;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.drug-search-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.drug-search-results {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.drug-list .drug-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.drug-list .drug-item:hover {
+  background: #f5f5f5;
+}
+
+.drug-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.drug-brand {
+  color: #999;
+  font-size: 12px;
+}
+
+.no-drug-result,
+.drug-search-hint {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+}
+
+/* 药品详情弹窗样式 */
+.drug-detail-loading {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.drug-detail-content .detail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.drug-detail-content .detail-row .label {
+  width: 90px;
+  color: #666;
+  flex-shrink: 0;
 }
 </style>

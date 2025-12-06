@@ -75,6 +75,22 @@ export const homeApi = {
    */
   getRecentActivities: (params = {}) => {
     return apiClient.get('/api/home/recent-activities', { params })
+  },
+
+  /**
+   * 药品搜索
+   */
+  searchDrugs: (keyword, page = 1, perPage = 5) => {
+    return apiClient.get('/api/catalog/drugs/search', {
+      params: { q: keyword, page, per_page: perPage }
+    })
+  },
+
+  /**
+   * 获取药品详情
+   */
+  getDrugDetail: (drugId) => {
+    return apiClient.get(`/api/catalog/drugs/${drugId}`)
   }
 }
 
