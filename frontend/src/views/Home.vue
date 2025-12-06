@@ -194,12 +194,27 @@
                 </div>
               </div>
               
-              <div class="feature-item">
+              <div class="feature-item price-compare-card">
                 <div class="feature-icon">💰</div>
                 <div class="feature-content">
                   <h3>药品价格对比</h3>
-                  <p>一批批次药品在附近药房的价格差异，选择最低限购买方案</p>
-                  <button class="feature-btn">比价查询</button>
+                  <div class="price-search-box">
+                    <input type="text" v-model="priceSearchKeyword" placeholder="输入药品名称" class="price-search-input" @keyup.enter="handlePriceCompare" />
+                    <button class="price-search-btn" @click="handlePriceCompare" :disabled="priceSearching">{{ priceSearching ? '查询中...' : '比价' }}</button>
+                  </div>
+                  <div class="price-sort-toggle" v-if="priceResults.length > 0">
+                    <span @click="togglePriceSort" class="sort-link">{{ priceSort === 'price_asc' ? '价格 ↑' : '价格 ↓' }}</span>
+                  </div>
+                  <div class="price-results">
+                    <div v-if="priceResults.length > 0" class="price-list">
+                      <div v-for="(item, index) in priceResults" :key="item.supply_id" class="price-item" :class="{ 'lowest-price': index === 0 && priceSort === 'price_asc' }">
+                        <div class="price-supplier">{{ item.supplier_name }}</div>
+                        <div class="price-value">¥{{ item.unit_price.toFixed(2) }}</div>
+                        <div class="price-stock">库存: {{ item.available_quantity }}</div>
+                      </div>
+                    </div>
+                    <div v-else-if="priceSearched && !priceSearching" class="no-price-result">未找到价格信息</div>
+                  </div>
                 </div>
               </div>
               
@@ -299,6 +314,13 @@ export default {
     const drugDetailLoading = ref(false)
     const currentDrug = ref(null)
     const currentDrugDetail = ref(null)
+
+    // 药品价格对比数据
+    const priceSearchKeyword = ref('')
+    const priceResults = ref([])
+    const priceSearching = ref(false)
+    const priceSearched = ref(false)
+    const priceSort = ref('price_asc')
 
     // 动态日期
     const currentDate = computed(() => {
@@ -672,6 +694,40 @@ export default {
       }
     }
 
+    // 药品价格对比
+    const handlePriceCompare = async () => {
+      const keyword = priceSearchKeyword.value.trim()
+      if (!keyword) {
+        ElMessage.warning('请输入药品名称')
+        return
+      }
+      priceSearching.value = true
+      priceSearched.value = false
+      try {
+        const response = await homeApi.compareDrugPrices(keyword, priceSort.value)
+        if (response.data?.success) {
+          priceResults.value = response.data.items || []
+        } else {
+          priceResults.value = []
+        }
+      } catch (error) {
+        console.error('价格查询失败:', error)
+        priceResults.value = []
+        ElMessage.error('查询失败，请重试')
+      } finally {
+        priceSearching.value = false
+        priceSearched.value = true
+      }
+    }
+
+    // 切换价格排序
+    const togglePriceSort = () => {
+      priceSort.value = priceSort.value === 'price_asc' ? 'price_desc' : 'price_asc'
+      if (priceSearchKeyword.value.trim()) {
+        handlePriceCompare()
+      }
+    }
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -734,6 +790,14 @@ export default {
       currentDrugDetail,
       handleDrugSearch,
       showDrugDetail,
+      // 药品价格对比
+      priceSearchKeyword,
+      priceResults,
+      priceSearching,
+      priceSearched,
+      priceSort,
+      handlePriceCompare,
+      togglePriceSort,
       // 主页方法
       formatNewsDate,
       loadMoreNews,
@@ -1548,5 +1612,84 @@ export default {
   width: 90px;
   color: #666;
   flex-shrink: 0;
+}
+
+/* 价格对比样式 */
+.price-compare-card .price-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.price-search-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.price-search-btn {
+  padding: 6px 12px;
+  background: #e67e22;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.price-search-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.price-sort-toggle {
+  margin-bottom: 8px;
+}
+
+.sort-link {
+  color: #3498db;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.price-results {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.price-list .price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.price-item.lowest-price {
+  background: #e8f8f0;
+  border-left: 3px solid #27ae60;
+}
+
+.price-supplier {
+  flex: 1;
+  font-size: 13px;
+}
+
+.price-value {
+  color: #e74c3c;
+  font-weight: bold;
+  margin: 0 12px;
+}
+
+.price-stock {
+  color: #999;
+  font-size: 12px;
+}
+
+.no-price-result {
+  padding: 12px;
+  text-align: center;
+  color: #999;
 }
 </style>

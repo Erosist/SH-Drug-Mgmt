@@ -91,6 +91,15 @@ export const homeApi = {
    */
   getDrugDetail: (drugId) => {
     return apiClient.get(`/api/catalog/drugs/${drugId}`)
+  },
+
+  /**
+   * 药品价格对比
+   */
+  compareDrugPrices: (drugName, sort = 'price_asc') => {
+    return apiClient.get('/api/catalog/price/compare', {
+      params: { drug_name: drugName, sort }
+    })
   }
 }
 
