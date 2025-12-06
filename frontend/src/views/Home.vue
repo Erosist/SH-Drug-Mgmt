@@ -336,6 +336,7 @@ export default {
     // 今日用药提醒数据
     const todayReminders = ref([])
     const todayRemindersLoading = ref(false)
+    const isNotificationSupported = ref('Notification' in window)
 
     // 动态日期
     const currentDate = computed(() => {
