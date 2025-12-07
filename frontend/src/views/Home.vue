@@ -559,7 +559,7 @@ export default {
 
     // 加载更多资讯
     const loadMoreNews = () => {
-      ElMessage.info('更多资讯功能开发中...')
+      router.push({ name: 'health-news' })
     }
 
     // 提交报告
