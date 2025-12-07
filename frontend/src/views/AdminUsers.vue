@@ -16,6 +16,7 @@
         <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
         <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
         <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAuditLogs">审计日志</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAnnouncements">公告管理</button>
         <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
         <button v-else class="login-btn" @click="handleLogout">退出登录</button>
       </div>
@@ -492,6 +493,7 @@ const goToEnterpriseReview = () => {
 
 const goToAdminUsers = () => router.push({ name: 'admin-users' })
 const goToAuditLogs = () => router.push({ name: 'admin-audit-logs' })
+const goToAnnouncements = () => router.push({ name: 'admin-announcements' })
 
 const handleExport = async () => {
   exportLoading.value = true

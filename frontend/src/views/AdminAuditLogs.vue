@@ -9,6 +9,7 @@
       <div class="actions">
         <el-button @click="goToSystemStatus">系统状态</el-button>
         <el-button type="primary" @click="goToAdminUsers">用户管理</el-button>
+        <el-button @click="goToAnnouncements">公告管理</el-button>
       </div>
     </div>
 
@@ -264,6 +265,7 @@ const openDrawer = (row) => {
 const goHome = () => router.push('/')
 const goToSystemStatus = () => router.push('/admin/status')
 const goToAdminUsers = () => router.push('/admin/users')
+const goToAnnouncements = () => router.push('/admin/announcements')
 
 const refreshUser = () => {
   currentUser.value = getCurrentUser()
