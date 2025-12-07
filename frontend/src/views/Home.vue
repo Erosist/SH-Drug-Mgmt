@@ -164,9 +164,12 @@
           <div class="section notices">
             <h2 class="section-title">重要提醒与公告</h2>
             <div class="notice-content">
-              <div v-if="urgentNotice" class="urgent-notice">
-                <div class="notice-title">{{ urgentNotice.title }}</div>
-                <div class="notice-desc">{{ urgentNotice.content }}</div>
+              <div v-if="urgentNotices.length > 0" class="urgent-notice-list">
+                <div v-for="notice in urgentNotices" :key="notice.id" class="urgent-notice-item">
+                  <div class="notice-title">{{ notice.title }}</div>
+                  <div class="notice-desc">{{ notice.content }}</div>
+                  <div class="notice-date">{{ notice.publish_date }}</div>
+                </div>
               </div>
               <div v-else class="urgent-notice">
                 <div class="notice-title" style="color: #999;">暂无紧急通知</div>
@@ -307,7 +310,7 @@ export default {
     // 主页数据
     const platformStats = ref({})
     const healthNewsList = ref([])
-    const urgentNotice = ref(null)
+    const urgentNotices = ref([])
     const userStats = ref({})
     const reportText = ref('')
 
@@ -523,9 +526,9 @@ export default {
     // 加载紧急通知
     const loadUrgentNotices = async () => {
       try {
-        const response = await homeApi.getUrgentNotices({ limit: 1 })
+        const response = await homeApi.getUrgentNotices({ limit: 5 })
         if (response.data?.data && response.data.data.length > 0) {
-          urgentNotice.value = response.data.data[0]
+          urgentNotices.value = response.data.data
         }
       } catch (error) {
         console.error('加载紧急通知失败:', error)
@@ -556,7 +559,7 @@ export default {
 
     // 加载更多资讯
     const loadMoreNews = () => {
-      ElMessage.info('更多资讯功能开发中...')
+      router.push({ name: 'health-news' })
     }
 
     // 提交报告
@@ -815,7 +818,7 @@ export default {
       // 主页数据
       platformStats,
       healthNewsList,
-      urgentNotice,
+      urgentNotices,
       userStats,
       reportText,
       // 附近药房
@@ -1247,15 +1250,42 @@ export default {
   margin-bottom: 20px;
 }
 
+.urgent-notice-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.urgent-notice-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.urgent-notice-item:last-child {
+  border-bottom: none;
+}
+
 .notice-title {
   font-weight: bold;
   color: #e74c3c;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
 }
 
 .notice-desc {
   color: #666;
   line-height: 1.5;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notice-date {
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .report-input {
