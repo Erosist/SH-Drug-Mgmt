@@ -15,6 +15,7 @@ from compliance import bp as compliance_bp
 from nearby import bp as nearby_bp
 from home import bp as home_bp
 from reminders import bp as reminders_bp
+from announcements import bp as announcements_bp
 
 def create_app(config_name=None):
     app = Flask(__name__)
@@ -59,7 +60,7 @@ def create_app(config_name=None):
     app.register_blueprint(nearby_bp)
     app.register_blueprint(home_bp)
     app.register_blueprint(reminders_bp)
-    
+    app.register_blueprint(announcements_bp)
     # register logistics blueprint
     register_logistics_blueprint(app)
 
