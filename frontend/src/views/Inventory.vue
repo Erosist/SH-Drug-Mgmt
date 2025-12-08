@@ -213,10 +213,7 @@
       <div v-else-if="activeInventoryTab === 'maintenance'" class="tab-panel">
         <div v-if="myTenantId && canManageInventory" class="section manual-inventory-section">
           <div class="section-header">
-            <div>
-              <h2 class="section-title">库存维护</h2>
-              <p class="section-subtitle">通过标准化操作板维护库存批次与补货计划</p>
-            </div>
+            <div></div>
           </div>
           <InventoryManagePanel />
         </div>
@@ -228,10 +225,7 @@
       <div v-else class="tab-panel">
         <div class="section inventory-warning-section">
           <div class="section-header">
-            <div>
-              <h2 class="section-title">库存预警管理</h2>
-              <p class="section-subtitle">实时监测低库存、临期批次并给出调拨建议</p>
-            </div>
+            <div></div>
           </div>
           <div style="padding: 10px 0">
             <InventoryWarning />
@@ -915,6 +909,11 @@ export default {
   margin-top: 6px;
   color: #6b7280;
   font-size: 14px;
+}
+
+.warning-note {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .tag {
