@@ -169,7 +169,18 @@
                     >
                   </div>
                   
-                  <div class="form-group">
+                  <div v-if="isSupplier" class="form-group">
+                    <label class="form-label">物流公司 <span class="required">*</span></label>
+                    <input 
+                      type="text" 
+                      class="form-input" 
+                      v-model="reportForm.logistics_company"
+                      placeholder="请输入物流公司名称（必填）"
+                      :disabled="!isAuthenticated || submitting"
+                    >
+                  </div>
+                  
+                  <div v-else class="form-group">
                     <label class="form-label">运输状态 <span class="required">*</span></label>
                     <select 
                       class="form-select" 
@@ -219,73 +230,20 @@
               <h3 class="section-title">位置信息</h3>
               
               <div class="location-form">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">省市</label>
-                    <select class="form-select" v-model="location.province">
-                      <option value="beijing">北京市</option>
-                      <option value="shanghai">上海市</option>
-                      <option value="guangdong">广东省</option>
-                    </select>
-                  </div>
-                  
-                  <div class="form-group">
-                    <label class="form-label">区县</label>
-                    <select class="form-select" v-model="location.district">
-                      <option value="chaoyang">朝阳区</option>
-                      <option value="haidian">海淀区</option>
-                      <option value="dongcheng">东城区</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div class="form-group">
-                  <label class="form-label">详细地址（可选）</label>
-                  <input 
-                    type="text" 
-                    class="form-input" 
-                    placeholder="请输入当前位置文字描述" 
-                    v-model="reportForm.current_location"
-                    :disabled="!isAuthenticated || submitting"
-                  >
-                </div>
-                
-                <div class="coordinates">
-                  <div class="coordinate-group">
-                    <label class="form-label">经度（可选）</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      class="form-input coordinate" 
-                      v-model.number="reportForm.longitude" 
-                      placeholder="116.4074"
-                      :disabled="!isAuthenticated || submitting"
-                    >
-                  </div>
-                  <div class="coordinate-group">
-                    <label class="form-label">纬度（可选）</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      class="form-input coordinate" 
-                      v-model.number="reportForm.latitude" 
-                      placeholder="39.9042"
-                      :disabled="!isAuthenticated || submitting"
-                    >
-                  </div>
-                </div>
-                
                 <div class="gps-action">
                   <button class="gps-btn" @click="useCurrentLocation">
-                    📍 使用GPS定位当前值
+                    📍 使用GPS定位当前位置
                   </button>
+                  <div class="gps-hint" v-if="reportForm.longitude && reportForm.latitude">
+                    当前定位：经度 {{ reportForm.longitude }}, 纬度 {{ reportForm.latitude }}
+                  </div>
                 </div>
-                
+
                 <div class="form-group">
                   <label class="form-label">备注信息（可选）</label>
                   <textarea 
                     class="form-textarea" 
-                    placeholder="请输入备注信息" 
+                    placeholder="可填写补充说明（若需）" 
                     v-model="reportForm.remarks"
                     :disabled="!isAuthenticated || submitting"
                   ></textarea>
@@ -414,18 +372,12 @@ export default {
       return currentUser.value && ALLOWED_ROLES.includes(currentUser.value.role)
     })
     
-    // 位置信息（省市 / 区县）
-    const location = ref({
-      province: 'shanghai',
-      district: 'chaoyang'
-    })
-    
     // 上报表单
     const reportForm = ref({
       tracking_number: '',
       transport_status: '',
+      logistics_company: '',
       timestamp: '',
-      current_location: '',
       latitude: null,
       longitude: null,
       remarks: ''
@@ -485,8 +437,8 @@ export default {
       reportForm.value = {
         tracking_number: '',
         transport_status: '',
+        logistics_company: '',
         timestamp: '',
-        current_location: '',
         latitude: null,
         longitude: null,
         remarks: ''
@@ -500,10 +452,17 @@ export default {
         ElMessage.error('请输入运单号')
         return false
       }
-      
-      if (!reportForm.value.transport_status) {
-        ElMessage.error('请选择运输状态')
-        return false
+
+      if (isSupplier.value) {
+        if (!reportForm.value.logistics_company.trim()) {
+          ElMessage.error('请输入物流公司名称')
+          return false
+        }
+      } else {
+        if (!reportForm.value.transport_status) {
+          ElMessage.error('请选择运输状态')
+          return false
+        }
       }
       
       if (!reportForm.value.timestamp) {
@@ -542,13 +501,14 @@ export default {
         // 构建提交数据
         const payload = {
           tracking_number: reportForm.value.tracking_number.trim(),
-          transport_status: reportForm.value.transport_status,
+          // 供应商无需选择运输状态，默认上报为已发货
+          transport_status: isSupplier.value ? 'SHIPPED' : reportForm.value.transport_status,
           timestamp: timestamp
         }
         
         // 可选字段
-        if (reportForm.value.current_location) {
-          payload.current_location = reportForm.value.current_location.trim()
+        if (isSupplier.value && reportForm.value.logistics_company) {
+          payload.logistics_company = reportForm.value.logistics_company.trim()
         }
         if (reportForm.value.latitude !== null && reportForm.value.latitude !== '') {
           payload.latitude = parseFloat(reportForm.value.latitude)
@@ -884,7 +844,6 @@ export default {
       isAuthenticated,
       isAllowedRole,
       submitting,
-      location,
       useCurrentLocation,
       resetForm,
       submitProcess,

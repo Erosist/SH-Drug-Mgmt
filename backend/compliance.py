@@ -89,15 +89,17 @@ def _parse_range() -> Tuple[datetime, datetime]:
 def _apply_region_filter(query, region: str | None):
     if region:
         like = f"%{region}%"
-        query = query.join(Tenant, InventoryItem.tenant_id == Tenant.id).filter(
-            Tenant.address.ilike(like)
-        )
+        # 调用方通常已经 join 了 Tenant，这里只追加地址过滤
+        query = query.filter(Tenant.address.ilike(like))
     return query
 
 
 def _inventory_compliance(start: datetime, end: datetime, region: str | None) -> Dict[str, Any]:
     """库存合规分析：统计低库存、缺货、近效期、过期比例。"""
-    base_query = InventoryItem.query
+    # 仅统计“有库存责任”的主体：药店 / 供应商；物流公司不参与库存合规
+    base_query = InventoryItem.query.join(Tenant, InventoryItem.tenant_id == Tenant.id).filter(
+        Tenant.type.in_(["PHARMACY", "SUPPLIER"])
+    )
     if region:
         base_query = _apply_region_filter(base_query, region)
 

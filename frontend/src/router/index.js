@@ -75,6 +75,15 @@ router.beforeEach((to, from, next) => {
   const user = getCurrentUser()
 
   // 如果页面要求登录且用户未登录 -> 跳转登录
+  // 将独立的合规报告路由统一折叠到 B2B 页的内联模式
+  if (to.name === 'compliance-report') {
+    // 若已在 b2b 页面则直接放行（避免循环）；否则重定向到 b2b 并携带 section 标记
+    if (from.name !== 'b2b') {
+      next({ name: 'b2b', query: { ...to.query, section: 'compliance' } })
+      return
+    }
+  }
+
   if (to.meta?.requiresAuth && !user) {
     next({ name: 'login', query: { redirect: to.fullPath } })
     return

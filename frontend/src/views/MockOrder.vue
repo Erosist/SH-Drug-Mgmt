@@ -553,22 +553,6 @@
         </div>
         
         <el-form :model="shipForm" label-width="100px" style="margin-top: 20px;">
-          <el-form-item label="物流公司" required>
-            <el-select
-              v-model="shipForm.logistics_tenant_id"
-              placeholder="请选择物流公司"
-              style="width: 100%"
-              clearable
-            >
-              <el-option
-                v-for="logistics in logisticsOptions"
-                :key="logistics.id"
-                :label="logistics.name"
-                :value="logistics.id"
-              />
-            </el-select>
-          </el-form-item>
-          
           <el-form-item label="运单号" required>
             <el-input
               v-model="shipForm.tracking_number"
@@ -576,6 +560,14 @@
               maxlength="50"
             />
           </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="shipForm.has_reported">
+            已在「流通监管 - 流通数据上报」中完成该运单号的上报
+          </el-checkbox>
+          <div class="ship-hint">
+            提示：未上报的运单号不可发货，请先到「流通监管」完成上报。
+          </div>
+        </el-form-item>
           
           <el-form-item label="发货备注">
             <el-input
@@ -772,13 +764,9 @@ const createForm = reactive({
 
 // 发货表单
 const shipForm = reactive({
-  logistics_tenant_id: null,
   tracking_number: '',
   notes: ''
 })
-
-// 物流公司选项
-const logisticsOptions = ref([])
 
 // 供应信息选项
 const supplyOptions = ref([])
@@ -1259,45 +1247,21 @@ const rejectOrder = async (order) => {
 const shipOrder = async (order) => {
   selectedOrder.value = order
   // 重置发货表单
-  shipForm.logistics_tenant_id = null
   shipForm.tracking_number = ''
   shipForm.notes = ''
-  
-  // 获取物流公司列表
-  await fetchLogisticsCompanies()
+  shipForm.has_reported = false
   
   showShipDialog.value = true
 }
 
-// 获取物流公司列表
-const fetchLogisticsCompanies = async () => {
-  try {
-    // 假设有一个获取租户列表的API
-    const response = await api.get('/api/tenants?type=LOGISTICS')
-    if (response.data && Array.isArray(response.data)) {
-      logisticsOptions.value = response.data
-    }
-  } catch (error) {
-    console.error('获取物流公司列表失败:', error)
-    // 如果API不存在，使用静态数据
-    logisticsOptions.value = [
-      { id: 11, name: '顺丰速运' },
-      { id: 12, name: '申通快递' },
-      { id: 13, name: '圆通速递' },
-      { id: 14, name: '中通快递' }
-    ]
-  }
-}
-
 // 提交发货信息
 const submitShipOrder = async () => {
-  if (!shipForm.logistics_tenant_id) {
-    ElMessage.error('请选择物流公司')
-    return
-  }
-  
   if (!shipForm.tracking_number.trim()) {
     ElMessage.error('请输入运单号')
+    return
+  }
+  if (!shipForm.has_reported) {
+    ElMessage.error('请先在「流通监管」完成该运单号的上报后再发货')
     return
   }
 
@@ -1305,7 +1269,6 @@ const submitShipOrder = async () => {
     submitLoading.value = true
     
     const response = await orderApi.shipOrder(selectedOrder.value.id, {
-      logistics_tenant_id: shipForm.logistics_tenant_id,
       tracking_number: shipForm.tracking_number.trim(),
       notes: shipForm.notes
     })
