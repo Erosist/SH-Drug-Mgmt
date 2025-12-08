@@ -18,7 +18,16 @@ from reminders import bp as reminders_bp
 from dispatch import bp as dispatch_bp
 
 def create_app(config_name=None):
-    app = Flask(__name__)
+    # 将 Flask 的 instance_path 指向项目根目录下的 `instance`（与 backend 同级）
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    instance_dir = os.path.join(project_root, 'instance')
+    # 确保 instance 目录存在
+    try:
+        os.makedirs(instance_dir, exist_ok=True)
+    except Exception:
+        pass
+
+    app = Flask(__name__, instance_path=instance_dir)
 
     # 根据参数或环境变量选择配置
     if config_name:
@@ -35,6 +44,15 @@ def create_app(config_name=None):
     else:
         app.config.from_object(DevelopmentConfig)
         print(">>> Using DevelopmentConfig")
+
+    # 如果没有通过环境变量或配置类提供 SQLALCHEMY_DATABASE_URI，则使用 instance/data.db
+    cur_db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    if not cur_db_uri:
+        db_file = os.path.join(app.instance_path, 'data.db')
+        # SQLite URI: use forward slashes
+        db_file_uri = 'sqlite:///' + db_file.replace('\\', '/')
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_file_uri
+        print(f">>> SQLALCHEMY_DATABASE_URI set to {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     # init CORS
     CORS(app, 

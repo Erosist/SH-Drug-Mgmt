@@ -140,7 +140,7 @@
 import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { logisticsApi } from '@/api/logistics'
 import { getCurrentUser, isAuthenticated as checkAuth } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 import { getRoleLabel } from '@/utils/roleLabel'
@@ -187,30 +187,74 @@ export default {
         ElMessage.error('只有物流用户才能查看物流订单')
         return
       }
+      
       loading.value = true
       try {
-        // 占位实现：请求后端接口，若后端未就绪则使用本地mock
-        const params = { ...filters.value }
-        // 将日期转为ISO
-        if (params.start_date) params.start_date = new Date(params.start_date).toISOString()
-        if (params.end_date) {
-          const d = new Date(params.end_date); d.setHours(23,59,59,999); params.end_date = d.toISOString()
+        // 准备查询参数
+        const params = {}
+        
+        if (filters.value.order_no) {
+          params.order_no = filters.value.order_no
         }
-        let resp
-        try {
-          resp = await axios.get('/api/logistics/orders', { params })
-          orders.value = Array.isArray(resp.data?.data) ? resp.data.data : (Array.isArray(resp.data) ? resp.data : [])
-        } catch (e) {
-          // 本地mock数据回退
-          orders.value = [
-            { id: 1, order_no: 'ORD-20241201-001', tracking_number: 'TRK-0001', batch_number: 'BN-ABC-001', status: 'IN_TRANSIT', address: '上海市浦东新区世纪大道100号', updated_at: new Date().toISOString() },
-            { id: 2, order_no: 'ORD-20241202-002', tracking_number: 'TRK-0002', batch_number: 'BN-DEF-002', status: 'SHIPPED', address: '上海市闵行区莘庄工业区88号', updated_at: new Date(Date.now()-3600_000).toISOString() },
-            { id: 3, order_no: 'ORD-20241203-003', tracking_number: 'TRK-0003', batch_number: 'BN-GHI-003', status: 'DELIVERED', address: '上海市静安区南京西路800号', updated_at: new Date(Date.now()-86400_000).toISOString() },
-          ]
+        if (filters.value.tracking_number) {
+          params.tracking_number = filters.value.tracking_number
         }
-      } catch (err) {
-        console.error('获取订单失败:', err)
-        ElMessage.error(err.message || '获取订单失败，请稍后重试')
+        if (filters.value.status) {
+          params.status = filters.value.status
+        }
+        if (filters.value.start_date) {
+          const d = new Date(filters.value.start_date)
+          d.setHours(0, 0, 0, 0)
+          params.start_date = d.toISOString()
+        }
+        if (filters.value.end_date) {
+          const d = new Date(filters.value.end_date)
+          d.setHours(23, 59, 59, 999)
+          params.end_date = d.toISOString()
+        }
+        
+        // 调用后端API
+        const response = await logisticsApi.getOrders(params)
+        
+        // 处理响应数据
+        if (response.data.success) {
+          orders.value = Array.isArray(response.data.data) ? response.data.data : []
+          
+          if (orders.value.length === 0) {
+            ElMessage.info('暂无符合条件的订单')
+          }
+        } else {
+          ElMessage.error(response.data.message || '获取订单列表失败')
+          orders.value = []
+        }
+      } catch (error) {
+        console.error('获取订单失败:', error)
+        
+        // 根据错误类型显示不同的提示
+        if (error.response) {
+          // 服务器返回了错误响应
+          const status = error.response.status
+          const message = error.response.data?.message || error.response.data?.msg
+          
+          if (status === 401) {
+            ElMessage.error('登录已过期，请重新登录')
+            router.push({ name: 'login', query: { redirect: '/logistics-orders' } })
+          } else if (status === 403) {
+            ElMessage.error(message || '权限不足，无法访问物流订单')
+          } else if (status === 500) {
+            ElMessage.error('服务器错误，请稍后重试')
+          } else {
+            ElMessage.error(message || '获取订单列表失败')
+          }
+        } else if (error.request) {
+          // 请求已发出但没有收到响应
+          ElMessage.error('网络连接失败，请检查网络设置')
+        } else {
+          // 其他错误
+          ElMessage.error('请求失败: ' + (error.message || '未知错误'))
+        }
+        
+        orders.value = []
       } finally {
         loading.value = false
       }
