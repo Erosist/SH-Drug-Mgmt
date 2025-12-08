@@ -279,7 +279,9 @@ export default {
             router.push({ name: 'unauth', query: { active: 'nearby' } })
             break
           }
+          
           router.push('/nearby-suppliers')
+          break
           break
         case 'b2b':
           router.push('/b2b')

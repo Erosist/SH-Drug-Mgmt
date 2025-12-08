@@ -314,7 +314,10 @@ export default {
             router.push({ name: 'unauth', query: { active: 'nearby' } })
             break
           }
-          router.push('/nearby-suppliers'); break
+          
+          // 立即导航到就近推荐页面（移除延迟定位触发）
+          router.push('/nearby-suppliers')
+          break
         case 'b2b':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/b2b' } })

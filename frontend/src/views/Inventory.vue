@@ -100,11 +100,7 @@
               <div class="tuple-box">
                 <span class="info-label">统一社会信用代码</span>
                 <strong>
-<<<<<<< HEAD
                   <template v-if="isEnterpriseApproved">{{ myTenantDetail.unified_social_credit_code }}</template>
-=======
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.unified_social_credit_code }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -113,11 +109,7 @@
               <div class="tuple-box">
                 <span class="info-label">法人代表</span>
                 <strong>
-<<<<<<< HEAD
                   <template v-if="isEnterpriseApproved">{{ myTenantDetail.legal_representative }}</template>
-=======
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.legal_representative }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                   <template v-else>—</template>
                 </strong>
               </div>
@@ -126,11 +118,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系人</span>
                 <strong>
-<<<<<<< HEAD
                   <template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_person }}</template>
-=======
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_person }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -139,11 +127,7 @@
               <div class="tuple-box">
                 <span class="info-label">联系电话</span>
                 <strong>
-<<<<<<< HEAD
                   <template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_phone }}</template>
-=======
-                  <template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_phone }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                   <template v-else>需认证后查看</template>
                 </strong>
               </div>
@@ -152,20 +136,12 @@
           <div class="tenant-contact-grid">
             <div>
               <div class="tuple-box">
-<<<<<<< HEAD
-                业务范围：<template v-if="isEnterpriseApproved">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
-=======
-                业务范围：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
-              </div>
+                  业务范围：<template v-if="isEnterpriseApproved">{{ myTenantDetail.business_scope }}</template><template v-else>需认证后查看</template>
+                </div>
             </div>
             <div>
               <div class="tuple-box">
-<<<<<<< HEAD
                 邮箱：<template v-if="isEnterpriseApproved">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
-=======
-                邮箱：<template v-if="isAuthenticatedViewer">{{ myTenantDetail.contact_email }}</template><template v-else>—</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
               </div>
             </div>
           </div>
@@ -233,12 +209,8 @@
             <tbody>
               <tr v-for="item in myInventory" :key="item.id">
                 <td>
-                  <div class="tuple-box small">
-<<<<<<< HEAD
+                    <div class="tuple-box small">
                     <template v-if="isEnterpriseApproved">{{ item.batch_number }}</template>
-=======
-                    <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -250,21 +222,13 @@
                 </td>
                 <td>
                   <div class="tuple-box small">
-<<<<<<< HEAD
                     <template v-if="isEnterpriseApproved">{{ item.quantity }}</template>
-=======
-                    <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                     <template v-else>需认证后查看</template>
                   </div>
                 </td>
                 <td>
                   <div class="tuple-box small">
-<<<<<<< HEAD
                     <template v-if="isEnterpriseApproved">{{ formatPrice(item.unit_price) }}</template>
-=======
-                    <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
->>>>>>> 80d8d926a1cca254a2df40f2b187ab1a194216c7
                     <template v-else>—</template>
                   </div>
                 </td>
@@ -574,6 +538,9 @@ export default {
             router.push({ name: 'unauth', query: { active: 'nearby' } })
             break
           }
+          // 尝试在当前页面触发一次与“更新我的位置”按钮等效的行为（非阻塞）
+
+          // 立即导航到就近推荐页面（不在此页触发延迟定位）
           router.push('/nearby-suppliers')
           break
         case 'b2b':

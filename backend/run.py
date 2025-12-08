@@ -39,6 +39,16 @@ def ensure_schema():
                 conn.execute(text("ALTER TABLE enterprise_certifications ADD COLUMN reviewer_id INTEGER"))
                 print('[schema] Added reviewer_id column to enterprise_certifications')
 
+        # Ensure tenant geolocation columns exist (added in later schema)
+        if 'tenants' in tables:
+            tenant_cols = [c['name'] for c in inspector.get_columns('tenants')]
+            if 'latitude' not in tenant_cols:
+                conn.execute(text("ALTER TABLE tenants ADD COLUMN latitude FLOAT"))
+                print('[schema] Added latitude column to tenants')
+            if 'longitude' not in tenant_cols:
+                conn.execute(text("ALTER TABLE tenants ADD COLUMN longitude FLOAT"))
+                print('[schema] Added longitude column to tenants')
+
     # Ensure any newly introduced tables are created
     db.create_all()
 
