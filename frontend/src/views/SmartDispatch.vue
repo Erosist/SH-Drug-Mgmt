@@ -533,91 +533,71 @@ export default {
 </script>
 
 <style scoped>
-*{box-sizing:border-box;margin:0;padding:0}
-.smart-dispatch-container{min-height:100vh;background:#f5f7fa;font-family:"Microsoft YaHei",Arial,sans-serif}
-.header{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.1);padding:15px 0;width:100%}
-.header-content{padding:0 20px;margin:0 auto;max-width:100%}
-.platform-info{display:flex;justify-content:space-between;align-items:center}
-.platform-title{color:#1a73e8;font-size:24px;font-weight:bold;margin:0}
-.current-date{color:#666;font-size:16px}
-.nav-section{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eee;padding-top:15px}
-.nav-menu{display:flex;gap:30px}
-.nav-item{cursor:pointer;color:#333;padding:5px 0;font-size:16px;transition:color .3s}
-.nav-item.active{color:#1a73e8;border-bottom:2px solid #1a73e8}
-.user-actions{display:flex;align-items:center;gap:8px}
-.user-info{display:flex;align-items:center;padding:6px 12px;border-radius:999px;background-color:#f0f5ff;color:#1a73e8;font-size:14px;font-weight:600;margin-right:10px;gap:8px}
-.user-name{white-space:nowrap}
-.user-role{padding:2px 10px;border-radius:999px;background-color:#fff;border:1px solid rgba(26,115,232,0.2);font-size:12px;color:#1a73e8}
-.change-btn{border:1px solid #1a73e8;background-color:transparent;color:#1a73e8;padding:6px 14px;border-radius:4px;cursor:pointer;margin-right:10px;transition:background-color .3s}
-.change-btn:hover{background-color:rgba(26,115,232,0.08)}
-.auth-btn{background-color:#fff;color:#1a73e8;border:1px solid #1a73e8;padding:8px 14px;border-radius:4px;cursor:pointer;margin-right:10px}
-.auth-btn:hover{background-color:rgba(26,115,232,0.08)}
-.review-btn{background-color:#fff7e6;color:#b76c00;border:1px solid #f3e5b8;padding:8px 14px;border-radius:4px;cursor:pointer;margin-right:10px}
-.review-btn:hover{background-color:#ffeccc}
-.admin-btn{background-color:#f0f5ff;color:#1a73e8;border:1px solid #d6e4ff;padding:8px 14px;border-radius:4px;cursor:pointer;margin-right:10px}
-.admin-btn:hover{background-color:#e5edff}
-.login-btn{background-color:#1a73e8;color:#fff;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:14px;transition:background-color .3s}
-.login-btn:hover{background-color:#0d62d9}
+/* 基本重置与容器 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+.smart-dispatch-container { min-height: 100vh; background-color: #f5f7fa; font-family: "Microsoft YaHei", Arial, sans-serif; display: flex; flex-direction: column; }
 
-.message {
-  padding: 12px 20px;
-  margin: 16px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  animation: slideDown 0.3s ease;
-}
+/* Header / 导航：与 LogisticsOrders.vue 保持一致 */
+.header { background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 15px 0; width: 100%; }
+.header-content { width: 100%; max-width: 100%; margin: 0 auto; padding: 0 20px; }
+.platform-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.platform-title { font-size: 24px; font-weight: bold; color: #1a73e8; margin: 0; }
+.current-date { color: #666; font-size: 16px; }
+.nav-section { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 15px; flex-wrap: wrap; gap: 15px; }
+.nav-menu { display: flex; gap: 30px; flex-wrap: wrap; }
+.nav-item { font-size: 16px; color: #333; cursor: pointer; padding: 5px 0; transition: color 0.3s; }
+.nav-item:hover { color: #1a73e8; }
+.nav-item.active { color: #1a73e8; border-bottom: 2px solid #1a73e8; }
+.user-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.user-info { display: flex; align-items: center; padding: 6px 16px; border-radius: 999px; background-color: #f0f5ff; color: #1a73e8; font-size: 14px; font-weight: 600; gap: 8px; }
+.user-role { padding: 2px 10px; border-radius: 999px; background-color: #fff; border: 1px solid rgba(26,115,232,0.2); font-size: 12px; color: #1a73e8; }
+.auth-btn, .review-btn, .admin-btn, .change-btn, .login-btn { font-size: 14px; }
+.change-btn { border: 1px solid #1a73e8; background-color: transparent; color: #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; transition: background-color 0.3s; }
+.change-btn:hover { background-color: rgba(26,115,232,0.08); }
+.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+.auth-btn:hover { background-color: rgba(26,115,232,0.08); }
+.review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+.review-btn:hover { background-color: #ffeccc; }
+.admin-btn { background-color: #f0f5ff; color: #1a73e8; border: 1px solid #d6e4ff; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+.admin-btn:hover { background-color: #e5edff; }
+.login-btn { background-color: #1a73e8; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
+.login-btn:hover { background-color: #0d62d9; }
 
-.success-message {
-  background-color: #f0f9ff;
-  color: #0c66e4;
-  border: 1px solid #d0e7ff;
-}
+/* 消息提示（保留原样式） */
+.message { padding: 12px 20px; margin: 16px 18px; border-radius: 6px; font-size: 14px; animation: slideDown 0.3s ease; }
+.success-message { background-color: #f0f9ff; color: #0c66e4; border: 1px solid #d0e7ff; }
+.error-message { background-color: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-.error-message {
-  background-color: #fff5f5;
-  color: #c53030;
-  border: 1px solid #feb2b2;
-}
+/* 主区域与控制面板（保留 SmartDispatch 特有样式） */
+.main-content { padding: 18px; }
+.panel-grid { display: grid; grid-template-columns: 360px 1fr; gap: 18px; }
+.control-panel { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.control-panel h3 { margin-bottom: 10px; color: #333; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; color: #333; margin-bottom: 8px; font-size: 15px; font-weight: 600; }
+.form-row input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.muted { color: #777; font-size: 13px; }
+.destinations .dest-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.dest-row input { flex: 1; padding: 10px 12px; font-size: 14px; }
+.small { background: #f3f3f3; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.small:hover { background: #e8e8e8; }
+.add-btn { background: transparent; border: 1px dashed #ccc; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 100%; }
+.add-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+.actions { display: flex; gap: 10px; }
+.actions .primary { background: #1a73e8; color: #fff; padding: 10px 14px; border: none; border-radius: 6px; font-size: 15px; flex: 1; cursor: pointer; }
+.actions .primary:hover { background: #0d62d9; }
+.actions .primary:disabled { background: #ccc; cursor: not-allowed; }
+.actions button:not(.primary) { background: #f3f3f3; border: 1px solid #ddd; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+.actions button:not(.primary):hover { background: #e8e8e8; }
+.actions button:not(.primary):disabled { background: #f9f9f9; cursor: not-allowed; color: #999; }
+.output .order-list { max-height: 220px; overflow: auto; padding: 10px; border: 1px dashed #eee; border-radius: 6px; background: #fafafa; }
+.order-list ol { padding-left: 18px; }
+.order-list li { margin-bottom: 8px; line-height: 1.6; }
+.order-list .sub { color: #999; font-size: 12px; margin-left: 6px; margin-top: 2px; }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* 地图样式保留 */
+.map-area .map-container { width: 100%; height: 520px; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; }
 
-.main-content{padding:18px}
-.panel-grid{display:grid;grid-template-columns:360px 1fr;gap:18px}
-.control-panel{background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
-.control-panel h3{margin-bottom:10px;color:#333}
-.form-row{margin-bottom:12px}
-.form-row label{display:block;color:#333;margin-bottom:8px;font-size:15px;font-weight:600}
-.form-row input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-.muted{color:#777;font-size:13px}
-.destinations .dest-row{display:flex;gap:8px;margin-bottom:10px}
-.dest-row input{flex:1;padding:10px 12px;font-size:14px}
-.small{background:#f3f3f3;border:none;padding:6px 8px;border-radius:4px;cursor:pointer}
-.small:hover{background:#e8e8e8}
-.add-btn{background:transparent;border:1px dashed #ccc;padding:6px 10px;border-radius:4px;cursor:pointer;width:100%}
-.add-btn:hover{border-color:#1a73e8;color:#1a73e8}
-.actions{display:flex;gap:10px}
-.actions .primary{background:#1a73e8;color:#fff;padding:10px 14px;border:none;border-radius:6px;font-size:15px;flex:1;cursor:pointer}
-.actions .primary:hover{background:#0d62d9}
-.actions .primary:disabled{background:#ccc;cursor:not-allowed}
-.actions button:not(.primary){background:#f3f3f3;border:1px solid #ddd;padding:10px 14px;border-radius:6px;cursor:pointer}
-.actions button:not(.primary):hover{background:#e8e8e8}
-.actions button:not(.primary):disabled{background:#f9f9f9;cursor:not-allowed;color:#999}
-.output .order-list{max-height:220px;overflow:auto;padding:10px;border:1px dashed #eee;border-radius:6px;background:#fafafa}
-.order-list ol{padding-left:18px}
-.order-list li{margin-bottom:8px;line-height:1.6}
-.order-list .sub{color:#999;font-size:12px;margin-left:6px;margin-top:2px}
-
-/* 减小地图高度并增强控制面板的可读性 */
-.map-area .map-container{width:100%;height:520px;background:#f8f9fa;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:center}
-
-@media (max-width:1000px){.panel-grid{grid-template-columns:1fr}.map-area .map-container{height:360px}}
+@media (max-width: 1000px) { .panel-grid { grid-template-columns: 1fr; } .map-area .map-container { height: 360px; } }
 </style>
