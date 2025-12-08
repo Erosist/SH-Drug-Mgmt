@@ -16,6 +16,12 @@
       </div>
     </div>
 
+    <div class="warning-description">
+      <p>实时监测低库存、临期批次并给出调拨建议。</p>
+      <p class="note">预警规则：单批次数量少于10件或有效期在30天内会被标记，请及时联动补货或调拨。</p>
+      <p class="note">严重预警：库存为0或批次将在7天内到期（含已过期）会以红色标识提示，需优先处理。</p>
+    </div>
+
     <!-- 预警统计面板 -->
     <div class="stats-panel">
       <el-row :gutter="20">
@@ -122,9 +128,9 @@
           <el-table-column prop="drug.generic_name" label="药品名称" width="200">
             <template #default="{ row }">
               <div class="drug-info">
-                <div class="drug-name">{{ row.drug?.generic_name || '未知药品' }}</div>
-                <div class="drug-brand" v-if="row.drug?.brand_name">
-                  {{ row.drug.brand_name }}
+                <div class="drug-name">{{ getDrugName(row) }}</div>
+                <div class="drug-brand" v-if="getDrugBrand(row)">
+                  {{ getDrugBrand(row) }}
                 </div>
               </div>
             </template>
@@ -331,10 +337,18 @@ const triggerManualScan = async () => {
 const handleWarning = (item) => {
   ElNotification({
     title: '预警处理',
-    message: `请及时处理 ${item.drug?.generic_name || '未知药品'} 的库存问题`,
+    message: `请及时处理 ${getDrugName(item)} 的库存问题`,
     type: 'warning',
     duration: 5000
   })
+}
+
+const getDrugName = (row = {}) => {
+  return row.drug?.generic_name || row.drug_name || row.drug?.brand_name || row.drug_brand || '未知药品'
+}
+
+const getDrugBrand = (row = {}) => {
+  return row.drug?.brand_name || row.drug_brand || ''
 }
 
 const getExpiryClass = (dateStr) => {
@@ -407,6 +421,18 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+.warning-description {
+  margin: 0 0 16px;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.warning-description .note {
+  color: #909399;
+  margin-top: 4px;
 }
 
 /* 统计面板 */

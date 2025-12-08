@@ -1,5 +1,26 @@
 <template>
   <div class="admin-users" v-if="isAdmin">
+    <div class="admin-top-actions">
+      <div class="user-actions">
+        <div v-if="currentUser" class="user-info">
+          <span class="user-name">{{ userDisplayName }}</span>
+          <span class="user-role">{{ userRoleLabel }}</span>
+        </div>
+        <button
+          v-if="currentUser"
+          class="admin-btn"
+          @click="goToChangePassword"
+        >修改密码</button>
+        <button v-if="!currentUser || currentUser.role==='unauth'" class="auth-btn" @click="goToEnterpriseAuth">企业认证</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToEnterpriseReview">认证审核</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToSystemStatus">系统状态</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAdminUsers">用户管理</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAuditLogs">审计日志</button>
+        <button v-if="currentUser && currentUser.role==='admin'" class="admin-btn" @click="goToAnnouncements">公告管理</button>
+        <button v-if="!currentUser" class="login-btn" @click="goToLogin">登录</button>
+        <button v-else class="login-btn" @click="handleLogout">退出登录</button>
+      </div>
+    </div>
     <div class="page-header">
       <div>
         <p class="eyebrow">用户管理</p>
@@ -242,6 +263,21 @@ import { getCurrentUser, clearAuth } from '@/utils/authSession'
 
 const router = useRouter()
 const currentUser = getCurrentUser()
+
+const roleLabel = (value) => {
+  const map = {
+    pharmacy: '药店',
+    supplier: '供应商',
+    logistics: '物流',
+    regulator: '监管',
+    admin: '管理员',
+    unauth: '未认证',
+  }
+  return map[value] || value || '-'
+}
+
+const userDisplayName = computed(() => currentUser?.displayName || currentUser?.username || '')
+const userRoleLabel = computed(() => roleLabel(currentUser?.role))
 const isAdmin = computed(() => currentUser?.role === 'admin')
 
 const keyword = ref('')
@@ -291,18 +327,6 @@ const passwordValidator = (_, value, callback) => {
 
 const resetRules = {
   newPassword: [{ validator: passwordValidator, trigger: 'blur' }],
-}
-
-const roleLabel = (value) => {
-  const map = {
-    pharmacy: '药店',
-    supplier: '供应商',
-    logistics: '物流',
-    regulator: '监管',
-    admin: '管理员',
-    unauth: '未认证',
-  }
-  return map[value] || value || '-'
 }
 
 const certText = (status) => {
@@ -442,6 +466,35 @@ const handleLogout = () => {
   router.push({ name: 'login' })
 }
 
+const goToLogin = () => router.push('/login')
+
+const goToChangePassword = () => {
+  if (!currentUser) {
+    router.push({ name: 'login', query: { redirect: '/change-password' } })
+    return
+  }
+  router.push({ name: 'change-password' })
+}
+
+const goToEnterpriseAuth = () => {
+  if (!currentUser) {
+    router.push({ name: 'login', query: { redirect: '/enterprise-auth' } })
+    return
+  }
+  if (['regulator', 'admin'].includes(currentUser.role)) return
+  router.push('/enterprise-auth')
+}
+
+const goToEnterpriseReview = () => {
+  if (!currentUser) return router.push('/login')
+  if (currentUser.role !== 'admin') return
+  router.push('/enterprise-review')
+}
+
+const goToAdminUsers = () => router.push({ name: 'admin-users' })
+const goToAuditLogs = () => router.push({ name: 'admin-audit-logs' })
+const goToAnnouncements = () => router.push({ name: 'admin-announcements' })
+
 const handleExport = async () => {
   exportLoading.value = true
   try {
@@ -499,6 +552,17 @@ onMounted(() => {
 
 <style scoped>
 .admin-users { padding:20px; background:#f5f7fb; min-height:100vh; }
+.admin-top-actions { display:flex; justify-content:flex-end; margin-bottom:12px; }
+.user-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.user-info { display:flex; align-items:center; padding:6px 12px; border-radius:999px; background-color:#f0f5ff; color:#1a73e8; font-size:14px; font-weight:600; gap:8px; }
+.user-name { white-space:nowrap; }
+.user-role { padding:2px 10px; border-radius:999px; background-color:#fff; border:1px solid rgba(26,115,232,0.2); font-size:12px; color:#1a73e8; }
+.auth-btn { border:1px solid #1a73e8; background-color:transparent; color:#1a73e8; padding:8px 14px; border-radius:4px; cursor:pointer; transition:background-color 0.3s; }
+.auth-btn:hover { background-color:rgba(26,115,232,0.08); }
+.admin-btn { background-color:#f0f5ff; color:#1a73e8; border:1px solid #d6e4ff; padding:8px 14px; border-radius:4px; cursor:pointer; }
+.admin-btn:hover { background-color:#e5edff; }
+.login-btn { background-color:#1a73e8; color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:14px; transition:background-color 0.3s; }
+.login-btn:hover { background-color:#0d62d9; }
 .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#fff; padding:14px; border-radius:10px; border:1px solid #eef2f7; }
 .eyebrow { color:#1a73e8; font-weight:600; margin:0 0 4px 0; }
 .subtitle { margin:4px 0 0 0; color:#606266; font-size:13px; }
