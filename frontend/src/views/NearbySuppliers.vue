@@ -840,9 +840,28 @@ const initMap = () => {
     viewMode: '2D'
   })
 
-  // 添加缩放控件
-  map.addControl(new AMap.Scale())
-  map.addControl(new AMap.ToolBar())
+  // 添加缩放控件（有时部分高德控件在某些环境会抛错，使用 try/catch 保护）
+  try {
+    if (AMap.Scale) map.addControl(new AMap.Scale())
+  } catch (err) {
+    console.warn('AMap.Scale 控件初始化失败:', err)
+  }
+
+  try {
+    if (AMap.ToolBar) map.addControl(new AMap.ToolBar())
+  } catch (err) {
+    console.warn('AMap.ToolBar 控件初始化失败:', err)
+  }
+
+  // 在地图完全初始化后触发一次标记更新，确保在地图 ready/complete 之后再添加 marker
+  map.on && map.on('complete', () => {
+    try {
+      console.log('AMap complete event fired — map ready')
+      updateMapMarkers()
+    } catch (e) {
+      console.error('updateMapMarkers 在 map.complete 回调中失败:', e)
+    }
+  })
 }
 
 // 清除所有标记和路径
@@ -1024,21 +1043,19 @@ onMounted(async () => {
     loadAllSuppliers()
   ])
   
-  // 等待DOM渲染
+  // 等待DOM渲染后初始化地图，并依赖 map.complete 事件进行标记更新
   await nextTick()
-  
-  // 延迟初始化地图，确保DOM已完全渲染
+  initMap()
+
+  // 作为容错回退：如果 map 在短时间内没有触发 complete，我们在 800ms 后再尝试一次更新标记
   setTimeout(() => {
-    initMap()
-    
-    // 再次延迟确保地图完全初始化后再添加标记
-    setTimeout(() => {
-      console.log('Updating map markers...')
-      console.log('My location:', myLocation.value)
-      console.log('All suppliers:', allSuppliers.value.length)
+    try {
+      console.log('Fallback updateMapMarkers check — myLocation:', myLocation.value)
       updateMapMarkers()
-    }, 300)
-  }, 200)
+    } catch (e) {
+      console.warn('Fallback updateMapMarkers 失败:', e)
+    }
+  }, 800)
 })
 
 onBeforeUnmount(() => {
