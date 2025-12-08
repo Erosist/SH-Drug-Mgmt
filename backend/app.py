@@ -18,16 +18,15 @@ from reminders import bp as reminders_bp
 from dispatch import bp as dispatch_bp
 
 def create_app(config_name=None):
-    # 将 Flask 的 instance_path 指向项目根目录下的 `instance`（与 backend 同级）
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    instance_dir = os.path.join(project_root, 'instance')
-    # 确保 instance 目录存在
-    try:
-        os.makedirs(instance_dir, exist_ok=True)
-    except Exception:
-        pass
+    
+    # 将 Flask 的 instance_path 指向 backend 目录下的 `instance`（即 backend/instance）
+    instance_dir = os.path.join(os.path.dirname(__file__), 'instance')
+    # 确保 backend/instance 目录存在
+    os.makedirs(instance_dir, exist_ok=True)
 
     app = Flask(__name__, instance_path=instance_dir)
+    
+#    app = Flask(__name__)
 
     # 根据参数或环境变量选择配置
     if config_name:
