@@ -25,8 +25,9 @@ def get_platform_stats():
     """
     try:
         # 注册企业数量（排除管理员和未认证用户）
+        # 代码库中 Tenant 模型使用 is_active 字段而不是 status
         total_tenants = Tenant.query.filter(
-            Tenant.status == 'APPROVED'
+            Tenant.is_active == True
         ).count()
         
         # 药品种类数量
