@@ -1027,7 +1027,18 @@ const updateMapMarkers = () => {
   // 自动调整视野以包含所有标记
   if (allPoints.length > 0) {
     console.log('Setting fit view for', allPoints.length, 'points')
-    map.setFitView(markers, false, [50, 50, 50, 50])
+    // 如果只有一个点（一般是只有我的位置），更友好地居中并设置合适缩放
+    if (allPoints.length === 1) {
+      try {
+        map.setCenter(allPoints[0])
+        map.setZoom(14)
+      } catch (e) {
+        console.warn('单点居中失败，回退到 setFitView:', e)
+        map.setFitView(markers, false, [50, 50, 50, 50])
+      }
+    } else {
+      map.setFitView(markers, false, [50, 50, 50, 50])
+    }
   }
   
   console.log('Map markers updated successfully')
