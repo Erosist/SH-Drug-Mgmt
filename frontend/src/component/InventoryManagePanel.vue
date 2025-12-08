@@ -1,10 +1,7 @@
 <template>
   <div class="inventory-manage-panel">
     <div class="panel-header">
-      <div>
-        <h2>库存维护</h2>
-        <p class="panel-subtitle">在同一面板登记新批次并调整库存。</p>
-      </div>
+      <div></div>
       <div class="list-search">
         <input
           type="text"
