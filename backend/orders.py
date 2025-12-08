@@ -325,7 +325,8 @@ def create_order(current_user):
             supply_info.tenant_id, 
             supply_info.drug_id, 
             -quantity,
-            f"订单{order.order_number}创建，预占库存"
+            f"订单{order.order_number}创建，预占库存",
+            supply_info_id=supply_info.id
         )
         
         if not updated_supply_info:
@@ -550,7 +551,8 @@ def confirm_order(current_user, order_id):
                     order.supplier_tenant_id,
                     item.drug_id, 
                     item.quantity,
-                    f"订单{order.order_number}被供应商拒绝，恢复库存"
+                    f"订单{order.order_number}被供应商拒绝，恢复库存",
+                    supply_info_id=order.supply_info_id
                 )
             
             message = '订单已拒绝'
@@ -608,7 +610,8 @@ def cancel_order(current_user, order_id):
                 order.supplier_tenant_id,
                 item.drug_id, 
                 item.quantity,
-                f"订单{order.order_number}取消，恢复库存"
+                f"订单{order.order_number}取消，恢复库存",
+                supply_info_id=order.supply_info_id
             )
         
         db.session.commit()

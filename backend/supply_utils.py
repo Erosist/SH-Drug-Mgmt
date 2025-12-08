@@ -8,7 +8,7 @@ from extensions import db
 from models import SupplyInfo
 
 
-def update_supply_info_quantity(tenant_id, drug_id, quantity_delta, operation_desc=""):
+def update_supply_info_quantity(tenant_id, drug_id, quantity_delta, operation_desc="", supply_info_id=None):
     """
     更新供应信息的可用数量，并自动管理上下架状态
     
@@ -17,24 +17,43 @@ def update_supply_info_quantity(tenant_id, drug_id, quantity_delta, operation_de
         drug_id: 药品ID  
         quantity_delta: 数量变化（正数表示增加，负数表示减少）
         operation_desc: 操作描述（用于日志）
+        supply_info_id: 可选，直接指定要更新的供应信息ID
     
     Returns:
         SupplyInfo: 更新后的供应信息对象，如果没找到则返回None
     """
-    # 先尝试查找ACTIVE状态的供应信息
-    supply_info = SupplyInfo.query.filter_by(
-        tenant_id=tenant_id,
-        drug_id=drug_id,
-        status='ACTIVE'
-    ).first()
-    
-    # 如果没找到ACTIVE状态的，再查找INACTIVE状态的
-    if not supply_info:
+    # 如果提供了supply_info_id，直接使用它
+    if supply_info_id:
+        supply_info = SupplyInfo.query.get(supply_info_id)
+        if not supply_info:
+            if current_app:
+                current_app.logger.warning(f'未找到供应信息ID {supply_info_id}')
+            else:
+                print(f'WARNING: 未找到供应信息ID {supply_info_id}')
+            return None
+        
+        # 验证租户和药品ID是否匹配（安全检查）
+        if supply_info.tenant_id != tenant_id or supply_info.drug_id != drug_id:
+            if current_app:
+                current_app.logger.error(f'供应信息ID {supply_info_id} 的租户或药品ID不匹配')
+            else:
+                print(f'ERROR: 供应信息ID {supply_info_id} 的租户或药品ID不匹配')
+            return None
+    else:
+        # 先尝试查找ACTIVE状态的供应信息
         supply_info = SupplyInfo.query.filter_by(
             tenant_id=tenant_id,
             drug_id=drug_id,
-            status='INACTIVE'
+            status='ACTIVE'
         ).first()
+        
+        # 如果没找到ACTIVE状态的，再查找INACTIVE状态的
+        if not supply_info:
+            supply_info = SupplyInfo.query.filter_by(
+                tenant_id=tenant_id,
+                drug_id=drug_id,
+                status='INACTIVE'
+            ).first()
     
     if not supply_info:
         if current_app:
@@ -88,4 +107,5 @@ def update_supply_info_quantity(tenant_id, drug_id, quantity_delta, operation_de
         else:
             print(f'INFO: {log_msg}')
     
+    # 不在这里提交，让调用方管理事务
     return supply_info
