@@ -64,35 +64,7 @@
           </div>
         </div>
 
-        <!-- 需求表单 -->
-        <div v-else-if="activeTab==='demand'" class="card">
-          <h3 class="card-title">发布药品需求信息</h3>
-          <div class="sub-card">
-            <h4 class="sub-title">需求基本信息</h4>
-            <div class="form-grid">
-              <div class="form-item">
-                <label>需求药品名称</label>
-                <input v-model="demandForm.drugName" placeholder="输入药品名称" />
-              </div>
-              <div class="form-item">
-                <label>需求数量</label>
-                <input v-model.number="demandForm.quantity" type="number" min="0" placeholder="输入数量" />
-              </div>
-              <div class="form-item">
-                <label>期望价格(元)</label>
-                <input v-model.number="demandForm.expectPrice" type="number" min="0" step="0.01" placeholder="输入期望价格" />
-              </div>
-              <div class="form-item">
-                <label>最晚交付日期</label>
-                <input v-model="demandForm.deadline" type="date" />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="secondary-btn" @click="resetDemandForm">重置表单</button>
-              <button class="primary-btn" @click="submitDemand">提交需求</button>
-            </div>
-          </div>
-        </div>
+
         
         <!-- 查看供应信息（内联组件） -->
         <div v-else-if="activeTab==='list'" class="card">
@@ -197,12 +169,10 @@ export default {
   const userRole = computed(() => currentUser.value?.role || '')
 
   const canAccessSupply = computed(() => userRole.value !== 'pharmacy' && userRole.value !== 'regulator')
-  const canAccessDemand = computed(() => userRole.value !== 'supplier' && userRole.value !== 'regulator')
   const canAccessSupplyList = computed(() => userRole.value !== 'supplier')
 
   const tabMatrix = [
     { key: 'supply', label: '供给信息发布', guard: canAccessSupply },
-    { key: 'demand', label: '需求信息发布', guard: canAccessDemand },
     { key: 'list', label: '查看供应信息', guard: canAccessSupplyList },
     { key: 'order', label: '下单', guard: computed(() => true) }
   ]
@@ -232,13 +202,6 @@ export default {
       status: 'supplying'
     })
 
-    const demandForm = ref({
-      drugName: '',
-      quantity: 0,
-      expectPrice: 0,
-      deadline: ''
-    })
-
     const records = ref([])
     const realRecords = ref([])
     const recordsLoading = ref(false)
@@ -252,15 +215,9 @@ export default {
     const resetSupplyForm = () => {
       supplyForm.value = { drugId:'', manufacturer:'', drugName:'', spec:'', quantity:0, prodDate:'', unitPrice:0, expireDate:'', status:'supplying' }
     }
-    const resetDemandForm = () => {
-      demandForm.value = { drugName:'', quantity:0, expectPrice:0, deadline:'' }
-    }
 
     const validateSupply = () => {
       return supplyForm.value.drugName && supplyForm.value.quantity > 0 && supplyForm.value.unitPrice > 0
-    }
-    const validateDemand = () => {
-      return demandForm.value.drugName && demandForm.value.quantity > 0
     }
 
     const submitSupply = () => {
@@ -277,22 +234,6 @@ export default {
         date: currentDate.value
       })
       resetSupplyForm()
-    }
-
-    const submitDemand = () => {
-      if (!validateDemand()) {
-        alert('请填写完整需求关键信息')
-        return
-      }
-      records.value.unshift({
-        kind: '需求',
-        drugName: demandForm.value.drugName,
-        quantity: demandForm.value.quantity,
-        priceInfo: demandForm.value.expectPrice ? demandForm.value.expectPrice + ' (期望)' : '-',
-        status: '待匹配',
-        date: currentDate.value
-      })
-      resetDemandForm()
     }
 
     
@@ -509,8 +450,8 @@ export default {
   return { 
     activeNav, activeTab, currentUser, userDisplayName, userRoleLabel, visibleTabs, setActiveTab, onTabsClick, 
     navigateTo, goToLogin, goToUserHome, goToEnterpriseAuth, goToEnterpriseReview, 
-    goToSystemStatus, goToAdminUsers, goToChangePassword, currentDate, supplyForm, demandForm, totalPrice, 
-    resetSupplyForm, resetDemandForm, submitSupply, submitDemand, records,
+    goToSystemStatus, goToAdminUsers, goToChangePassword, currentDate, supplyForm, totalPrice, 
+    resetSupplyForm, submitSupply, records,
     realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
     isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis,
     route
