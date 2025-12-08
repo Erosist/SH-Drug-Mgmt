@@ -628,3 +628,79 @@ class CirculationRecord(db.Model):
                 result['reporter'] = self.reporter.to_dict()
         
         return result
+
+
+class MedicationReminder(db.Model):
+    """用药提醒模型"""
+    __tablename__ = 'medication_reminders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=True)  # 可选关联药品
+    drug_name = db.Column(db.String(120), nullable=False)  # 药品名称（冗余字段）
+    dosage = db.Column(db.String(80), nullable=False)  # 剂量，如"每次2片"
+    frequency = db.Column(db.String(40), nullable=False)  # 频率：daily, weekly, monthly, custom
+    remind_times = db.Column(db.JSON, nullable=False)  # 提醒时间，如["08:00", "20:00"]
+    start_date = db.Column(db.Date, nullable=False)  # 开始日期
+    end_date = db.Column(db.Date, nullable=True)  # 结束日期（可选，空表示长期）
+    is_active = db.Column(db.Boolean, nullable=False, default=True)  # 是否启用
+    notes = db.Column(db.Text, nullable=True)  # 备注
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 关联关系
+    user = db.relationship('User', backref=db.backref('medication_reminders', lazy=True))
+    drug = db.relationship('Drug', backref=db.backref('medication_reminders', lazy=True))
+    
+    def to_dict(self, include_relations=False):
+        result = {
+            'id': self.id,
+            'user_id': self.user_id,
+            'drug_id': self.drug_id,
+            'drug_name': self.drug_name,
+            'dosage': self.dosage,
+            'frequency': self.frequency,
+            'remind_times': self.remind_times or [],
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'is_active': self.is_active,
+            'notes': self.notes,
+            'created_at': to_iso(self.created_at),
+            'updated_at': to_iso(self.updated_at)
+        }
+        
+        if include_relations:
+            result['user'] = self.user.to_dict() if self.user else None
+            result['drug'] = self.drug.to_dict() if self.drug else None
+        
+        return result
+
+
+class Announcement(db.Model):
+    """公告通知模型 - 包括健康资讯和紧急通知"""
+    __tablename__ = 'announcements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 'health_news', 'urgent_notice'
+    level = db.Column(db.String(50))  # 'normal', 'important', 'urgent'
+    publish_date = db.Column(db.Date, nullable=False)
+    source = db.Column(db.String(100))
+    status = db.Column(db.String(50), default='active')  # 'active', 'inactive'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'type': self.type,
+            'level': self.level,
+            'publish_date': self.publish_date.isoformat() if self.publish_date else None,
+            'source': self.source,
+            'status': self.status,
+            'created_at': to_iso(self.created_at),
+            'updated_at': to_iso(self.updated_at)
+        }

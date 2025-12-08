@@ -8,6 +8,7 @@
       </div>
       <div class="actions">
         <el-button @click="goToAdminUsers">用户管理</el-button>
+        <el-button @click="goToAnnouncements">公告管理</el-button>
         <el-button type="primary" plain :loading="loading" @click="loadStatus">刷新数据</el-button>
       </div>
     </div>
@@ -193,6 +194,7 @@ const loadStatus = async () => {
 }
 
 const goToAdminUsers = () => router.push('/admin/users')
+const goToAnnouncements = () => router.push('/admin/announcements')
 const goHome = () => router.push('/')
 
 const refreshUser = () => {

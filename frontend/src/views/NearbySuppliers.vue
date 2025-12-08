@@ -75,15 +75,6 @@
         <p class="subtitle">在地图上查看药店和供应商位置，搜索药品查找有库存的供应商</p>
       </div>
 
-      <!-- 加载状态 -->
-      <div v-if="initializing" class="initializing-overlay">
-        <div class="initializing-box">
-          <el-icon class="loading-icon" :size="32"><Loading /></el-icon>
-          <p>正在初始化地图和位置信息...</p>
-          <p class="initializing-subtitle">请稍候</p>
-        </div>
-      </div>
-
       <!-- 地图区域 - 始终显示 -->
       <el-card class="map-card">
         <template #header>
@@ -120,340 +111,335 @@
       </el-card>
 
       <!-- 搜索区域 -->
-      <el-card class="search-card">
-        <div class="search-section">
-          <el-form :model="searchForm" label-width="100px">
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="药品名称" required>
-                  <el-input 
-                    v-model="searchForm.drugName" 
-                    placeholder="请输入药品名称，如：阿莫西林"
-                    clearable
-                  >
-                    <template #prefix>
-                      <el-icon><Search /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-              </el-col>
-            </el-row>
+    <el-card class="search-card">
+      <div class="search-section">
+        <el-form :model="searchForm" label-width="100px">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="药品名称" required>
+                <el-input 
+                  v-model="searchForm.drugName" 
+                  placeholder="请输入药品名称，如：阿莫西林"
+                  clearable
+                >
+                  <template #prefix>
+                    <el-icon><Search /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="搜索方式">
-                  <el-radio-group v-model="searchType">
-                    <el-radio label="location">使用我的位置</el-radio>
-                    <el-radio label="address">输入地址</el-radio>
-                    <el-radio label="coords">输入坐标</el-radio>
-                  </el-radio-group>
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="搜索方式">
+                <el-radio-group v-model="searchType">
+                  <el-radio label="location">使用我的位置</el-radio>
+                  <el-radio label="address">输入地址</el-radio>
+                  <el-radio label="coords">输入坐标</el-radio>
+                </el-radio-group>
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-            <!-- 地址搜索 -->
-            <el-row :gutter="20" v-if="searchType === 'address'">
-              <el-col :span="8">
-                <el-form-item label="地址">
-                  <el-input 
-                    v-model="searchForm.address" 
-                    placeholder="请输入详细地址，如：北京市朝阳区望京SOHO"
-                    clearable
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="4">
-                <el-form-item label="城市">
-                  <el-input 
-                    v-model="searchForm.city" 
-                    placeholder="北京市"
-                    clearable
-                  />
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <!-- 地址搜索 -->
+          <el-row :gutter="20" v-if="searchType === 'address'">
+            <el-col :span="8">
+              <el-form-item label="地址">
+                <el-input 
+                  v-model="searchForm.address" 
+                  placeholder="请输入详细地址，如：北京市朝阳区望京SOHO"
+                  clearable
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="4">
+              <el-form-item label="城市">
+                <el-input 
+                  v-model="searchForm.city" 
+                  placeholder="北京市"
+                  clearable
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-            <!-- 坐标搜索 -->
-            <el-row :gutter="20" v-if="searchType === 'coords'">
-              <el-col :span="6">
-                <el-form-item label="经度">
-                  <el-input-number 
-                    v-model="searchForm.longitude" 
-                    :precision="6"
-                    :step="0.000001"
-                    placeholder="116.470697"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="纬度">
-                  <el-input-number 
-                    v-model="searchForm.latitude" 
-                    :precision="6"
-                    :step="0.000001"
-                    placeholder="40.000565"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <!-- 坐标搜索 -->
+          <el-row :gutter="20" v-if="searchType === 'coords'">
+            <el-col :span="6">
+              <el-form-item label="经度">
+                <el-input-number 
+                  v-model="searchForm.longitude" 
+                  :precision="6"
+                  :step="0.000001"
+                  placeholder="116.470697"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="纬度">
+                <el-input-number 
+                  v-model="searchForm.latitude" 
+                  :precision="6"
+                  :step="0.000001"
+                  placeholder="40.000565"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-            <!-- 搜索参数 -->
-            <el-row :gutter="20">
-              <el-col :span="6">
-                <el-form-item label="搜索半径">
-                  <el-select v-model="searchForm.maxDistance" placeholder="选择搜索半径">
-                    <el-option label="不限制" :value="null" />
-                    <el-option label="10公里" :value="10000" />
-                    <el-option label="30公里" :value="30000" />
-                    <el-option label="50公里" :value="50000" />
-                    <el-option label="100公里" :value="100000" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="显示数量">
-                  <el-input-number 
-                    v-model="searchForm.limit" 
-                    :min="1" 
-                    :max="50"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="距离计算">
-                  <el-switch
-                    v-model="searchForm.useApi"
-                    active-text="驾车距离"
-                    inactive-text="直线距离"
-                  />
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <!-- 搜索参数 -->
+          <el-row :gutter="20">
+            <el-col :span="6">
+              <el-form-item label="搜索半径">
+                <el-select v-model="searchForm.maxDistance" placeholder="选择搜索半径">
+                  <el-option label="不限制" :value="null" />
+                  <el-option label="10公里" :value="10000" />
+                  <el-option label="30公里" :value="30000" />
+                  <el-option label="50公里" :value="50000" />
+                  <el-option label="100公里" :value="100000" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="显示数量">
+                <el-input-number 
+                  v-model="searchForm.limit" 
+                  :min="1" 
+                  :max="50"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="距离计算">
+                <el-switch
+                  v-model="searchForm.useApi"
+                  active-text="驾车距离"
+                  inactive-text="直线距离"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-            <el-row>
-              <el-col :span="24">
-                <el-form-item>
-                  <el-button type="primary" @click="searchNearbySuppliers" :loading="loading">
-                    <el-icon><Search /></el-icon> 搜索供应商
-                  </el-button>
-                  <el-button @click="resetSearch">重置</el-button>
-                  <el-button 
-                    v-if="searchType === 'location'" 
-                    @click="updateMyLocation"
-                    :loading="updatingLocation"
-                  >
-                    <el-icon><Location /></el-icon> 更新我的位置
-                  </el-button>
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
+          <el-row>
+            <el-col :span="24">
+              <el-form-item>
+                <el-button type="primary" @click="searchNearbySuppliers" :loading="loading">
+                  <el-icon><Search /></el-icon> 搜索供应商
+                </el-button>
+                <el-button @click="resetSearch">重置</el-button>
+                <el-button 
+                  v-if="searchType === 'location'" 
+                  @click="updateMyLocation"
+                  :loading="updatingLocation"
+                >
+                  <el-icon><Location /></el-icon> 更新我的位置
+                </el-button>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-form>
+      </div>
+
+      <!-- 我的位置信息 -->
+      <div v-if="myLocation && searchType === 'location'" class="my-location-info">
+        <el-alert type="info" :closable="false">
+          <template #title>
+            <div class="location-info-content">
+              <span><strong>我的位置：</strong>{{ myLocation.name }}</span>
+              <span style="margin-left: 20px;">
+                <strong>地址：</strong>{{ myLocation.address }}
+              </span>
+              <span v-if="myLocation.has_location" style="margin-left: 20px;">
+                <strong>坐标：</strong>({{ myLocation.longitude }}, {{ myLocation.latitude }})
+              </span>
+            </div>
+          </template>
+        </el-alert>
+      </div>
+    </el-card>
+
+    <!-- 搜索结果 -->
+    <el-card class="result-card" v-if="searchResult && searchResult.suppliers.length > 0">
+      <template #header>
+        <div class="card-header">
+          <span>搜索结果 - {{ searchResult.drug_name }}</span>
+          <div>
+            <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
+          </div>
         </div>
+      </template>
 
-        <!-- 我的位置信息 -->
-        <div v-if="myLocation && searchType === 'location'" class="my-location-info">
-          <el-alert type="info" :closable="false">
-            <template #title>
-              <div class="location-info-content">
-                <span><strong>我的位置：</strong>{{ myLocation.name }}</span>
-                <span style="margin-left: 20px;">
-                  <strong>地址：</strong>{{ myLocation.address }}
-                </span>
-                <span v-if="myLocation.has_location" style="margin-left: 20px;">
-                  <strong>坐标：</strong>({{ myLocation.longitude.toFixed(6) }}, {{ myLocation.latitude.toFixed(6) }})
-                </span>
-                <span style="margin-left: 20px;">
-                  <el-tag :type="myLocation.has_location ? 'success' : 'warning'" size="small">
-                    {{ myLocation.has_location ? '已定位' : '未定位' }}
-                  </el-tag>
-                </span>
+      <div class="result-summary">
+        <el-descriptions :column="4" border size="small">
+          <el-descriptions-item label="药品名称">
+            <el-tag type="primary">{{ searchResult.drug_name }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="搜索位置">
+            {{ searchResult.pharmacy_location.longitude.toFixed(6) }}, 
+            {{ searchResult.pharmacy_location.latitude.toFixed(6) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="符合条件">
+            {{ searchResult.filtered }}
+          </el-descriptions-item>
+          <el-descriptions-item label="搜索半径">
+            {{ searchResult.params.max_distance ? 
+              (searchResult.params.max_distance / 1000) + 'km' : '不限制' }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <!-- 供应商列表 -->
+      <div class="suppliers-list">
+        <el-table 
+          :data="searchResult.suppliers" 
+          stripe 
+          style="width: 100%"
+          :default-sort="{ prop: 'distance', order: 'ascending' }"
+        >
+          <el-table-column type="index" label="排名" width="60" />
+          <el-table-column prop="name" label="供应商名称" min-width="180" />
+          <el-table-column label="药品信息" min-width="200">
+            <template #default="{ row }">
+              <div v-if="row.inventory && row.inventory.drug_info">
+                <div><strong>{{ row.inventory.drug_info.generic_name }}</strong></div>
+                <div style="font-size: 12px; color: #666;">
+                  {{ row.inventory.drug_info.brand_name }} | {{ row.inventory.drug_info.specification }}
+                </div>
+                <div style="font-size: 12px; color: #999;">
+                  {{ row.inventory.drug_info.manufacturer }}
+                </div>
               </div>
             </template>
-          </el-alert>
-        </div>
-      </el-card>
-
-      <!-- 搜索结果 -->
-      <el-card class="result-card" v-if="searchResult && searchResult.suppliers.length > 0">
-        <template #header>
-          <div class="card-header">
-            <span>搜索结果 - {{ searchResult.drug_name }}</span>
-            <div>
-              <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
-            </div>
-          </div>
-        </template>
-
-        <div class="result-summary">
-          <el-descriptions :column="4" border size="small">
-            <el-descriptions-item label="药品名称">
-              <el-tag type="primary">{{ searchResult.drug_name }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="搜索位置">
-              {{ searchResult.pharmacy_location.longitude.toFixed(6) }}, 
-              {{ searchResult.pharmacy_location.latitude.toFixed(6) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="符合条件">
-              {{ searchResult.filtered }}
-            </el-descriptions-item>
-            <el-descriptions-item label="搜索半径">
-              {{ searchResult.params.max_distance ? 
-                (searchResult.params.max_distance / 1000) + 'km' : '不限制' }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-
-        <!-- 供应商列表 -->
-        <div class="suppliers-list">
-          <el-table 
-            :data="searchResult.suppliers" 
-            stripe 
-            style="width: 100%"
-            :default-sort="{ prop: 'distance', order: 'ascending' }"
-          >
-            <el-table-column type="index" label="排名" width="60" />
-            <el-table-column prop="name" label="供应商名称" min-width="180" />
-            <el-table-column label="药品信息" min-width="200">
-              <template #default="{ row }">
-                <div v-if="row.inventory && row.inventory.drug_info">
-                  <div><strong>{{ row.inventory.drug_info.generic_name }}</strong></div>
-                  <div style="font-size: 12px; color: #666;">
-                    {{ row.inventory.drug_info.brand_name }} | {{ row.inventory.drug_info.specification }}
-                  </div>
-                  <div style="font-size: 12px; color: #999;">
-                    {{ row.inventory.drug_info.manufacturer }}
-                  </div>
+          </el-table-column>
+          <el-table-column label="库存/价格" width="140" align="center">
+            <template #default="{ row }">
+              <div v-if="row.inventory">
+                <el-tag type="success">库存: {{ row.inventory.quantity }}</el-tag>
+                <div style="margin-top: 5px; color: #f56c6c; font-weight: bold;">
+                  ¥{{ row.inventory.unit_price }}
                 </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="库存/价格" width="140" align="center">
-              <template #default="{ row }">
-                <div v-if="row.inventory">
-                  <el-tag type="success">库存: {{ row.inventory.quantity }}</el-tag>
-                  <div style="margin-top: 5px; color: #f56c6c; font-weight: bold;">
-                    ¥{{ row.inventory.unit_price }}
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="distance_text" label="距离" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getDistanceType(row.distance)">
-                  {{ row.distance_text }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="address" label="地址" min-width="220" />
-            <el-table-column prop="contact_person" label="联系人" width="100" />
-            <el-table-column prop="contact_phone" label="联系电话" width="130" />
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <el-button size="small" type="primary" @click="viewSupplierDetail(row)">
-                  查看详情
-                </el-button>
-                <el-button size="small" type="success" @click="contactSupplier(row)">
-                  联系
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="distance_text" label="距离" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="getDistanceType(row.distance)">
+                {{ row.distance_text }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="address" label="地址" min-width="220" />
+          <el-table-column prop="contact_person" label="联系人" width="100" />
+          <el-table-column prop="contact_phone" label="联系电话" width="130" />
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="primary" @click="viewSupplierDetail(row)">
+                查看详情
+              </el-button>
+              <el-button size="small" type="success" @click="contactSupplier(row)">
+                联系
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
-        <!-- 空状态 -->
-        <el-empty 
-          v-if="searchResult && searchResult.suppliers.length === 0"
-          :description="searchResult.message || '未找到符合条件的供应商'"
-        >
-          <el-button type="primary" @click="resetSearch">重新搜索</el-button>
-        </el-empty>
-      </el-card>
-
-      <!-- 供应商详情对话框 -->
-      <el-dialog 
-        v-model="detailDialogVisible" 
-        title="供应商详情" 
-        width="700px"
+      <!-- 空状态 -->
+      <el-empty 
+        v-if="searchResult && searchResult.suppliers.length === 0"
+        :description="searchResult.message || '未找到符合条件的供应商'"
       >
-        <div v-if="currentSupplier">
+        <el-button type="primary" @click="resetSearch">重新搜索</el-button>
+      </el-empty>
+    </el-card>
+
+    <!-- 供应商详情对话框 -->
+    <el-dialog 
+      v-model="detailDialogVisible" 
+      title="供应商详情" 
+      width="700px"
+    >
+      <div v-if="currentSupplier">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="供应商名称" :span="2">
+            {{ currentSupplier.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            <el-tag>{{ currentSupplier.type }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="距离">
+            <el-tag type="success">{{ currentSupplier.distance_text }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="地址" :span="2">
+            {{ currentSupplier.address }}
+          </el-descriptions-item>
+          <el-descriptions-item label="统一社会信用代码" :span="2">
+            {{ currentSupplier.unified_social_credit_code }}
+          </el-descriptions-item>
+          <el-descriptions-item label="法定代表人">
+            {{ currentSupplier.legal_representative }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系人">
+            {{ currentSupplier.contact_person }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系电话">
+            {{ currentSupplier.contact_phone }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系邮箱">
+            {{ currentSupplier.contact_email }}
+          </el-descriptions-item>
+          <el-descriptions-item label="经营范围" :span="2">
+            {{ currentSupplier.business_scope }}
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <!-- 库存信息 -->
+        <el-divider>库存信息</el-divider>
+        <div v-if="currentSupplier.inventory" class="inventory-info">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="供应商名称" :span="2">
-              {{ currentSupplier.name }}
+            <el-descriptions-item label="药品通用名">
+              {{ currentSupplier.inventory.drug_info?.generic_name }}
             </el-descriptions-item>
-            <el-descriptions-item label="类型">
-              <el-tag>{{ currentSupplier.type }}</el-tag>
+            <el-descriptions-item label="商品名">
+              {{ currentSupplier.inventory.drug_info?.brand_name }}
             </el-descriptions-item>
-            <el-descriptions-item label="距离">
-              <el-tag type="success">{{ currentSupplier.distance_text }}</el-tag>
+            <el-descriptions-item label="规格">
+              {{ currentSupplier.inventory.drug_info?.specification }}
             </el-descriptions-item>
-            <el-descriptions-item label="地址" :span="2">
-              {{ currentSupplier.address }}
+            <el-descriptions-item label="生产厂家">
+              {{ currentSupplier.inventory.drug_info?.manufacturer }}
             </el-descriptions-item>
-            <el-descriptions-item label="统一社会信用代码" :span="2">
-              {{ currentSupplier.unified_social_credit_code }}
+            <el-descriptions-item label="库存数量">
+              <el-tag type="success" size="large">{{ currentSupplier.inventory.quantity }}</el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="法定代表人">
-              {{ currentSupplier.legal_representative }}
+            <el-descriptions-item label="单价">
+              <span style="color: #f56c6c; font-size: 18px; font-weight: bold;">
+                ¥{{ currentSupplier.inventory.unit_price }}
+              </span>
             </el-descriptions-item>
-            <el-descriptions-item label="联系人">
-              {{ currentSupplier.contact_person }}
+            <el-descriptions-item label="最小订购量">
+              {{ currentSupplier.inventory.min_order_quantity }}
             </el-descriptions-item>
-            <el-descriptions-item label="联系电话">
-              {{ currentSupplier.contact_phone }}
-            </el-descriptions-item>
-            <el-descriptions-item label="联系邮箱">
-              {{ currentSupplier.contact_email }}
-            </el-descriptions-item>
-            <el-descriptions-item label="经营范围" :span="2">
-              {{ currentSupplier.business_scope }}
+            <el-descriptions-item label="有效期至">
+              {{ currentSupplier.inventory.valid_until }}
             </el-descriptions-item>
           </el-descriptions>
-          
-          <!-- 库存信息 -->
-          <el-divider>库存信息</el-divider>
-          <div v-if="currentSupplier.inventory" class="inventory-info">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="药品通用名">
-                {{ currentSupplier.inventory.drug_info?.generic_name }}
-              </el-descriptions-item>
-              <el-descriptions-item label="商品名">
-                {{ currentSupplier.inventory.drug_info?.brand_name }}
-              </el-descriptions-item>
-              <el-descriptions-item label="规格">
-                {{ currentSupplier.inventory.drug_info?.specification }}
-              </el-descriptions-item>
-              <el-descriptions-item label="生产厂家">
-                {{ currentSupplier.inventory.drug_info?.manufacturer }}
-              </el-descriptions-item>
-              <el-descriptions-item label="库存数量">
-                <el-tag type="success" size="large">{{ currentSupplier.inventory.quantity }}</el-tag>
-              </el-descriptions-item>
-              <el-descriptions-item label="单价">
-                <span style="color: #f56c6c; font-size: 18px; font-weight: bold;">
-                  ¥{{ currentSupplier.inventory.unit_price }}
-                </span>
-              </el-descriptions-item>
-              <el-descriptions-item label="最小订购量">
-                {{ currentSupplier.inventory.min_order_quantity }}
-              </el-descriptions-item>
-              <el-descriptions-item label="有效期至">
-                {{ currentSupplier.inventory.valid_until }}
-              </el-descriptions-item>
-            </el-descriptions>
-          </div>
         </div>
-      </el-dialog>
+      </div>
+    </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, computed, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Location, Loading } from '@element-plus/icons-vue'
+import { Search, Location, MapLocation } from '@element-plus/icons-vue'
 import { nearbyApi } from '@/api/nearby'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
@@ -483,11 +469,8 @@ const currentDate = computed(() => {
   return `${y}年${m}月${d}日`
 })
 
-// 初始化状态
-const initializing = ref(false)
-
 // 导航方法
-const navigateTo = async (page) => {
+const navigateTo = (page) => {
   switch(page) {
     case 'home':
       router.push('/'); break
@@ -510,8 +493,7 @@ const navigateTo = async (page) => {
         router.push({ name: 'unauth', query: { active: 'nearby' } })
         break
       }
-      router.push('/nearby-suppliers')
-      break
+      router.push('/nearby-suppliers'); break
     case 'b2b':
       if (!currentUser.value) {
         router.push({ name: 'login', query: { redirect: '/b2b' } })
@@ -602,7 +584,6 @@ const refreshUser = () => {
 let map = null
 let markers = []
 let polylines = [] // 存储路径线
-let mapReady = false
 const allSuppliers = ref([]) // 所有供应商
 
 // 搜索类型
@@ -665,87 +646,74 @@ const loadAllSuppliers = async () => {
 }
 
 // 更新我的位置 - 使用浏览器地理定位
-// options: { silent: boolean } - 当 silent 为 true 时不显示提示信息（用于自动定位场景）
-const updateMyLocation = async (options = {}) => {
-  const silent = options && options.silent
+const updateMyLocation = async () => {
   if (!navigator.geolocation) {
-    if (!silent) ElMessage.error('您的浏览器不支持地理定位功能')
-    return { success: false, message: 'no_geolocation' }
+    ElMessage.error('您的浏览器不支持地理定位功能')
+    return
   }
 
-  updatingLocation.value = true
-  if (!silent) ElMessage.info('正在获取您的位置，请允许浏览器访问位置信息...')
-
-  return new Promise((resolve) => {
-    try {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const coords = position.coords
-            console.log('获取到的位置:', coords)
-
-            const response = await nearbyApi.updateMyLocation({
-              longitude: coords.longitude,
-              latitude: coords.latitude
-            })
-
-            if (response.data && response.data.success) {
-              if (!silent) ElMessage.success('位置更新成功')
-              await loadMyLocation()
-
-              // 更新地图中心点和标记
-              if (map) {
-                if (myLocation.value?.has_location) {
-                  map.setCenter([myLocation.value.longitude, myLocation.value.latitude])
-                  map.setZoom(15)
-                }
-                updateMapMarkers()
-              }
-
-              updatingLocation.value = false
-              resolve({ success: true })
-              return
+  try {
+    updatingLocation.value = true
+    ElMessage.info('正在获取您的位置，请允许浏览器访问位置信息...')
+    
+    // 使用浏览器的地理定位API
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const coords = position.coords
+          console.log('获取到的位置:', coords)
+          
+          // GCJ-02坐标系转换（如果需要）
+          // 浏览器返回的是WGS84坐标，而高德地图使用GCJ-02坐标
+          // 这里直接使用，高德API会自动处理
+          const response = await nearbyApi.updateMyLocation({
+            longitude: coords.longitude,
+            latitude: coords.latitude
+          })
+          
+          if (response.data.success) {
+            ElMessage.success('位置更新成功')
+            await loadMyLocation()
+            
+            // 更新地图中心点
+            if (map && response.data.tenant.longitude && response.data.tenant.latitude) {
+              map.setCenter([response.data.tenant.longitude, response.data.tenant.latitude])
+              updateMapMarkers()
             }
-
-            updatingLocation.value = false
-            resolve({ success: false, message: 'api_failed' })
-          } catch (error) {
-            updatingLocation.value = false
-            ElMessage.error('位置更新失败: ' + (error.response?.data?.message || error.message))
-            console.error('updateMyLocation error:', error)
-            resolve({ success: false, error })
           }
-        },
-        (error) => {
+        } catch (error) {
+          ElMessage.error('位置更新失败: ' + (error.response?.data?.message || error.message))
+        } finally {
           updatingLocation.value = false
-          let errorMsg = '获取位置失败'
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMsg = '您拒绝了位置访问请求，请在浏览器设置中允许位置访问'
-              break
-            case error.POSITION_UNAVAILABLE:
-              errorMsg = '位置信息不可用，请检查您的设备设置'
-              break
-            case error.TIMEOUT:
-              errorMsg = '获取位置超时，请重试'
-              break
-          }
-          ElMessage.error(errorMsg)
-          console.error('Geolocation error:', error)
-          resolve({ success: false, error })
-        },
-        {
-          enableHighAccuracy: true, // 使用高精度
-          timeout: 10000, // 10秒超时
-          maximumAge: 0 // 不使用缓存的位置
         }
-      )
-    } catch (error) {
-      updatingLocation.value = false
-      ElMessage.error('位置更新失败: ' + (error.message || '未知错误'))
-      resolve({ success: false, error })
-    }
-  })
+      },
+      (error) => {
+        updatingLocation.value = false
+        let errorMsg = '获取位置失败'
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = '您拒绝了位置访问请求，请在浏览器设置中允许位置访问'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = '位置信息不可用，请检查您的设备设置'
+            break
+          case error.TIMEOUT:
+            errorMsg = '获取位置超时，请重试'
+            break
+        }
+        ElMessage.error(errorMsg)
+        console.error('Geolocation error:', error)
+      },
+      {
+        enableHighAccuracy: true, // 使用高精度
+        timeout: 10000, // 10秒超时
+        maximumAge: 0 // 不使用缓存的位置
+      }
+    )
+  } catch (error) {
+    updatingLocation.value = false
+    ElMessage.error('位置更新失败: ' + (error.message || '未知错误'))
+  }
 }
 
 // 搜索就近供应商
@@ -863,94 +831,35 @@ const initMap = () => {
     return
   }
 
-  // 确定中心点和缩放级别
-  let center = [116.397128, 39.916527] // 默认北京
-  let zoom = 11
-  
-  if (myLocation.value?.has_location) {
-    center = [myLocation.value.longitude, myLocation.value.latitude]
-    zoom = 15 // 如果有具体位置，放大显示
-    console.log('Using my location as map center:', center)
-  } else {
-    console.log('Using default map center:', center)
-  }
-
   // 创建地图实例
   map = new AMap.Map('amap-container', {
-    zoom: zoom,
-    center: center,
+    zoom: 11,
+    center: myLocation.value?.has_location 
+      ? [myLocation.value.longitude, myLocation.value.latitude]
+      : [116.397128, 39.916527], // 默认中心点
     viewMode: '2D'
   })
 
-  // 添加缩放控件
+  // 添加缩放控件（有时部分高德控件在某些环境会抛错，使用 try/catch 保护）
   try {
-    if (window.AMap && typeof AMap.plugin === 'function') {
-      // 使用插件加载方式，兼容不同 SDK 版本
-      AMap.plugin(['AMap.Scale','AMap.ToolBar'], () => {
-        try { map.addControl(new AMap.Scale()) } catch (e) { console.warn('AMap.Scale addControl failed:', e) }
-        try { map.addControl(new AMap.ToolBar()) } catch (e) { console.warn('AMap.ToolBar addControl failed:', e) }
-      })
-    } else {
-      // 兜底：仅在构造函数存在时添加
-      if (typeof AMap.Scale === 'function') {
-        try { map.addControl(new AMap.Scale()) } catch (e) { console.warn('AMap.Scale addControl failed:', e) }
-      } else {
-        console.warn('AMap.Scale not available')
-      }
-      if (typeof AMap.ToolBar === 'function') {
-        try { map.addControl(new AMap.ToolBar()) } catch (e) { console.warn('AMap.ToolBar addControl failed:', e) }
-      } else {
-        console.warn('AMap.ToolBar not available')
-      }
-    }
-  } catch (e) {
-    console.warn('Error while adding map controls:', e)
+    if (AMap.Scale) map.addControl(new AMap.Scale())
+  } catch (err) {
+    console.warn('AMap.Scale 控件初始化失败:', err)
   }
 
-  // 等地图完成后再定位和标注
-  map.on && map.on('complete', () => {
-    mapReady = true
-    console.log('AMap complete event fired')
-    try {
-      console.log('DEBUG: currentUser=', currentUser.value)
-      console.log('DEBUG: isPharmacy=', isPharmacy.value, 'searchType=', searchType.value)
-      console.log('DEBUG: myLocation before handling=', myLocation.value)
-      try { console.log('DEBUG: sessionStorage nearby_pending_location=', sessionStorage.getItem('nearby_pending_location')) } catch (e) { console.warn('Cannot read sessionStorage pending location', e) }
-      try { console.log('DEBUG: sessionStorage nearby_delayed_nav=', sessionStorage.getItem('nearby_delayed_nav')) } catch (e) { console.warn('Cannot read sessionStorage delayed nav', e) }
-    } catch (e) {
-      console.warn('DEBUG logging failed in map.complete:', e)
-    }
-    
-    // 地图完成后：若已有位置，立刻居中、缩放并标注；否则尝试定位
-    if (myLocation.value?.has_location) {
-      const center = [myLocation.value.longitude, myLocation.value.latitude]
-      map.setCenter(center)
-      map.setZoom(15)
-      updateMapMarkers()
-      return
-    }
+  try {
+    if (AMap.ToolBar) map.addControl(new AMap.ToolBar())
+  } catch (err) {
+    console.warn('AMap.ToolBar 控件初始化失败:', err)
+  }
 
-    if (isPharmacy.value && navigator.geolocation) {
-      console.log('Attempting to get location after map loaded... (silent)')
-      updateMyLocation({ silent: true }).then((result) => {
-        console.log('updateMyLocation result:', result)
-        if (result && result.success && myLocation.value?.has_location) {
-          const center = [myLocation.value.longitude, myLocation.value.latitude]
-          map.setCenter(center)
-          map.setZoom(15)
-          updateMapMarkers()
-        } else {
-          console.warn('updateMyLocation did not return success or no myLocation; rendering suppliers only')
-          updateMapMarkers()
-        }
-      }).catch(e => {
-        console.warn('Failed to get location after map loaded:', e)
-        updateMapMarkers()
-      })
-    } else {
-      // 非药店或无定位能力：仅渲染供应商标记
-      console.log('Not a pharmacy or no geolocation available - rendering supplier markers only')
+  // 在地图完全初始化后触发一次标记更新，确保在地图 ready/complete 之后再添加 marker
+  map.on && map.on('complete', () => {
+    try {
+      console.log('AMap complete event fired — map ready')
       updateMapMarkers()
+    } catch (e) {
+      console.error('updateMapMarkers 在 map.complete 回调中失败:', e)
     }
   })
 }
@@ -975,9 +884,6 @@ const updateMapMarkers = () => {
   }
 
   console.log('Starting updateMapMarkers...')
-  console.log('My location:', myLocation.value)
-  console.log('All suppliers:', allSuppliers.value.length)
-  
   clearMarkers()
 
   const allPoints = []
@@ -1018,8 +924,6 @@ const updateMapMarkers = () => {
     pharmacyMarker.on('click', () => {
       pharmacyInfo.open(map, pharmacyMarker.getPosition())
     })
-  } else {
-    console.log('No pharmacy location available')
   }
 
   // 添加供应商标记
@@ -1129,59 +1033,29 @@ const updateMapMarkers = () => {
   console.log('Map markers updated successfully')
 }
 
-// 页面初始化（容错，不因单步失败阻断）
-const initializePage = async () => {
-  initializing.value = true
-
-  // 1. 如果是药店用户且选择使用位置，先尝试浏览器定位（失败不阻断）
-  if (isPharmacy.value && searchType.value === 'location' && navigator.geolocation) {
-    console.log('Attempting browser geolocation for pharmacy user... (silent)')
-    try {
-      await updateMyLocation({ silent: true })
-    } catch (e) {
-      console.warn('Browser geolocation failed, will use saved location:', e?.message || e)
-    }
-  }
-
-  // 2. 加载所有供应商（失败不阻断）
-  try {
-    await loadAllSuppliers()
-  } catch (e) {
-    console.warn('Load suppliers failed, continue without suppliers:', e?.message || e)
-    allSuppliers.value = allSuppliers.value || []
-  }
-
-  // 3. 如果还没有位置数据，从后端加载（失败不阻断）
-  try {
-    if (!myLocation.value) {
-      await loadMyLocation()
-    }
-  } catch (e) {
-    console.warn('Load my location failed, continue without location:', e?.message || e)
-  }
-
-  // 4. 等待DOM渲染
-  try {
-    await nextTick()
-  } catch (e) {
-    console.warn('nextTick failed (rare), continue:', e?.message || e)
-  }
-
-  // 5. 初始化地图（即使之前出错也应继续）
-  try {
-    initMap()
-  } catch (e) {
-    console.error('Init map failed:', e)
-    ElMessage.error('地图初始化失败，请稍后重试')
-  } finally {
-    initializing.value = false
-  }
-}
-
 // 页面加载时初始化
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('storage', refreshUser)
-  initializePage()
+  
+  // 加载我的位置和所有供应商
+  await Promise.all([
+    loadMyLocation(),
+    loadAllSuppliers()
+  ])
+  
+  // 等待DOM渲染后初始化地图，并依赖 map.complete 事件进行标记更新
+  await nextTick()
+  initMap()
+
+  // 作为容错回退：如果 map 在短时间内没有触发 complete，我们在 800ms 后再尝试一次更新标记
+  setTimeout(() => {
+    try {
+      console.log('Fallback updateMapMarkers check — myLocation:', myLocation.value)
+      updateMapMarkers()
+    } catch (e) {
+      console.warn('Fallback updateMapMarkers 失败:', e)
+    }
+  }, 800)
 })
 
 onBeforeUnmount(() => {
@@ -1369,47 +1243,6 @@ onBeforeUnmount(() => {
   max-width: 100%;
   margin: 0;
   padding: 20px;
-  position: relative;
-}
-
-/* 初始化加载状态 */
-.initializing-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.initializing-box {
-  text-align: center;
-  background: white;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
-}
-
-.loading-icon {
-  color: #1a73e8;
-  margin-bottom: 20px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.initializing-subtitle {
-  color: #666;
-  font-size: 14px;
-  margin-top: 10px;
 }
 
 .page-header {
@@ -1482,7 +1315,6 @@ onBeforeUnmount(() => {
 
 .map-container {
   margin: 20px 0;
-  position: relative;
 }
 
 .map-legend {

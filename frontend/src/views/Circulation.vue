@@ -47,6 +47,11 @@
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
             >智能调度</div>
+            <div v-if="isLogistics"
+              class="nav-item"
+              :class="{ active: activeNav === 'orders' }"
+              @click="navigateTo('logistics-orders')"
+            >订单查看</div>
           </div>
           
           <div class="user-actions">
@@ -794,8 +799,13 @@ export default {
     }
     
     const navigateTo = (page) => {
-      activeNav.value = page
-      
+      // 保持 activeNav 的可控性：对于特定页面我们希望使用统一的高亮键
+      if (page === 'logistics-orders') {
+        activeNav.value = 'orders'
+      } else {
+        activeNav.value = page
+      }
+
       switch(page) {
         case 'home':
           router.push('/')
@@ -827,6 +837,17 @@ export default {
           break
         case 'service':
           router.push('/service')
+          break
+        case 'logistics-orders':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/logistics-orders' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'orders' } })
+            break
+          }
+          router.push('/logistics-orders')
           break
         case 'compliance':
           if (!currentUser.value) {
