@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from config import DevelopmentConfig, ProductionConfig, TestingConfig
-from extensions import db, migrate, jwt
+from extensions import db, migrate, jwt, mail
 from auth import bp as auth_bp
 from supply import bp as supply_bp
 from catalog import bp as catalog_bp
@@ -63,6 +63,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    mail.init_app(app)
 
     # register blueprints
     app.register_blueprint(auth_bp)

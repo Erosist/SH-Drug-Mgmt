@@ -1,13 +1,15 @@
 from datetime import datetime, timedelta
 import secrets
 import string
+import random
 
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_mail import Message
 from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
 
-from extensions import db
+from extensions import db, mail
 from models import User, PasswordResetCode
 from audit import record_admin_action
 
@@ -16,6 +18,9 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 ALLOWED_ROLES = {'pharmacy', 'supplier', 'logistics', 'regulator', 'admin', 'unauth'}
 RESET_CODE_TTL_MINUTES = 10
 CONTACT_CHANNELS = {'email', 'phone'}
+
+# 临时存放验证码的字典（生产环境建议使用 Redis）
+verification_codes = {}
 
 
 def normalize_email(email: str) -> str:
@@ -70,6 +75,85 @@ def get_authenticated_user():
 
 def ensure_admin(user: User):
     return user and user.role == 'admin'
+
+
+@bp.route('/send-email-code', methods=['POST'])
+def send_email_code():
+    """发送邮箱验证码"""
+    data = request.get_json() or {}
+    email = data.get('email', '').strip()
+    
+    # 1. 校验邮箱不能为空
+    if not email:
+        return jsonify({'msg': '邮箱不能为空'}), 400
+    
+    # 2. 简单的邮箱格式验证
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'msg': '邮箱格式不正确'}), 400
+    
+    # 3. 生成 6 位随机验证码
+    code = str(random.randint(100000, 999999))
+    
+    # 4. 构造邮件内容
+    msg = Message(
+        subject='【SH-Drug-Mgmt】注册验证码',
+        recipients=[email],
+        body=f'您的注册验证码是：{code}，请在 5 分钟内完成注册。'
+    )
+    
+    try:
+        # 5. 发送邮件
+        mail.send(msg)
+        
+        # 6. 存储验证码（带过期时间）
+        verification_codes[email] = {
+            'code': code,
+            'expires_at': datetime.utcnow() + timedelta(minutes=5)
+        }
+        
+        current_app.logger.info(f'已发送验证码给邮箱: {email}')
+        
+        # 在开发环境下返回验证码便于测试
+        response = {'msg': '验证码发送成功'}
+        if current_app.config.get('DEBUG'):
+            response['debug_code'] = code
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        current_app.logger.error(f'邮件发送失败: {e}')
+        return jsonify({'msg': '发送失败，请检查邮箱地址是否正确或稍后重试'}), 500
+
+
+@bp.route('/verify-email-code', methods=['POST'])
+def verify_email_code():
+    """验证邮箱验证码"""
+    data = request.get_json() or {}
+    email = data.get('email', '').strip()
+    code = data.get('code', '').strip()
+    
+    if not email or not code:
+        return jsonify({'msg': '邮箱和验证码不能为空'}), 400
+    
+    # 检查验证码是否存在
+    stored = verification_codes.get(email)
+    if not stored:
+        return jsonify({'msg': '验证码不存在或已过期，请重新获取'}), 400
+    
+    # 检查是否过期
+    if datetime.utcnow() > stored['expires_at']:
+        del verification_codes[email]
+        return jsonify({'msg': '验证码已过期，请重新获取'}), 400
+    
+    # 验证码比对
+    if stored['code'] != code:
+        return jsonify({'msg': '验证码错误'}), 400
+    
+    # 验证成功，删除已使用的验证码
+    del verification_codes[email]
+    
+    return jsonify({'msg': '验证成功'}), 200
+
 
 @bp.route('/register', methods=['POST'])
 def register():

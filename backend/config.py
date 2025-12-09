@@ -17,6 +17,14 @@ class Config:
     # 高德地图 API 配置
     AMAP_WEB_KEY = os.getenv('AMAP_WEB_KEY', '7fdb9359ad81879b1f935cfa51dc43f0')
     AMAP_REST_KEY = os.getenv('AMAP_REST_KEY', '143117d600102600e70696533eb39a5b')
+    
+    # 邮件配置
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.qq.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', '465'))
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'True').lower() in ('true', '1', 'yes')
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME', '')  # 请在 .env 文件中设置你的 QQ 邮箱
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')  # 请在 .env 文件中设置你的 QQ 邮箱授权码
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
 
 class DevelopmentConfig(Config):
     DEBUG = True
