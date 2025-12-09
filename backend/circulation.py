@@ -14,7 +14,7 @@ from models import (
 bp = Blueprint('circulation', __name__, url_prefix='/api/circulation')
 
 # 允许的角色
-ALLOWED_ROLES = {'pharmacy', 'supplier', 'logistics'}
+ALLOWED_ROLES = {'logistics'}
 
 # 运输状态枚举
 TRANSPORT_STATUSES = {'SHIPPED', 'IN_TRANSIT', 'DELIVERED'}
@@ -285,9 +285,9 @@ def report_circulation():
     if not user:
         return jsonify({'msg': '用户未找到'}), 404
     
-    # 权限检查：只有药店、供应商、物流公司可以上报
+    # 权限检查：只有物流公司可以上报
     if user.role not in ALLOWED_ROLES:
-        return jsonify({'msg': '权限不足：只有药店、供应商、物流公司可以上报流通数据'}), 403
+        return jsonify({'msg': '权限不足：只有物流公司可以上报流通数据'}), 403
     
     data = request.get_json() or {}
     tracking_number = (data.get('tracking_number') or '').strip()
@@ -327,12 +327,6 @@ def report_circulation():
     order = Order.query.filter_by(tracking_number=tracking_number).first()
     if not order:
         return jsonify({'msg': f'未找到运单号 {tracking_number} 对应的订单'}), 404
-    
-    # 权限检查：用户必须是订单相关方
-    if user.role != 'logistics':
-        # 药店和供应商只能上报自己相关的订单
-        if user.tenant_id != order.buyer_tenant_id and user.tenant_id != order.supplier_tenant_id:
-            return jsonify({'msg': '权限不足：您不是该订单的相关方'}), 403
     
     # 查找当前运单的最新状态
     latest_record = CirculationRecord.query.filter_by(
@@ -439,10 +433,10 @@ def get_circulation_records(tracking_number: str):
 def trace_drug():
     """
     药品全生命周期追溯
-    GET /api/circulation/trace?batch_number=<批号>&start_date=<开始日期>&end_date=<结束日期>
+    GET /api/circulation/trace?tracking_number=<运单号>&start_date=<开始日期>&end_date=<结束日期>
     
     查询参数:
-    - batch_number: 药品批号（必填）
+    - tracking_number: 运单号（必填）
     - start_date: 开始日期（可选，ISO格式）
     - end_date: 结束日期（可选，ISO格式）
     """
@@ -454,13 +448,13 @@ def trace_drug():
     if user.role != 'regulator':
         return jsonify({'msg': '权限不足：只有监管用户才能查询药品追溯'}), 403
     
-    batch_number = request.args.get('batch_number', '').strip()
+    tracking_number = request.args.get('tracking_number', '').strip()
     start_date_str = request.args.get('start_date', '').strip()
     end_date_str = request.args.get('end_date', '').strip()
     
     # 必填字段验证
-    if not batch_number:
-        return jsonify({'msg': '药品批号不能为空'}), 400
+    if not tracking_number:
+        return jsonify({'msg': '运单号不能为空'}), 400
     
     try:
         # 解析时间范围（可选）
@@ -483,32 +477,24 @@ def trace_drug():
         return jsonify({'msg': '日期格式无效，请使用ISO格式'}), 400
     
     try:
-        # 1. 查找包含该批号的库存项，获取药品信息
-        inventory_items = InventoryItem.query.filter_by(batch_number=batch_number).all()
+        # 1. 通过运单号查找订单
+        order = Order.query.filter_by(tracking_number=tracking_number).first()
+        if not order:
+            return jsonify({'msg': f'未找到运单号为 {tracking_number} 的订单'}), 404
+        
+        # 2. 获取药品信息（从订单项中获取）
         drug = None
-        if inventory_items:
-            # 从第一个库存项获取药品信息
-            first_item = inventory_items[0]
+        batch_number = None
+        order_items = OrderItem.query.filter_by(order_id=order.id).all()
+        if order_items:
+            # 从第一个订单项获取药品信息
+            first_item = order_items[0]
+            batch_number = first_item.batch_number
             if first_item.drug:
                 drug = first_item.drug
         
-        # 2. 查找所有包含该批号的订单项
-        order_items = OrderItem.query.filter_by(batch_number=batch_number).all()
-        order_ids = [item.order_id for item in order_items]
-        
-        # 3. 查找所有相关的订单
-        orders = []
-        if order_ids:
-            orders = Order.query.filter(Order.id.in_(order_ids)).all()
-        
-        # 4. 查找所有相关的流通记录
-        tracking_numbers = [o.tracking_number for o in orders if o.tracking_number]
-        records_query = CirculationRecord.query.filter(
-            or_(
-                CirculationRecord.batch_number == batch_number,
-                CirculationRecord.tracking_number.in_(tracking_numbers)
-            )
-        )
+        # 3. 查找该运单号的所有流通记录
+        records_query = CirculationRecord.query.filter_by(tracking_number=tracking_number)
         
         # 应用时间范围筛选
         if start_date:
@@ -603,6 +589,7 @@ def trace_drug():
         
         # 构建返回数据
         result = {
+            'tracking_number': tracking_number,
             'batch_number': batch_number,
             'drug': drug.to_dict() if drug else None,
             'timeline': timeline,
@@ -612,7 +599,7 @@ def trace_drug():
             },
             'summary': {
                 'total_records': len(records),
-                'total_orders': len(orders),
+                'total_orders': 1 if order else 0,
                 'first_record_time': timeline[0]['timestamp'] if timeline else None,
                 'last_record_time': timeline[-1]['timestamp'] if timeline else None
             }
