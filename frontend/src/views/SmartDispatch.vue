@@ -57,10 +57,34 @@
         <aside class="control-panel">
           <h3>配送路径规划</h3>
 
-          <div class="form-row">
+          <div class="form-row autocomplete-wrapper">
             <label>起点（仓库坐标或地址）</label>
-            <input v-model="start.input" placeholder="经度,纬度 或 地址文本" />
+            <input 
+              v-model="start.input" 
+              @input="onStartInputChange"
+              @focus="onStartInputFocus"
+              @blur="onStartInputBlur"
+              placeholder="经度,纬度 或 地址文本" 
+              autocomplete="off"
+            />
+            <div v-if="startSuggestions.length > 0 && showStartSuggestions" class="suggestions-dropdown">
+              <div 
+                v-for="(suggestion, index) in startSuggestions" 
+                :key="index"
+                class="suggestion-item"
+                @mousedown.prevent="selectStartSuggestion(suggestion)"
+              >
+                <div class="suggestion-name">{{ suggestion.name }}</div>
+                <div class="suggestion-address">{{ suggestion.district }} {{ suggestion.address }}</div>
+                <div class="suggestion-meta">城市: {{ suggestion.city || '-' }} &nbsp; adcode: {{ suggestion.adcode || '-' }}</div>
+                <div class="suggestion-coords" v-if="suggestion.location">坐标: {{ suggestion.location.longitude }}, {{ suggestion.location.latitude }}</div>
+              </div>
+            </div>
             <small class="muted">支持经纬度（如 121.48,31.23）或地址</small>
+            <div v-if="start.coords" class="start-coords-info">
+              <span>当前起点坐标：</span>
+              <span style="color:#1a73e8;font-weight:500;">{{ start.coords[0] }}, {{ start.coords[1] }}</span>
+            </div>
           </div>
 
           <div class="form-row destinations">
@@ -163,6 +187,11 @@ export default {
     const deliveryOrder = ref([])
     const errorMessage = ref('')
     const successMessage = ref('')
+    
+    // 地址搜索相关
+    const startSuggestions = ref([])
+    const showStartSuggestions = ref(false)
+    let searchTimeout = null
 
     const goToLogin = () => router.push('/login')
     const goToChangePassword = () => {
@@ -245,6 +274,110 @@ export default {
     const addDestination = () => destinations.value.push({ id: Date.now(), name: '', input: '', coords: null })
     const removeDestination = (i) => { destinations.value.splice(i,1) }
 
+    // 起点输入框变化时搜索地址
+    const onStartInputChange = () => {
+      const input = start.value.input?.trim()
+      
+      // 如果是经纬度格式，不进行搜索
+      if (parseCoords(input)) {
+        startSuggestions.value = []
+        showStartSuggestions.value = false
+        return
+      }
+      
+      // 输入为空或太短，不搜索
+      if (!input || input.length < 2) {
+        startSuggestions.value = []
+        showStartSuggestions.value = false
+        return
+      }
+      
+      // 防抖处理
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+      
+      searchTimeout = setTimeout(() => {
+        searchAddress(input)
+      }, 300)
+    }
+
+    // 调用后端API搜索地址
+    const searchAddress = async (keyword) => {
+      try {
+        const token = getAuthToken()
+        if (!token) {
+          console.warn('未登录，无法搜索地址')
+          return
+        }
+
+        const response = await axios.post(
+          `${API_BASE_URL}/api/dispatch/search_address`,
+          { keyword, city: '上海' },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
+
+        if (response.data.success) {
+          // 直接使用后端返回的数据，并保留原始字段用于排查
+          startSuggestions.value = response.data.suggestions.map(s => ({
+            id: s.id,
+            name: s.name,
+            address: s.address,
+            district: s.district,
+            city: s.city,
+            adcode: s.adcode,
+            typecode: s.typecode,
+            location: s.location,
+            formatted: `${s.name} - ${s.district || ''}${s.address || ''}`
+          }))
+          showStartSuggestions.value = startSuggestions.value.length > 0
+          console.log('找到建议:', startSuggestions.value.length, startSuggestions.value)
+        } else {
+          startSuggestions.value = []
+          showStartSuggestions.value = false
+        }
+      } catch (error) {
+        console.error('地址搜索失败:', error)
+        startSuggestions.value = []
+        showStartSuggestions.value = false
+      }
+    }
+
+    // 选择地址建议
+    const selectStartSuggestion = (suggestion) => {
+      start.value.input = suggestion.formatted
+      // 设置坐标
+      if (suggestion.location && suggestion.location.longitude !== undefined) {
+        start.value.coords = [suggestion.location.longitude, suggestion.location.latitude]
+      } else if (suggestion.location && suggestion.location.lng !== undefined) {
+        start.value.coords = [suggestion.location.lng, suggestion.location.lat]
+      } else {
+        start.value.coords = null
+      }
+      startSuggestions.value = []
+      showStartSuggestions.value = false
+    }
+
+    // 输入框获得焦点
+    const onStartInputFocus = () => {
+      if (startSuggestions.value.length > 0) {
+        showStartSuggestions.value = true
+      }
+    }
+
+    // 输入框失去焦点
+    const onStartInputBlur = () => {
+      // 延迟隐藏，以便点击事件能够触发
+      setTimeout(() => {
+        showStartSuggestions.value = false
+      }, 200)
+    }
+
     // 获取 token（使用统一 authSession）
     const getAuthToken = () => {
       return getToken()
@@ -267,11 +400,17 @@ export default {
         }
 
         // 构建请求数据
+        // 如果用户已经通过下拉选择了起点（start.coords 有值），优先使用经纬度字符串发送给后端，避免二次地理编码导致歧义
+        const startParam = (start.value.coords && Array.isArray(start.value.coords) && start.value.coords.length === 2)
+          ? `${start.value.coords[0]},${start.value.coords[1]}`
+          : start.value.input
+
         const requestData = {
-          start: start.value.input,
+          start: startParam,
           destinations: destinations.value.map(d => ({
             name: d.name || '未命名',
-            location: d.input
+            // 如果目的地也存了 coords（未来可支持），优先使用 coords
+            location: (d.coords && Array.isArray(d.coords) && d.coords.length === 2) ? `${d.coords[0]},${d.coords[1]}` : d.input
           })),
           use_api: false,  // 使用直线距离（快速），如需驾车距离改为 true
           algorithm: 'greedy'  // 使用贪心算法（快速）
@@ -491,6 +630,9 @@ export default {
 
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
       if(map) { map.destroy(); map = null }
     })
 
@@ -526,7 +668,14 @@ export default {
       computing,
       clearRoute,
       errorMessage,
-      successMessage
+      successMessage,
+      // 地址搜索
+      startSuggestions,
+      showStartSuggestions,
+      onStartInputChange,
+      onStartInputFocus,
+      onStartInputBlur,
+      selectStartSuggestion
     }
   }
 }
@@ -578,6 +727,46 @@ export default {
 .form-row label { display: block; color: #333; margin-bottom: 8px; font-size: 15px; font-weight: 600; }
 .form-row input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
 .muted { color: #777; font-size: 13px; }
+
+/* 地址搜索自动补全样式 */
+.autocomplete-wrapper { position: relative; }
+.suggestions-dropdown { 
+  position: absolute; 
+  top: 100%; 
+  left: 0; 
+  right: 0; 
+  background: white; 
+  border: 1px solid #ddd; 
+  border-radius: 6px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+  max-height: 300px; 
+  overflow-y: auto; 
+  z-index: 1000;
+  margin-top: -16px;
+}
+.suggestion-item { 
+  padding: 12px 14px; 
+  cursor: pointer; 
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+.suggestion-item:last-child { 
+  border-bottom: none; 
+}
+.suggestion-item:hover { 
+  background-color: #f5f7fa; 
+}
+.suggestion-name { 
+  font-size: 14px; 
+  color: #333; 
+  font-weight: 500; 
+  margin-bottom: 4px;
+}
+.suggestion-address { 
+  font-size: 12px; 
+  color: #999; 
+}
+
 .destinations .dest-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .dest-row input { flex: 1; padding: 10px 12px; font-size: 14px; }
 .small { background: #f3f3f3; border: none; padding: 6px 8px; border-radius: 4px; cursor: pointer; }

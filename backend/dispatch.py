@@ -5,7 +5,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import User, Tenant, Order
-from amap import AmapService, optimize_delivery_route
+from amap import AmapService, optimize_delivery_route, search_address_suggestions
 from extensions import db
 from typing import List, Dict, Tuple, Optional
 
@@ -340,6 +340,47 @@ def geocode():
         
     except Exception as e:
         print(f"地理编码异常: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'服务器错误：{str(e)}'
+        }), 500
+
+
+@bp.route('/search_address', methods=['POST'])
+@jwt_required()
+def search_address():
+    """
+    搜索地址建议（输入提示）
+    用于前端输入框的自动补全功能
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'keyword' not in data:
+            return jsonify({
+                'success': False,
+                'message': '缺少必需参数：keyword'
+            }), 400
+        
+        keyword = data['keyword'].strip()
+        
+        if not keyword or len(keyword) < 2:
+            return jsonify({
+                'success': True,
+                'suggestions': []
+            }), 200
+        
+        city = data.get('city', '上海')
+        
+        suggestions = search_address_suggestions(keyword, city)
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions
+        }), 200
+        
+    except Exception as e:
+        print(f"地址搜索异常: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'服务器错误：{str(e)}'
