@@ -473,3 +473,71 @@ def _tsp_dynamic_programming(distance_matrix: List[List[float]]) -> List[int]:
     
     route.reverse()
     return route
+
+
+def search_address_suggestions(keyword: str, city: str = '上海') -> List[Dict]:
+    """
+    搜索地址建议（输入提示）
+    
+    Args:
+        keyword: 搜索关键词
+        city: 城市名称，默认上海
+        
+    Returns:
+        地址建议列表，每个元素包含:
+        {
+            'name': '地点名称',
+            'address': '详细地址',
+            'district': '区域',
+            'location': {
+                'longitude': 121.48,
+                'latitude': 31.23
+            }
+        }
+    """
+    try:
+        from flask import current_app
+        api_key = current_app.config.get('AMAP_REST_KEY')
+        
+        # 使用高德地图输入提示API
+        url = 'https://restapi.amap.com/v3/assistant/inputtips'
+        params = {
+            'key': api_key,
+            'keywords': keyword,
+            'city': city,
+            'citylimit': 'true',
+            'output': 'json'
+        }
+        
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        if data.get('status') == '1' and data.get('tips'):
+            suggestions = []
+            for tip in data['tips']:
+                # 只保留有坐标的结果
+                if tip.get('location') and tip['location'] != '':
+                    location_parts = tip['location'].split(',')
+                    if len(location_parts) == 2:
+                        suggestions.append({
+                            'id': tip.get('id', ''),
+                            'name': tip.get('name', ''),
+                            'address': tip.get('address', ''),
+                            'district': tip.get('district', ''),
+                            'city': tip.get('city', ''),
+                            'adcode': tip.get('adcode', ''),
+                            'typecode': tip.get('typecode', ''),
+                            'location': {
+                                'longitude': float(location_parts[0]),
+                                'latitude': float(location_parts[1])
+                            }
+                        })
+            return suggestions
+        else:
+            print(f"地址搜索失败: {data.get('info', 'Unknown error')}")
+            return []
+            
+    except Exception as e:
+        print(f"地址搜索异常: {str(e)}")
+        return []
