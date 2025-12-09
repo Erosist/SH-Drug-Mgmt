@@ -543,7 +543,7 @@
       v-model="showShipDialog"
       title="订单发货"
       width="500px"
-      @closed="shipForm.tracking_number = ''; shipForm.notes = ''"
+      @closed="shipForm.tracking_number = ''; shipForm.logistics_tenant_id = null; shipForm.notes = ''"
     >
       <div v-if="selectedOrder" class="ship-order-form">
         <div class="order-info">
@@ -560,14 +560,21 @@
               maxlength="50"
             />
           </el-form-item>
-        <el-form-item>
-          <el-checkbox v-model="shipForm.has_reported">
-            已在「流通监管 - 流通数据上报」中完成该运单号的上报
-          </el-checkbox>
-          <div class="ship-hint">
-            提示：未上报的运单号不可发货，请先到「流通监管」完成上报。
-          </div>
-        </el-form-item>
+          
+          <el-form-item label="物流公司">
+            <el-select
+              v-model="shipForm.logistics_tenant_id"
+              placeholder="选择物流公司"
+              clearable
+            >
+              <el-option
+                v-for="logistics in logisticsList"
+                :key="logistics.id"
+                :label="logistics.name"
+                :value="logistics.id"
+              />
+            </el-select>
+          </el-form-item>
           
           <el-form-item label="发货备注">
             <el-input
@@ -719,6 +726,7 @@ import {
 import { orderApi } from '@/api/orders'
 import { supplyApi } from '@/api/supply'
 import api from '@/api/orders'  // 用于其他API调用
+import { logisticsApi } from '@/api/logistics'
 import { formatDate } from '@/utils/date'
 import { getCurrentUser } from '@/utils/authSession'
 
@@ -765,6 +773,7 @@ const createForm = reactive({
 // 发货表单
 const shipForm = reactive({
   tracking_number: '',
+  logistics_tenant_id: null,
   notes: ''
 })
 
@@ -773,6 +782,9 @@ const supplyOptions = ref([])
 const selectedSupplyInfo = computed(() => {
   return supplyOptions.value.find(s => s.id === createForm.supply_info_id)
 })
+
+// 物流公司列表
+const logisticsList = ref([])
 
 const currentUser = ref(getCurrentUser())
 const currentRole = computed(() => currentUser.value?.role)
@@ -886,6 +898,20 @@ const fetchOrderStats = async () => {
     }
   } catch (error) {
     console.error('获取订单统计失败:', error)
+  }
+}
+
+// 获取物流公司列表
+const fetchLogisticsCompanies = async () => {
+  try {
+    const response = await logisticsApi.getCompanies()
+    if (response.data && response.data.data) {
+      logisticsList.value = response.data.data
+      console.log('获取物流公司列表成功:', logisticsList.value)
+    }
+  } catch (error) {
+    console.error('获取物流公司列表失败:', error)
+    ElMessage.error('获取物流公司列表失败')
   }
 }
 
@@ -1248,10 +1274,11 @@ const shipOrder = async (order) => {
   selectedOrder.value = order
   // 重置发货表单
   shipForm.tracking_number = ''
+  shipForm.logistics_tenant_id = null
   shipForm.notes = ''
-  shipForm.has_reported = false
   
   showShipDialog.value = true
+  showDetailDialog.value = false
 }
 
 // 提交发货信息
@@ -1260,18 +1287,22 @@ const submitShipOrder = async () => {
     ElMessage.error('请输入运单号')
     return
   }
-  if (!shipForm.has_reported) {
-    ElMessage.error('请先在「流通监管」完成该运单号的上报后再发货')
-    return
-  }
 
   try {
     submitLoading.value = true
     
-    const response = await orderApi.shipOrder(selectedOrder.value.id, {
-      tracking_number: shipForm.tracking_number.trim(),
-      notes: shipForm.notes
-    })
+    const shipData = {}
+    if (shipForm.tracking_number) {
+      shipData.tracking_number = shipForm.tracking_number
+    }
+    if (shipForm.logistics_tenant_id) {
+      shipData.logistics_tenant_id = shipForm.logistics_tenant_id
+    }
+    if (shipForm.notes) {
+      shipData.notes = shipForm.notes
+    }
+
+    const response = await orderApi.shipOrder(selectedOrder.value.id, shipData)
 
     if (response.data) {
       ElMessage.success('发货成功')
@@ -1736,6 +1767,8 @@ watch(() => route.query.supplyId, async (supplyId) => {
 onMounted(() => {
   window.addEventListener('storage', syncUser)
   refreshOrders()
+  // 获取物流公司列表
+  fetchLogisticsCompanies()
 })
 
 onBeforeUnmount(() => {

@@ -11,7 +11,6 @@
           <li class="menu-item" :class="{active: activeMenu==='supply'}" @click="activeMenu='supply'">查看供应信息</li>
           <li class="menu-item" :class="{active: activeMenu==='inventory'}" @click="activeMenu='inventory'">库存管理</li>
           <li class="menu-item" :class="{active: activeMenu==='orders'}" @click="activeMenu='orders'">订单管理</li>
-          <li class="menu-item" :class="{active: activeMenu==='circulation'}" @click="activeMenu='circulation'">商品流通管理</li>
         </ul>
       </aside>
 
