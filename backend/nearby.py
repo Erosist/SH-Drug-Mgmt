@@ -674,3 +674,132 @@ def update_my_location():
             'success': False,
             'message': f'更新失败: {str(e)}'
         }), 500
+
+
+@bp.route('/drug-suggestions', methods=['GET'])
+@jwt_required()
+def get_drug_suggestions():
+    """
+    获取药品候选项（根据关键词搜索有位置的供应商供应的药品）
+    
+    查询参数:
+    - keyword: 搜索关键词（药品通用名或商品名）
+    - limit: 返回结果数量限制（默认10）
+    
+    返回:
+    {
+        "success": true,
+        "drugs": [
+            {
+                "generic_name": "阿莫西林胶囊",
+                "brand_name": "阿莫西林",
+                "specification": "0.25g*24粒",
+                "supplier_count": 5  // 有库存的供应商数量
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        keyword = request.args.get('keyword', '').strip()
+        limit = int(request.args.get('limit', 10))
+        
+        if not keyword:
+            return jsonify({
+                'success': True,
+                'drugs': []
+            })
+        
+        # 导入所需模型
+        from models import Drug, InventoryItem, SupplyInfo
+        from sqlalchemy import func, or_
+        
+        # 查询有位置且有库存的供应商的药品
+        # 方式1: 通过 InventoryItem 查询（库存管理）
+        inventory_query = db.session.query(
+            Drug.generic_name,
+            Drug.brand_name,
+            Drug.specification,
+            func.count(func.distinct(Tenant.id)).label('supplier_count')
+        ).join(
+            InventoryItem, Drug.id == InventoryItem.drug_id
+        ).join(
+            Tenant, InventoryItem.tenant_id == Tenant.id
+        ).filter(
+            or_(
+                Drug.generic_name.like(f'%{keyword}%'),
+                Drug.brand_name.like(f'%{keyword}%')
+            ),
+            Tenant.longitude.isnot(None),
+            Tenant.latitude.isnot(None),
+            InventoryItem.quantity > 0
+        ).group_by(
+            Drug.generic_name,
+            Drug.brand_name,
+            Drug.specification
+        )
+        
+        # 方式2: 通过 SupplyInfo 查询（B2B平台）
+        supply_query = db.session.query(
+            Drug.generic_name,
+            Drug.brand_name,
+            Drug.specification,
+            func.count(func.distinct(Tenant.id)).label('supplier_count')
+        ).join(
+            SupplyInfo, Drug.id == SupplyInfo.drug_id
+        ).join(
+            Tenant, SupplyInfo.tenant_id == Tenant.id
+        ).filter(
+            or_(
+                Drug.generic_name.like(f'%{keyword}%'),
+                Drug.brand_name.like(f'%{keyword}%')
+            ),
+            Tenant.longitude.isnot(None),
+            Tenant.latitude.isnot(None),
+            SupplyInfo.available_quantity > 0,
+            SupplyInfo.status == 'ACTIVE'
+        ).group_by(
+            Drug.generic_name,
+            Drug.brand_name,
+            Drug.specification
+        )
+        
+        # 合并两个查询结果
+        inventory_results = inventory_query.limit(limit).all()
+        supply_results = supply_query.limit(limit).all()
+        
+        # 去重并合并供应商数量
+        drug_map = {}
+        for result in inventory_results + supply_results:
+            key = f"{result.generic_name}|{result.brand_name}|{result.specification}"
+            if key in drug_map:
+                # 如果已存在，累加供应商数量（去重）
+                drug_map[key]['supplier_count'] = max(
+                    drug_map[key]['supplier_count'],
+                    result.supplier_count
+                )
+            else:
+                drug_map[key] = {
+                    'generic_name': result.generic_name,
+                    'brand_name': result.brand_name,
+                    'specification': result.specification,
+                    'supplier_count': result.supplier_count
+                }
+        
+        # 转换为列表并按供应商数量排序
+        drugs = sorted(
+            drug_map.values(),
+            key=lambda x: x['supplier_count'],
+            reverse=True
+        )[:limit]
+        
+        return jsonify({
+            'success': True,
+            'drugs': drugs
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'查询失败: {str(e)}'
+        }), 500

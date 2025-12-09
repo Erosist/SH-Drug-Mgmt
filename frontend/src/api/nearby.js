@@ -106,6 +106,17 @@ export const nearbyApi = {
    */
   updateMyLocation: (data) => {
     return apiClient.put('/api/nearby/update-location', data)
+  },
+
+  /**
+   * 获取药品候选项（根据关键词搜索有位置的供应商供应的药品）
+   * @param {String} keyword - 搜索关键词
+   * @param {Number} limit - 返回结果数量限制（默认10）
+   */
+  getDrugSuggestions: (keyword, limit = 10) => {
+    return apiClient.get('/api/nearby/drug-suggestions', {
+      params: { keyword, limit }
+    })
   }
 }
 
