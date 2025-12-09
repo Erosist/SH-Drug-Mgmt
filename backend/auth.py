@@ -137,7 +137,8 @@ def me():
     user = get_authenticated_user()
     if not user:
         return jsonify({'msg': 'user not found'}), 404
-    return jsonify({'user': user.to_dict()})
+    # 返回包含关联关系的用户信息（包含 tenant 与 enterprise_certification）
+    return jsonify({'user': user.to_dict(include_relations=True)})
 
 
 @bp.route('/change-password', methods=['POST'])
