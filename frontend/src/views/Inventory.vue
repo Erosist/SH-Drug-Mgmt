@@ -33,7 +33,7 @@
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div 
               v-if="canViewAnalysis"
               class="nav-item" 

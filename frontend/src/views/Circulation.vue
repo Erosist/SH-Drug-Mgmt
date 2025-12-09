@@ -31,7 +31,7 @@
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div v-if="canViewAnalysis"
               class="nav-item" 
               :class="{ active: activeNav === 'analysis' }"
@@ -76,141 +76,198 @@
       </div>
     </div>
 
-    <!-- 流通监管主内容区域 - 与Home.vue边界保持一致 -->
+    <!-- 主内容区域 -->
     <div class="main-content">
       <div class="content-wrapper">
-
-        <div class="circulation-content">
-          <!-- 左侧内容 -->
-          <div class="left-content">
-            <!-- 流通数据上报 -->
-            <div class="section data-reporting">
-              <h3 class="section-title">流通数据上报</h3>
-              
-              <!-- 药品追溯查询 -->
-              <div class="trace-query-section">
-                <h4 class="subsection-title">药品追溯查询</h4>
-                <div class="trace-form">
-                  <div class="form-group">
-                    <label class="form-label">药品批号 <span class="required">*</span></label>
-                    <div class="input-with-button">
-                      <input 
-                        type="text" 
-                        class="form-input" 
-                        v-model="traceForm.batch_number"
-                        placeholder="请输入药品批号"
-                        :disabled="tracing"
-                        @keyup.enter="handleTrace"
-                      >
-                      <button 
-                        class="query-btn" 
-                        @click="handleTrace"
-                        :disabled="tracing || !traceForm.batch_number.trim()"
-                      >
-                        {{ tracing ? '查询中...' : '查询' }}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label class="form-label">开始日期（可选）</label>
-                      <input 
-                        type="date" 
-                        class="form-input"
-                        v-model="traceForm.start_date"
-                        :disabled="tracing"
-                      >
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">结束日期（可选）</label>
-                      <input 
-                        type="date" 
-                        class="form-input"
-                        v-model="traceForm.end_date"
-                        :disabled="tracing"
-                      >
-                    </div>
-                  </div>
+        <!-- 监管用户：药品追溯查询 -->
+        <div v-if="isRegulator" class="regulator-content">
+          <div class="section trace-query">
+            <h3 class="section-title">药品追溯查询</h3>
+            <div class="trace-form">
+              <div class="form-group">
+                <label class="form-label">运单号 <span class="required">*</span></label>
+                <div class="input-with-button">
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    v-model="traceForm.tracking_number"
+                    placeholder="请输入运单号"
+                    :disabled="tracing"
+                    @keyup.enter="handleTrace"
+                  >
+                  <button 
+                    class="query-btn" 
+                    @click="handleTrace"
+                    :disabled="tracing || !traceForm.tracking_number.trim()"
+                  >
+                    {{ tracing ? '查询中...' : '查询' }}
+                  </button>
                 </div>
-                
-                <!-- 追溯结果 -->
-                <div v-if="traceResult" class="trace-result">
-                  <div v-if="traceResult.drug" class="drug-info">
-                    <h5>药品信息</h5>
-                    <div class="info-grid">
-                      <div><span class="label">通用名：</span>{{ traceResult.drug.generic_name }}</div>
-                      <div><span class="label">批号：</span>{{ traceResult.batch_number }}</div>
-                      <div v-if="traceResult.drug.manufacturer">
-                        <span class="label">生产厂家：</span>{{ traceResult.drug.manufacturer }}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="trace-summary">
-                    <div class="summary-item">
-                      <span class="summary-label">流通记录数：</span>
-                      <span class="summary-value">{{ traceResult.summary.total_records }}</span>
-                    </div>
-                    <div class="summary-item">
-                      <span class="summary-label">关联订单数：</span>
-                      <span class="summary-value">{{ traceResult.summary.total_orders }}</span>
-                    </div>
+              </div>
+            </div>
+            
+            <!-- 追溯结果 -->
+            <div v-if="traceResult" class="trace-result">
+              <div v-if="traceResult.drug" class="drug-info">
+                <h5>药品信息</h5>
+                <div class="info-grid">
+                  <div><span class="label">通用名：</span>{{ traceResult.drug.generic_name }}</div>
+                  <div><span class="label">运单号：</span>{{ traceResult.tracking_number }}</div>
+                  <div v-if="traceResult.drug.manufacturer">
+                    <span class="label">生产厂家：</span>{{ traceResult.drug.manufacturer }}
                   </div>
                 </div>
               </div>
               
-              <div class="new-report-section">
-                <h4 class="subsection-title">新增流通数据上报</h4>
-                
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">运单号 <span class="required">*</span></label>
-                    <input 
-                      type="text" 
-                      class="form-input" 
-                      v-model="reportForm.tracking_number"
-                      placeholder="请输入运单号（必填）"
-                      :disabled="!isAuthenticated || submitting"
-                    >
+              <div class="trace-summary">
+                <div class="summary-item">
+                  <span class="summary-label">流通记录数：</span>
+                  <span class="summary-value">{{ traceResult.summary.total_records }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">关联订单数：</span>
+                  <span class="summary-value">{{ traceResult.summary.total_orders }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 时间轴视图 -->
+          <div v-if="traceResult && traceResult.timeline && traceResult.timeline.length > 0" class="section timeline-section">
+            <h3 class="section-title">时间轴视图</h3>
+            <div class="timeline-container">
+              <div class="timeline">
+                <div 
+                  v-for="(item, index) in traceResult.timeline" 
+                  :key="item.id"
+                  class="timeline-item"
+                  :class="`status-${item.status.toLowerCase()}`"
+                >
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-header">
+                      <span class="timeline-status">{{ item.status_text }}</span>
+                      <span class="timeline-time">{{ formatTime(item.timestamp) }}</span>
+                    </div>
+                    
+                    <!-- 位置信息显示 -->
+                    <div v-if="item.latitude && item.longitude" class="timeline-gps">
+                      📍 GPS坐标: {{ item.latitude.toFixed(6) }}, {{ item.longitude.toFixed(6) }}
+                    </div>
+                    <div v-if="item.location" class="timeline-location">
+                      📍 位置描述: {{ item.location }}
+                    </div>
+                    <div v-if="!item.latitude && !item.longitude && !item.location" class="timeline-no-location">
+                      📍 位置信息: 未记录
+                    </div>
+                    
+                    <div v-if="item.remarks" class="timeline-remarks">
+                      💬 备注: {{ item.remarks }}
+                    </div>
                   </div>
-                  
-                  <div v-if="isSupplier" class="form-group">
-                    <label class="form-label">物流公司 <span class="required">*</span></label>
-                    <input 
-                      type="text" 
-                      class="form-input" 
-                      v-model="reportForm.logistics_company"
-                      placeholder="请输入物流公司名称（必填）"
-                      :disabled="!isAuthenticated || submitting"
-                    >
-                  </div>
-                  
-                  <div v-else class="form-group">
-                    <label class="form-label">运输状态 <span class="required">*</span></label>
-                    <select 
-                      class="form-select" 
-                      v-model="reportForm.transport_status"
-                      :disabled="!isAuthenticated || submitting"
-                    >
-                      <option value="">请选择运输状态</option>
-                      <option value="SHIPPED">已发货</option>
-                      <option value="IN_TRANSIT">运输中</option>
-                      <option value="DELIVERED">已送达</option>
-                    </select>
-                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 流通记录详细表格 -->
+          <div v-if="traceResult && traceResult.timeline && traceResult.timeline.length > 0" class="section records-table-section">
+            <h3 class="section-title">流通记录详情</h3>
+            <div class="records-table-container">
+              <table class="records-table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>状态</th>
+                    <th>GPS坐标</th>
+                    <th>位置描述</th>
+                    <th>备注</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="(item, index) in traceResult.timeline" 
+                    :key="item.id"
+                    :class="`status-row-${item.status.toLowerCase()}`"
+                  >
+                    <td class="time-cell">{{ formatTime(item.timestamp) }}</td>
+                    <td class="status-cell">
+                      <span :class="`status-badge status-${item.status.toLowerCase()}`">
+                        {{ item.status_text }}
+                      </span>
+                    </td>
+                    <td class="gps-cell">
+                      <span v-if="item.latitude && item.longitude" class="gps-coords">
+                        {{ item.latitude.toFixed(6) }}, {{ item.longitude.toFixed(6) }}
+                      </span>
+                      <span v-else class="no-gps">-</span>
+                    </td>
+                    <td class="location-cell">
+                      <span v-if="item.location">{{ item.location }}</span>
+                      <span v-else class="no-location">-</span>
+                    </td>
+                    <td class="remarks-cell">
+                      <span v-if="item.remarks">{{ item.remarks }}</span>
+                      <span v-else class="no-remarks">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Sankey流向图 -->
+          <div v-if="traceResult && traceResult.sankey" class="section sankey-section">
+            <h3 class="section-title">流向图</h3>
+            <div class="sankey-container">
+              <div ref="sankeyChart" class="sankey-chart"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 物流用户：流通数据上报 -->
+        <div v-else-if="isLogistics" class="logistics-content">
+          <!-- 左侧内容 -->
+          <div class="left-content">
+            <div class="section data-reporting">
+              <h3 class="section-title">流通数据上报</h3>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">运单号 <span class="required">*</span></label>
+                  <input 
+                    type="text" 
+                    class="form-input" 
+                    v-model="reportForm.tracking_number"
+                    placeholder="请输入运单号（必填）"
+                    :disabled="!isAuthenticated || submitting"
+                  >
                 </div>
                 
                 <div class="form-group">
-                  <label class="form-label">时间戳 <span class="required">*</span></label>
-                  <input 
-                    type="datetime-local" 
-                    class="form-input"
-                    v-model="reportForm.timestamp"
+                  <label class="form-label">运输状态 <span class="required">*</span></label>
+                  <select 
+                    class="form-select" 
+                    v-model="reportForm.transport_status"
                     :disabled="!isAuthenticated || submitting"
                   >
-                  <div class="timestamp-hint">当前时间：{{ currentTimestamp }}</div>
+                    <option value="">请选择运输状态</option>
+                    <option value="SHIPPED">待揽收</option>
+                    <option value="IN_TRANSIT">运输中</option>
+                    <option value="DELIVERED">已送达</option>
+                  </select>
                 </div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">时间戳</label>
+                <input 
+                  type="datetime-local" 
+                  class="form-input"
+                  v-model="reportForm.timestamp"
+                  :disabled="!isAuthenticated || submitting"
+                >
+                <div class="timestamp-hint">系统自动设置，当前时间：{{ currentTimestamp }}</div>
               </div>
               
               <!-- 权限提示 -->
@@ -220,11 +277,11 @@
               </div>
               <div v-else-if="!isAllowedRole" class="permission-notice warning">
                 <div class="notice-icon">⚠️</div>
-                <div class="notice-text">当前角色无权上报流通数据，仅药店、供应商、物流公司可以上报</div>
+                <div class="notice-text">当前角色无权上报流通数据，仅物流公司可以上报</div>
               </div>
               <div v-else class="permission-notice info">
                 <div class="notice-icon">ℹ️</div>
-                <div class="notice-text">状态流转规则：SHIPPED → IN_TRANSIT → DELIVERED（正向流转，DELIVERED 不可逆）</div>
+                <div class="notice-text">状态流转规则：待揽收 → 运输中 → 已送达（正向流转，已送达 不可逆）</div>
               </div>
             </div>
           </div>
@@ -237,11 +294,25 @@
               
               <div class="location-form">
                 <div class="gps-action">
-                  <button class="gps-btn" @click="useCurrentLocation">
-                    📍 使用GPS定位当前位置
+                  <button class="gps-btn" @click="useCurrentLocation" :disabled="!isAuthenticated || submitting">
+                    📍 获取GPS定位（必填）
                   </button>
-                  <div class="gps-hint" v-if="reportForm.longitude && reportForm.latitude">
-                    当前定位：经度 {{ reportForm.longitude }}, 纬度 {{ reportForm.latitude }}
+                  
+                  <!-- GPS状态显示 -->
+                  <div v-if="reportForm.longitude && reportForm.latitude" class="gps-status success">
+                    <div class="status-icon">✅</div>
+                    <div class="status-text">
+                      <div class="status-title">GPS定位已获取</div>
+                      <div class="gps-hint">经度 {{ reportForm.longitude }}, 纬度 {{ reportForm.latitude }}</div>
+                    </div>
+                  </div>
+                  
+                  <div v-else class="gps-status warning">
+                    <div class="status-icon">⚠️</div>
+                    <div class="status-text">
+                      <div class="status-title">请先获取GPS定位</div>
+                      <div class="gps-hint">必须获取GPS位置信息才能提交</div>
+                    </div>
                   </div>
                 </div>
 
@@ -257,78 +328,58 @@
               </div>
             </div>
             
-            <!-- 时间轴视图 -->
-            <div v-if="traceResult && traceResult.timeline && traceResult.timeline.length > 0" class="section timeline-section">
-              <h3 class="section-title">时间轴视图</h3>
-              <div class="timeline-container">
-                <div class="timeline">
-                  <div 
-                    v-for="(item, index) in traceResult.timeline" 
-                    :key="item.id"
-                    class="timeline-item"
-                    :class="`status-${item.status.toLowerCase()}`"
-                  >
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-content">
-                      <div class="timeline-header">
-                        <span class="timeline-status">{{ item.status_text }}</span>
-                        <span class="timeline-time">{{ formatTime(item.timestamp) }}</span>
-                      </div>
-                      <div v-if="item.location" class="timeline-location">
-                        📍 {{ item.location }}
-                      </div>
-                      <div v-if="item.remarks" class="timeline-remarks">
-                        {{ item.remarks }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Sankey流向图 -->
-            <div v-if="traceResult && traceResult.sankey" class="section sankey-section">
-              <h3 class="section-title">流向图</h3>
-              <div class="sankey-container">
-                <div ref="sankeyChart" class="sankey-chart"></div>
-              </div>
-            </div>
-            
             <!-- 操作提示 -->
             <div class="section operation-tips">
               <h3 class="section-title">操作提示</h3>
-              
               <div class="tips-content">
                 <ul class="tips-list">
                   <li>运单号必须与订单运单号一致</li>
-                  <li>运输状态必须按顺序流转：已发货 → 运输中 → 已送达</li>
+                  <li>必须先使用GPS定位当前位置才能提交</li>
+                  <li>运输状态必须按顺序流转：待揽收 → 运输中 → 已送达</li>
                   <li>已送达状态不可逆</li>
                   <li>运输中状态可以重复上报以更新位置信息</li>
-                  <li>位置信息和备注为可选字段</li>
-                  <li>监管用户可通过批号查询药品全生命周期追溯</li>
+                  <li>备注为可选字段</li>
                 </ul>
               </div>
             </div>
           </div>
+
+          <!-- 底部操作按钮 -->
+          <div class="action-buttons">
+            <button 
+              class="reset-btn" 
+              @click="resetForm"
+              :disabled="submitting"
+            >
+              重置
+            </button>
+            <button 
+              class="submit-btn" 
+              @click="submitProcess"
+              :disabled="!isAuthenticated || !isAllowedRole || submitting || !reportForm.latitude || !reportForm.longitude"
+              :loading="submitting"
+            >
+              {{ submitting ? '提交中...' : '提交' }}
+            </button>
+          </div>
         </div>
-        
-        <!-- 底部操作按钮 -->
-        <div class="action-buttons">
-          <button 
-            class="reset-btn" 
-            @click="resetForm"
-            :disabled="submitting"
-          >
-            重置
-          </button>
-          <button 
-            class="submit-btn" 
-            @click="submitProcess"
-            :disabled="!isAuthenticated || !isAllowedRole || submitting"
-            :loading="submitting"
-          >
-            {{ submitting ? '提交中...' : '提交流程' }}
-          </button>
+
+        <!-- 其他用户：无权限提示 -->
+        <div v-else class="unauthorized-content">
+          <div class="section unauthorized-notice">
+            <h3 class="section-title">访问受限</h3>
+            <div class="notice-content">
+              <div class="notice-icon">🔒</div>
+              <div class="notice-text">
+                <p>此功能仅对以下角色开放：</p>
+                <ul>
+                  <li><strong>监管用户：</strong>可进行药品追溯查询</li>
+                  <li><strong>物流用户：</strong>可进行流通数据上报</li>
+                </ul>
+                <p>请使用具有相应权限的账户登录。</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -372,8 +423,8 @@ export default {
     // 认证状态
     const isAuthenticated = computed(() => checkAuth())
     
-    // 允许的角色
-    const ALLOWED_ROLES = ['pharmacy', 'supplier', 'logistics']
+    // 允许的角色 - 只有物流用户可以上报数据
+    const ALLOWED_ROLES = ['logistics']
     const isAllowedRole = computed(() => {
       return currentUser.value && ALLOWED_ROLES.includes(currentUser.value.role)
     })
@@ -382,7 +433,6 @@ export default {
     const reportForm = ref({
       tracking_number: '',
       transport_status: '',
-      logistics_company: '',
       timestamp: '',
       latitude: null,
       longitude: null,
@@ -391,9 +441,7 @@ export default {
     
     // 追溯查询表单
     const traceForm = ref({
-      batch_number: '',
-      start_date: '',
-      end_date: ''
+      tracking_number: ''
     })
     
     // 追溯结果
@@ -443,7 +491,6 @@ export default {
       reportForm.value = {
         tracking_number: '',
         transport_status: '',
-        logistics_company: '',
         timestamp: '',
         latitude: null,
         longitude: null,
@@ -459,20 +506,19 @@ export default {
         return false
       }
 
-      if (isSupplier.value) {
-        if (!reportForm.value.logistics_company.trim()) {
-          ElMessage.error('请输入物流公司名称')
-          return false
-        }
-      } else {
-        if (!reportForm.value.transport_status) {
-          ElMessage.error('请选择运输状态')
-          return false
-        }
+      if (!reportForm.value.transport_status) {
+        ElMessage.error('请选择运输状态')
+        return false
       }
       
       if (!reportForm.value.timestamp) {
         ElMessage.error('请选择时间戳')
+        return false
+      }
+      
+      // 必须使用GPS定位
+      if (!reportForm.value.latitude || !reportForm.value.longitude) {
+        ElMessage.error('请先使用GPS定位当前位置')
         return false
       }
       
@@ -507,21 +553,13 @@ export default {
         // 构建提交数据
         const payload = {
           tracking_number: reportForm.value.tracking_number.trim(),
-          // 供应商无需选择运输状态，默认上报为已发货
-          transport_status: isSupplier.value ? 'SHIPPED' : reportForm.value.transport_status,
-          timestamp: timestamp
+          transport_status: reportForm.value.transport_status,
+          timestamp: timestamp,
+          latitude: parseFloat(reportForm.value.latitude),
+          longitude: parseFloat(reportForm.value.longitude)
         }
         
         // 可选字段
-        if (isSupplier.value && reportForm.value.logistics_company) {
-          payload.logistics_company = reportForm.value.logistics_company.trim()
-        }
-        if (reportForm.value.latitude !== null && reportForm.value.latitude !== '') {
-          payload.latitude = parseFloat(reportForm.value.latitude)
-        }
-        if (reportForm.value.longitude !== null && reportForm.value.longitude !== '') {
-          payload.longitude = parseFloat(reportForm.value.longitude)
-        }
         if (reportForm.value.remarks) {
           payload.remarks = reportForm.value.remarks.trim()
         }
@@ -558,10 +596,10 @@ export default {
       })
     }
     
-    // 处理追溯查询
+    // 处理追溯查询 - 修改为使用运单号查询
     const handleTrace = async () => {
-      if (!traceForm.value.batch_number.trim()) {
-        ElMessage.warning('请输入药品批号')
+      if (!traceForm.value.tracking_number.trim()) {
+        ElMessage.warning('请输入运单号')
         return
       }
       
@@ -581,17 +619,7 @@ export default {
       
       try {
         const params = {
-          batch_number: traceForm.value.batch_number.trim()
-        }
-        
-        if (traceForm.value.start_date) {
-          params.start_date = new Date(traceForm.value.start_date).toISOString()
-        }
-        if (traceForm.value.end_date) {
-          // 结束日期设置为当天的23:59:59
-          const endDate = new Date(traceForm.value.end_date)
-          endDate.setHours(23, 59, 59, 999)
-          params.end_date = endDate.toISOString()
+          tracking_number: traceForm.value.tracking_number.trim()
         }
         
         const result = await traceDrug(params)
@@ -714,7 +742,7 @@ export default {
         })
       }
     })
-    
+
     const goToLogin = () => { router.push('/login') }
     const goToChangePassword = () => {
       if (!currentUser.value) {
@@ -785,7 +813,6 @@ export default {
           }
           
           router.push('/nearby-suppliers')
-          break
           break
         case 'b2b':
           router.push('/b2b')
@@ -900,14 +927,16 @@ export default {
   font-family: "Microsoft YaHei", Arial, sans-serif;
   display: flex;
   flex-direction: column;
+  line-height: 1.6;
 }
 
-/* 顶部导航栏样式 - 与Home.vue完全一致 */
+/* 顶部导航栏样式 - 与Home.vue保持一致 */
 .header {
   background-color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 15px 0;
   width: 100%;
+  line-height: normal;
 }
 
 .header-content {
@@ -929,6 +958,7 @@ export default {
   font-weight: bold;
   color: #1a73e8;
   margin: 0;
+  line-height: 1;
 }
 
 .current-date {
@@ -936,21 +966,17 @@ export default {
   font-size: 16px;
 }
 
-
 .nav-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #eee;
   padding-top: 15px;
-  flex-wrap: wrap;
-  gap: 15px;
 }
 
 .nav-menu {
   display: flex;
   gap: 30px;
-  flex-wrap: wrap;
 }
 
 .nav-item {
@@ -970,23 +996,21 @@ export default {
   border-bottom: 2px solid #1a73e8;
 }
 
-
 .user-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 999px;
   background-color: #f0f5ff;
   color: #1a73e8;
   font-size: 14px;
   font-weight: 600;
+  margin-right: 10px;
   gap: 8px;
 }
 
@@ -1003,20 +1027,20 @@ export default {
   color: #1a73e8;
 }
 
-
 .auth-btn {
-  background-color: #fff;
-  color: #1a73e8;
   border: 1px solid #1a73e8;
-  padding: 8px 14px;
+  background-color: transparent;
+  color: #1a73e8;
+  padding: 6px 14px;
   border-radius: 4px;
   cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.3s;
 }
 
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
-
 
 .review-btn {
   background-color: #fff7e6;
@@ -1025,12 +1049,12 @@ export default {
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
+  margin-right: 10px;
 }
 
 .review-btn:hover {
   background-color: #ffeccc;
 }
-
 
 .admin-btn {
   background-color: #f0f5ff;
@@ -1039,6 +1063,7 @@ export default {
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
+  margin-right: 10px;
 }
 
 .admin-btn:hover {
@@ -1075,127 +1100,152 @@ export default {
   background-color: #0d62d9;
 }
 
-/* 主内容区域样式 - 与Home.vue边界保持一致 */
+/* 主内容区域样式 */
 .main-content {
   flex: 1;
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 20px;
+  padding: 14px;
 }
 
 .content-wrapper {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* 页面标题 */
-.page-header {
+/* 监管用户内容布局 */
+.regulator-content {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
-}
-
-.page-date {
-  color: #666;
-  font-size: 16px;
-}
-
-/* 流通内容布局 - 与Home.vue网格布局一致 */
-.circulation-content {
+/* 物流用户内容布局 */
+.logistics-content {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 350px;
+  gap: 24px;
+  grid-template-rows: auto auto;
+}
+
+.logistics-content .left-content {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.logistics-content .right-content {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-/* 区块样式 - 与Home.vue完全一致 */
+.logistics-content .action-buttons {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 20px;
+}
+
+/* 无权限用户内容 */
+.unauthorized-content .unauthorized-notice {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.unauthorized-content .notice-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.unauthorized-content .notice-icon {
+  font-size: 48px;
+  opacity: 0.6;
+}
+
+.unauthorized-content .notice-text {
+  color: #666;
+  line-height: 1.6;
+}
+
+.unauthorized-content .notice-text ul {
+  text-align: left;
+  margin: 16px 0;
+  padding-left: 20px;
+}
+
+.unauthorized-content .notice-text li {
+  margin: 8px 0;
+}
+
+/* 通用区块样式 */
 .section {
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 6px rgba(10, 20, 30, 0.04);
   padding: 20px;
-  margin-bottom: 0;
 }
 
 .section-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  color: #333;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
-}
-
-.subsection-title {
   font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  color: #333;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #222;
 }
 
 /* 表单样式 */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .form-label {
   display: block;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+}
+
+.required {
+  color: #d93025;
 }
 
 .form-input, .form-select, .form-textarea {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  outline: none;
   font-size: 14px;
+  transition: border-color 0.2s;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
   border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
 }
 
 .form-textarea {
-  min-height: 80px;
   resize: vertical;
+  min-height: 80px;
 }
 
-/* 时间戳样式 */
-.timestamp {
-  padding: 8px 12px;
-  background-color: #f5f7fa;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #666;
-}
-
-/* 药品追溯查询按钮 */
-.trace-query-section {
-  margin-bottom: 30px;
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .input-with-button {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .input-with-button .form-input {
@@ -1203,18 +1253,19 @@ export default {
 }
 
 .query-btn {
-  background-color: #1a73e8;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 10px 16px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .query-btn:hover:not(:disabled) {
-  background-color: #0d62d9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 
 .query-btn:disabled {
@@ -1222,90 +1273,107 @@ export default {
   cursor: not-allowed;
 }
 
-.trace-result {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-}
-
-.drug-info {
-  margin-bottom: 15px;
-}
-
-.drug-info h5 {
-  margin-bottom: 10px;
-  color: #333;
-  font-size: 16px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-}
-
-.info-grid .label {
-  font-weight: bold;
-  color: #666;
-  margin-right: 5px;
-}
-
-.trace-summary {
-  display: flex;
-  gap: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #ddd;
-}
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.summary-label {
-  color: #666;
+/* GPS定位按钮 */
+.gps-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 4px;
+  cursor: pointer;
   font-size: 14px;
+  margin-bottom: 12px;
+  transition: background-color 0.3s;
 }
 
-.summary-value {
-  color: #1a73e8;
-  font-weight: bold;
-  font-size: 16px;
+.gps-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.gps-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #9e9e9e;
+}
+
+.gps-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.gps-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+.gps-status.success {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.gps-status.warning {
+  background-color: #fefce8;
+  border: 1px solid #fde047;
+}
+
+.gps-status .status-icon {
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.gps-status .status-text {
+  flex: 1;
+}
+
+.gps-status .status-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.gps-status.success .status-title {
+  color: #0369a1;
+}
+
+.gps-status.warning .status-title {
+  color: #a16207;
+}
+
+.timestamp-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
 }
 
 /* 权限提示 */
 .permission-notice {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 15px;
+  gap: 12px;
+  padding: 12px;
   border-radius: 4px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .permission-notice.warning {
-  background-color: #fff8e1;
-  border: 1px solid #ffd54f;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
 }
 
 .permission-notice.info {
   background-color: #e3f2fd;
-  border: 1px solid #90caf9;
+  border: 1px solid #bbdefb;
 }
 
 .notice-icon {
   font-size: 18px;
-  flex-shrink: 0;
-}
-
-.permission-notice.warning .notice-text {
-  color: #e65100;
-}
-
-.permission-notice.info .notice-text {
-  color: #1565c0;
 }
 
 .notice-text {
@@ -1313,203 +1381,98 @@ export default {
   line-height: 1.4;
 }
 
-.required {
-  color: #f56c6c;
-}
-
-.timestamp-hint {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #909399;
-}
-
-/* 坐标输入 */
-.coordinates {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.coordinate-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.coordinate {
-  text-align: center;
-}
-
-/* GPS按钮 */
-.gps-action {
-  margin-bottom: 15px;
-}
-
-.gps-btn {
-  width: 100%;
-  padding: 10px;
-  background-color: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 4px;
-  color: #0369a1;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s;
-}
-
-.gps-btn:hover {
-  background-color: #e0f2fe;
-  border-color: #7dd3fc;
-}
-
-/* 上传及推送 */
-.upload-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: #666;
-}
-
-.upload-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.upload-btn, .push-btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
-
-.upload-btn {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  color: #495057;
-}
-
-.upload-btn:hover {
-  background-color: #e9ecef;
-}
-
-.push-btn {
-  background-color: #1a73e8;
-  color: white;
-}
-
-.push-btn:hover {
-  background-color: #0d62d9;
-}
-
-/* 审核反馈 */
-.feedback-textarea {
-  min-height: 120px;
-}
-
-/* 底部操作按钮 - 与Home.vue按钮样式一致 */
+/* 操作按钮 */
 .action-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 15px;
-  padding: 20px 0;
+  gap: 16px;
+  padding: 20px;
 }
 
 .reset-btn, .submit-btn {
-  padding: 10px 25px;
-  border: none;
+  padding: 10px 24px;
   border-radius: 4px;
-  cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.3s;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .reset-btn {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  color: #495057;
+  background-color: transparent;
+  border: 1px solid #ccc;
+  color: #666;
 }
 
-.reset-btn:hover {
-  background-color: #e9ecef;
+.reset-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
 }
 
 .submit-btn {
   background-color: #1a73e8;
+  border: 1px solid #1a73e8;
   color: white;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background-color: #0d62d9;
 }
 
-/* 响应式设计 - 与Home.vue保持一致 */
-@media (max-width: 1200px) {
-  .circulation-content {
-    grid-template-columns: 1fr 1fr;
-  }
+.reset-btn:disabled, .submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-@media (max-width: 992px) {
-  .content-wrapper {
-    grid-template-columns: 1fr;
-  }
-  
-  .circulation-content {
-    grid-template-columns: 1fr;
-  }
-  
-  .nav-menu {
-    gap: 15px;
-  }
+/* 追溯结果样式 */
+.trace-result {
+  margin-top: 20px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
 }
 
-@media (max-width: 768px) {
-  .platform-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .nav-section {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .nav-menu {
-    flex-wrap: wrap;
-  }
-  
-  .main-content {
-    padding: 10px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-  
-  .coordinates {
-    grid-template-columns: 1fr;
-  }
-  
-  .upload-actions {
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-  }
+.drug-info h5 {
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.info-grid div {
+  font-size: 14px;
+}
+
+.info-grid .label {
+  font-weight: 600;
+  color: #666;
+}
+
+.trace-summary {
+  display: flex;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #666;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a73e8;
 }
 
 /* 时间轴样式 */
@@ -1525,51 +1488,35 @@ export default {
 .timeline::before {
   content: '';
   position: absolute;
-  left: 10px;
+  left: 15px;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #e2e8f0;
+  background-color: #e0e0e0;
 }
 
 .timeline-item {
   position: relative;
-  margin-bottom: 30px;
-  padding-left: 30px;
+  margin-bottom: 24px;
 }
 
 .timeline-dot {
   position: absolute;
   left: -22px;
   top: 0;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
-  border: 3px solid #cbd5e0;
-  z-index: 1;
-}
-
-.timeline-item.status-shipped .timeline-dot {
-  border-color: #91cc75;
-  background: #91cc75;
-}
-
-.timeline-item.status-in_transit .timeline-dot {
-  border-color: #fac858;
-  background: #fac858;
-}
-
-.timeline-item.status-delivered .timeline-dot {
-  border-color: #ee6666;
-  background: #ee6666;
+  background-color: #1a73e8;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px #1a73e8;
 }
 
 .timeline-content {
-  background: #fff;
-  padding: 15px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .timeline-header {
@@ -1580,13 +1527,12 @@ export default {
 }
 
 .timeline-status {
-  font-weight: bold;
+  font-weight: 600;
   color: #333;
-  font-size: 15px;
 }
 
 .timeline-time {
-  color: #999;
+  color: #666;
   font-size: 13px;
 }
 
@@ -1596,10 +1542,141 @@ export default {
   margin-top: 5px;
 }
 
+.timeline-gps {
+  color: #1976d2;
+  font-size: 13px;
+  margin-top: 5px;
+  font-family: 'Courier New', monospace;
+}
+
+.timeline-no-location {
+  color: #999;
+  font-size: 13px;
+  margin-top: 5px;
+  font-style: italic;
+}
+
 .timeline-remarks {
   color: #888;
   font-size: 13px;
   margin-top: 5px;
+  font-style: italic;
+}
+
+/* 流通记录表格样式 */
+.records-table-section {
+  margin-top: 24px;
+}
+
+.records-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  font-size: 14px;
+}
+
+.records-table th {
+  background-color: #f5f7fa;
+  color: #333;
+  font-weight: 600;
+  padding: 12px;
+  text-align: left;
+  border-bottom: 2px solid #e0e0e0;
+  white-space: nowrap;
+}
+
+.records-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+}
+
+.records-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.records-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 状态行样式 */
+.status-row-shipped {
+  border-left: 4px solid #91cc75;
+}
+
+.status-row-in_transit {
+  border-left: 4px solid #fac858;
+}
+
+.status-row-delivered {
+  border-left: 4px solid #ee6666;
+}
+
+/* 单元格样式 */
+.time-cell {
+  min-width: 160px;
+  font-family: 'Courier New', monospace;
+}
+
+.status-cell {
+  min-width: 100px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.status-shipped {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.status-badge.status-in_transit {
+  background-color: #fefce8;
+  color: #a16207;
+  border: 1px solid #fde047;
+}
+
+.status-badge.status-delivered {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.gps-cell {
+  min-width: 180px;
+  font-family: 'Courier New', monospace;
+}
+
+.gps-coords {
+  color: #1976d2;
+  font-size: 13px;
+}
+
+.location-cell {
+  min-width: 150px;
+  max-width: 200px;
+  word-wrap: break-word;
+}
+
+.remarks-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+}
+
+.no-gps, .no-location, .no-remarks {
+  color: #ccc;
   font-style: italic;
 }
 
@@ -1640,5 +1717,58 @@ export default {
   left: 0;
   color: #1a73e8;
   font-weight: bold;
+}
+
+/* 响应式调整 */
+@media (max-width: 1024px) {
+  .logistics-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  
+  .logistics-content .left-content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .logistics-content .right-content {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  
+  .logistics-content .action-buttons {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 768px) {
+  .platform-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .nav-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .nav-menu {
+    flex-wrap: wrap;
+  }
+  
+  .main-content {
+    padding: 10px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
 }
 </style>

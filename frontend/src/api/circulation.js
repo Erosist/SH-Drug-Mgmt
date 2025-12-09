@@ -56,14 +56,14 @@ export function getCirculationRecords(tracking_number) {
 /**
  * 药品全生命周期追溯
  * @param {Object} params - 查询参数
- * @param {string} params.batch_number - 药品批号（必填）
+ * @param {string} params.tracking_number - 运单号（必填）
  * @param {string} [params.start_date] - 开始日期，ISO格式（可选）
  * @param {string} [params.end_date] - 结束日期，ISO格式（可选）
  * @returns {Promise<Object>} 返回追溯结果，包含时间轴和流向图数据
  */
-export function traceDrug({ batch_number, start_date, end_date }) {
+export function traceDrug({ tracking_number, start_date, end_date }) {
   const params = new URLSearchParams()
-  params.append('batch_number', batch_number)
+  params.append('tracking_number', tracking_number)
   if (start_date) params.append('start_date', start_date)
   if (end_date) params.append('end_date', end_date)
   
