@@ -276,8 +276,8 @@ def report_circulation():
         "transport_status": "SHIPPED|IN_TRANSIT|DELIVERED",  # 必填
         "timestamp": "2025-01-01T12:00:00",  # 必填，ISO格式
         "current_location": "当前位置文字描述",  # 可选
-        "latitude": 39.9042,  # 可选
-        "longitude": 116.4074,  # 可选
+        "latitude": 39.9042,  # 必填，GPS纬度
+        "longitude": 116.4074,  # 必填，GPS经度
         "remarks": "备注信息"  # 可选
     }
     """
@@ -322,6 +322,21 @@ def report_circulation():
     except (ValueError, AttributeError, TypeError) as e:
         current_app.logger.error(f'Timestamp parsing error: {str(e)}, input: {timestamp_str}')
         return jsonify({'msg': '时间戳格式无效，请使用ISO格式（如: 2025-01-01T12:00:00）'}), 400
+
+    # GPS坐标验证 - 必须提供
+    if latitude is None or longitude is None:
+        return jsonify({'msg': 'GPS坐标是必填项，请先使用GPS定位'}), 400
+    
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+        # 验证坐标范围的合理性
+        if not (-90 <= latitude <= 90):
+            return jsonify({'msg': '纬度必须在-90到90之间'}), 400
+        if not (-180 <= longitude <= 180):
+            return jsonify({'msg': '经度必须在-180到180之间'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'msg': 'GPS坐标格式无效，必须为数字'}), 400
     
     # 查找关联的订单（通过运单号）
     order = Order.query.filter_by(tracking_number=tracking_number).first()
@@ -511,7 +526,7 @@ def trace_drug():
         timeline = []
         for record in records:
             status_map = {
-                'SHIPPED': '已发货',
+                'SHIPPED': '待揽收',    # 更新为与前端一致的状态文本
                 'IN_TRANSIT': '运输中',
                 'DELIVERED': '已送达'
             }
