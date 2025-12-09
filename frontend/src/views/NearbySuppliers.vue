@@ -269,6 +269,9 @@
           <span>搜索结果 - {{ searchResult.drug_name }}</span>
           <div>
             <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
+            <el-tag v-if="searchResult.geocode_failed > 0" type="warning" style="margin-left: 10px;">
+              {{ searchResult.geocode_failed }} 个供应商位置获取失败
+            </el-tag>
           </div>
         </div>
       </template>
@@ -639,6 +642,11 @@ const loadAllSuppliers = async () => {
     if (response.data.success) {
       allSuppliers.value = response.data.suppliers
       console.log('All suppliers loaded:', allSuppliers.value.length)
+      
+      // 提示地理编码失败的信息
+      if (response.data.geocode_failed > 0) {
+        ElMessage.warning(`已加载 ${allSuppliers.value.length} 个供应商，${response.data.geocode_failed} 个供应商位置获取失败`)
+      }
     }
   } catch (error) {
     console.error('获取供应商失败:', error)
@@ -769,7 +777,11 @@ const searchNearbySuppliers = async () => {
       if (response.data.filtered === 0) {
         ElMessage.info(response.data.message || '未找到符合条件的供应商，请尝试扩大搜索范围')
       } else {
-        ElMessage.success(`找到 ${response.data.filtered} 个有 ${response.data.drug_name} 库存的供应商`)
+        let successMsg = `找到 ${response.data.filtered} 个有 ${response.data.drug_name} 库存的供应商`
+        if (response.data.geocode_failed > 0) {
+          successMsg += `（${response.data.geocode_failed} 个供应商位置获取失败）`
+        }
+        ElMessage.success(successMsg)
       }
     }
   } catch (error) {
@@ -973,12 +985,17 @@ const updateMapMarkers = () => {
       `
     }
 
+    // 地理编码标识
+    const geocodedBadge = supplier.geocoded 
+      ? '<span style="background: #fef0c7; color: #9c6400; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">📍 地址解析</span>' 
+      : ''
+
     // 添加供应商信息窗口
     const supplierInfo = new AMap.InfoWindow({
       content: `
         <div style="padding: 12px; min-width: 260px;">
           <h4 style="margin: 0 0 10px 0; color: ${iconColor}; font-size: 16px;">
-            ${isMatched ? '🏭' : '⚪'} ${supplier.name}
+            ${isMatched ? '🏭' : '⚪'} ${supplier.name} ${geocodedBadge}
           </h4>
           <p style="margin: 5px 0;"><strong>地址:</strong> ${supplier.address}</p>
           <p style="margin: 5px 0;"><strong>联系人:</strong> ${supplier.contact_person}</p>

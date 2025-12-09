@@ -161,13 +161,14 @@ def get_nearby_suppliers():
         tenants = Tenant.query.filter(
             Tenant.id.in_(tenant_ids),
             Tenant.type == 'SUPPLIER',
-            Tenant.is_active == True,
-            Tenant.longitude.isnot(None),  # 必须有坐标信息
-            Tenant.latitude.isnot(None)
+            Tenant.is_active == True
+            # 不再要求必须有坐标，将通过地址动态获取坐标
         ).all()
         
         # 构建供应商列表，包含库存信息
         suppliers = []
+        geocode_failed_count = 0
+        
         for tenant in tenants:
             # 获取该供应商的库存信息（选择价格最低的）
             tenant_supplies = [si for si in supply_infos if si.tenant_id == tenant.id]
@@ -178,6 +179,25 @@ def get_nearby_suppliers():
             best_supply = min(tenant_supplies, key=lambda x: float(x.unit_price))
             
             supplier_dict = tenant.to_dict()
+            
+            # 如果供应商没有坐标，尝试通过地址获取坐标
+            if tenant.longitude is None or tenant.latitude is None:
+                if tenant.address:
+                    # 使用高德API进行地理编码
+                    geocode_result = AmapService.geocode_address(tenant.address)
+                    if geocode_result:
+                        supplier_dict['longitude'] = geocode_result['longitude']
+                        supplier_dict['latitude'] = geocode_result['latitude']
+                        supplier_dict['geocoded'] = True  # 标记为动态获取的坐标
+                    else:
+                        # 地理编码失败，跳过该供应商
+                        geocode_failed_count += 1
+                        continue
+                else:
+                    # 没有地址信息，跳过该供应商
+                    geocode_failed_count += 1
+                    continue
+            
             supplier_dict['inventory'] = {
                 'supply_id': best_supply.id,
                 'drug_id': best_supply.drug_id,
@@ -199,6 +219,12 @@ def get_nearby_suppliers():
             suppliers.append(supplier_dict)
         
         if not suppliers:
+            # 检查是否有地理编码失败的情况
+            if geocode_failed_count > 0:
+                message = f'有 {drug_name} 库存的供应商中，{geocode_failed_count} 个无法获取位置信息（地址缺失或地理编码失败）'
+            else:
+                message = f'有 {drug_name} 库存的供应商未设置位置信息'
+                
             return jsonify({
                 'success': True,
                 'drug_name': drug_name,
@@ -209,12 +235,13 @@ def get_nearby_suppliers():
                 'suppliers': [],
                 'total': 0,
                 'filtered': 0,
+                'geocode_failed': geocode_failed_count,
                 'params': {
                     'max_distance': max_distance,
                     'limit': limit,
                     'use_api': use_api
                 },
-                'message': f'有 {drug_name} 库存的供应商未设置位置信息'
+                'message': message
             })
         
         # 查找就近供应商
@@ -236,6 +263,7 @@ def get_nearby_suppliers():
             'suppliers': nearby_suppliers,
             'total': len(suppliers),
             'filtered': len(nearby_suppliers),
+            'geocode_failed': geocode_failed_count,
             'params': {
                 'max_distance': max_distance,
                 'limit': limit,
@@ -466,7 +494,8 @@ def get_my_location():
 @jwt_required()
 def get_all_suppliers():
     """
-    获取所有有坐标的活跃供应商列表（用于地图显示）
+    获取所有活跃供应商列表（用于地图显示）
+    如果供应商没有坐标，会尝试通过地址进行地理编码
     
     返回:
     {
@@ -479,28 +508,53 @@ def get_all_suppliers():
                 "longitude": 116.480697,
                 "latitude": 40.010565,
                 "contact_person": "联系人",
-                "contact_phone": "联系电话"
+                "contact_phone": "联系电话",
+                "geocoded": true  // 是否通过地址动态获取的坐标
             },
             ...
         ],
-        "total": 5
+        "total": 5,
+        "geocode_failed": 2  // 地理编码失败的数量
     }
     """
     try:
-        # 查询所有有坐标的活跃供应商
+        # 查询所有活跃供应商
         suppliers = Tenant.query.filter(
             Tenant.type == 'SUPPLIER',
-            Tenant.is_active == True,
-            Tenant.longitude.isnot(None),
-            Tenant.latitude.isnot(None)
+            Tenant.is_active == True
         ).all()
         
-        supplier_list = [s.to_dict() for s in suppliers]
+        supplier_list = []
+        geocode_failed_count = 0
+        
+        for supplier in suppliers:
+            supplier_dict = supplier.to_dict()
+            
+            # 如果供应商没有坐标，尝试通过地址获取坐标
+            if supplier.longitude is None or supplier.latitude is None:
+                if supplier.address:
+                    # 使用高德API进行地理编码
+                    geocode_result = AmapService.geocode_address(supplier.address)
+                    if geocode_result:
+                        supplier_dict['longitude'] = geocode_result['longitude']
+                        supplier_dict['latitude'] = geocode_result['latitude']
+                        supplier_dict['geocoded'] = True  # 标记为动态获取的坐标
+                    else:
+                        # 地理编码失败，跳过该供应商
+                        geocode_failed_count += 1
+                        continue
+                else:
+                    # 没有地址信息，跳过该供应商
+                    geocode_failed_count += 1
+                    continue
+            
+            supplier_list.append(supplier_dict)
         
         return jsonify({
             'success': True,
             'suppliers': supplier_list,
-            'total': len(supplier_list)
+            'total': len(supplier_list),
+            'geocode_failed': geocode_failed_count
         })
         
     except Exception as e:
