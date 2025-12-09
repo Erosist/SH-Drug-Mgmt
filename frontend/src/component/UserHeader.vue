@@ -6,7 +6,7 @@
         <router-link class="nav-item" :class="{ active: isActive('home') }" :to="{ name: 'home' }">首页</router-link>
         <router-link class="nav-item" :class="{ active: isActive('inventory') }" :to="{ name: 'inventory' }">库存管理</router-link>
         <router-link class="nav-item" :class="{ active: isActive('b2b') }" :to="{ name: 'b2b' }">B2B供货平台</router-link>
-        <router-link class="nav-item" :class="{ active: isActive('circulation') }" :to="{ name: 'circulation' }">流通监管</router-link>
+        <router-link v-if="canViewCirculation" class="nav-item" :class="{ active: isActive('circulation') }" :to="{ name: 'circulation' }">流通监管</router-link>
         <router-link class="nav-item" :class="{ active: isActive('analysis') }" :to="{ name: 'analysis' }">监管分析</router-link>
         <router-link class="nav-item" :class="{ active: isActive('service') }" :to="{ name: 'service' }">智能调度</router-link>
       </nav>
@@ -54,6 +54,12 @@ const isLoggedIn = computed(() => {
   } catch { return false }
 })
 const userName = computed(() => (currentUser.value?.displayName || currentUser.value?.username || ''))
+
+// 角色检查
+const userRole = computed(() => currentUser.value?.role)
+const isLogistics = computed(() => userRole.value === 'logistics')
+const isRegulator = computed(() => userRole.value === 'regulator')
+const canViewCirculation = computed(() => isLogistics.value || isRegulator.value)
 
 const isActive = (name) => route.name === name
 

@@ -29,6 +29,7 @@
               @click="navigateTo('b2b')"
             >B2B供求平台</div>
             <div 
+              v-if="isLogistics || isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
