@@ -1,6 +1,7 @@
 <template>
   <div class="compliance-report-page">
-    <el-page-header content="合规分析报告" @back="$router.back()" />
+    <el-page-header v-if="!embedded" content="合规分析报告" @back="$router.back()" />
+    <h2 v-else class="embedded-title">合规分析报告</h2>
 
     <el-card class="filters-card">
       <div class="filters-row">
@@ -132,6 +133,10 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchCompliancePreview, exportComplianceReport } from '@/api/compliance'
 
+const props = defineProps({
+  embedded: { type: Boolean, default: false }
+})
+
 const loading = ref(false)
 const exportingPdf = ref(false)
 const exportingExcel = ref(false)
@@ -254,6 +259,12 @@ onMounted(() => {
 
 .grid-card {
   min-height: 360px;
+}
+
+.embedded-title {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 @media (max-width: 1024px) {

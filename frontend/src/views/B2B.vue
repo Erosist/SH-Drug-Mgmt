@@ -41,97 +41,127 @@
 
     <!-- 主内容区域 -->
     <div class="main-content">
-
-      <!-- 标签切换（增加“查看供应信息”为第三个选项，点击只切换下方内容） -->
-      <div class="tabs" @click="onTabsClick">
-        <div
-          v-for="tab in visibleTabs"
-          :key="tab.key"
-          class="tab-item"
-          :class="{ active: activeTab === tab.key }"
-          @click="setActiveTab(tab.key)"
-        >
-          {{ tab.label }}
-        </div>
+      <div v-if="showCompliance" class="compliance-wrapper">
+        <ComplianceReport embedded />
       </div>
-
-      <div class="form-sections">
-        <!-- 供给表单 -->
-        <div v-if="activeTab==='supply'" class="card">
-          <h3 class="card-title">发布药品供给信息</h3>
-          <div style="padding:10px 0">
-            <SupplyInfoManagement />
+      <template v-else>
+        <!-- 标签切换（增加“查看供应信息”为第三个选项，点击只切换下方内容） -->
+        <div class="tabs" @click="onTabsClick">
+          <div
+            v-for="tab in visibleTabs"
+            :key="tab.key"
+            class="tab-item"
+            :class="{ active: activeTab === tab.key }"
+            @click="setActiveTab(tab.key)"
+          >
+            {{ tab.label }}
           </div>
         </div>
 
+        <div class="form-sections">
+          <!-- 供给表单 -->
+          <div v-if="activeTab==='supply'" class="card">
+            <h3 class="card-title">发布药品供给信息</h3>
+            <div style="padding:10px 0">
+              <SupplyInfoManagement />
+            </div>
+          </div>
 
-        
-        <!-- 查看供应信息（内联组件） -->
-        <div v-else-if="activeTab==='list'" class="card">
-          <h3 class="card-title">查看供应信息</h3>
-          <div style="padding:10px 0">
-            <SupplierList />
+          <!-- 需求表单 -->
+          <div v-else-if="activeTab==='demand'" class="card">
+            <h3 class="card-title">发布药品需求信息</h3>
+            <div class="sub-card">
+              <h4 class="sub-title">需求基本信息</h4>
+              <div class="form-grid">
+                <div class="form-item">
+                  <label>需求药品名称</label>
+                  <input v-model="demandForm.drugName" placeholder="输入药品名称" />
+                </div>
+                <div class="form-item">
+                  <label>需求数量</label>
+                  <input v-model.number="demandForm.quantity" type="number" min="0" placeholder="输入数量" />
+                </div>
+                <div class="form-item">
+                  <label>期望价格(元)</label>
+                  <input v-model.number="demandForm.expectPrice" type="number" min="0" step="0.01" placeholder="输入期望价格" />
+                </div>
+                <div class="form-item">
+                  <label>最晚交付日期</label>
+                  <input v-model="demandForm.deadline" type="date" />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="secondary-btn" @click="resetDemandForm">重置表单</button>
+                <button class="primary-btn" @click="submitDemand">提交需求</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 查看供应信息（内联组件） -->
+          <div v-else-if="activeTab==='list'" class="card">
+            <h3 class="card-title">查看供应信息</h3>
+            <div style="padding:10px 0">
+              <SupplierList />
+            </div>
+          </div>
+
+          <!-- 下单（内联组件） -->
+          <div v-else-if="activeTab==='order'" class="card">
+            <h3 class="card-title">下单</h3>
+            <div style="padding:10px 0">
+              <MockOrder :selectedSupplyId="route.query.supplyId" />
+            </div>
           </div>
         </div>
 
-        <!-- 下单（内联组件） -->
-        <div v-else-if="activeTab==='order'" class="card">
-          <h3 class="card-title">下单</h3>
-          <div style="padding:10px 0">
-            <MockOrder :selectedSupplyId="route.query.supplyId" />
+        <!-- 已发布记录列表 -->
+        <div class="records-section">
+          <h3 class="section-title">最新发布记录</h3>
+          <div v-loading="recordsLoading" class="records-container">
+            <table class="records-table" v-if="realRecords.length > 0">
+              <thead>
+                <tr>
+                  <th>类型</th>
+                  <th>药品名称</th>
+                  <th>数量/价格</th>
+                  <th>状态</th>
+                  <th>日期</th>
+                  <th>操作方</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(record, index) in realRecords" :key="index">
+                  <td>
+                    <el-tag 
+                      :type="record.type === 'supply' ? 'success' : record.type === 'order' ? 'primary' : 'info'"
+                      size="small"
+                    >
+                      {{ record.typeName }}
+                    </el-tag>
+                  </td>
+                  <td>{{ record.drugName }}</td>
+                  <td>{{ record.quantityAndPrice }}</td>
+                  <td>
+                    <el-tag 
+                      :type="getRecordStatusType(record.status)" 
+                      size="small"
+                    >
+                      {{ record.statusText }}
+                    </el-tag>
+                  </td>
+                  <td>{{ record.date }}</td>
+                  <td>{{ record.operatorName }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <el-empty 
+              v-else-if="!recordsLoading"
+              description="暂无记录" 
+              :image-size="80"
+            />
           </div>
         </div>
-
-        
-      </div>
-
-      <!-- 已发布记录列表 -->
-      <div class="records-section">
-        <h3 class="section-title">最新发布记录</h3>
-        <div v-loading="recordsLoading" class="records-container">
-          <table class="records-table" v-if="realRecords.length > 0">
-            <thead>
-              <tr>
-                <th>类型</th>
-                <th>药品名称</th>
-                <th>数量/价格</th>
-                <th>状态</th>
-                <th>日期</th>
-                <th>操作方</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(record, index) in realRecords" :key="index">
-                <td>
-                  <el-tag 
-                    :type="record.type === 'supply' ? 'success' : record.type === 'order' ? 'primary' : 'info'"
-                    size="small"
-                  >
-                    {{ record.typeName }}
-                  </el-tag>
-                </td>
-                <td>{{ record.drugName }}</td>
-                <td>{{ record.quantityAndPrice }}</td>
-                <td>
-                  <el-tag 
-                    :type="getRecordStatusType(record.status)" 
-                    size="small"
-                  >
-                    {{ record.statusText }}
-                  </el-tag>
-                </td>
-                <td>{{ record.date }}</td>
-                <td>{{ record.operatorName }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <el-empty 
-            v-else-if="!recordsLoading"
-            description="暂无记录" 
-            :image-size="80"
-          />
-        </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -143,6 +173,7 @@ import { useRouter, useRoute } from 'vue-router'
 import SupplierList from '@/component/SupplierList.vue'
 import SupplyInfoManagement from '@/component/SupplyInfoManagement.vue'
 import MockOrder from '@/views/MockOrder.vue'
+import ComplianceReport from '@/views/ComplianceReport.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import { roleToRoute } from '@/utils/roleRoute'
 import { supplyApi } from '@/api/supply'
@@ -151,13 +182,14 @@ import { getRoleLabel } from '@/utils/roleLabel'
 
 export default {
   name: 'B2BPlatform',
-  components: { SupplierList, SupplyInfoManagement, MockOrder },
+  components: { SupplierList, SupplyInfoManagement, MockOrder, ComplianceReport },
   setup() {
     const router = useRouter()
     const route = useRoute()
-  const activeNav = ref('b2b')
+    const activeNav = ref('b2b')
     const activeTab = ref('supply')
-  const currentUser = ref(getCurrentUser())
+    const currentUser = ref(getCurrentUser())
+    const showCompliance = ref(false)
   const isLogistics = computed(() => currentUser.value && currentUser.value.role === 'logistics')
   const isSupplier = computed(() => currentUser.value && currentUser.value.role === 'supplier')
   const isPharmacy = computed(() => currentUser.value && currentUser.value.role === 'pharmacy')
@@ -240,6 +272,24 @@ export default {
 
     const navigateTo = (page) => {
       activeNav.value = page
+      // 合规分析报告：监管用户在当前界面内联展示，不再路由跳转
+      if (page === 'compliance') {
+        if (!currentUser.value) {
+          router.push({ name: 'login', query: { redirect: '/b2b?section=compliance' } })
+          return
+        }
+        if (currentUser.value.role !== 'regulator') {
+          router.push('/')
+          return
+        }
+        // 无论当前在哪个路由，都切回 b2b 并带上标记，避免跳到独立页面
+        router.replace({ name: 'b2b', query: { ...route.query, section: 'compliance' } })
+        showCompliance.value = true
+        return
+      }
+
+      // 其它导航保持原逻辑
+      showCompliance.value = false
       switch(page) {
         case 'home': router.push('/') ; break
         case 'inventory': router.push('/inventory') ; break
@@ -259,17 +309,6 @@ export default {
         case 'circulation': router.push('/circulation') ; break
         case 'analysis': router.push('/analysis') ; break
         case 'service': router.push('/service') ; break
-        case 'compliance':
-          if (!currentUser.value) {
-            router.push({ name: 'login', query: { redirect: '/compliance-report' } })
-            break
-          }
-          if (currentUser.value.role !== 'regulator') {
-            router.push('/')
-            break
-          }
-          router.push({ name: 'compliance-report' })
-          break
         default: router.push('/')
       }
     }
@@ -325,13 +364,28 @@ export default {
     }
 
     const refreshUser = () => { currentUser.value = getCurrentUser() }
+
+    const pageIsCompliance = (r) => r?.name === 'b2b' && r.query?.section === 'compliance'
     
-    // 处理路由查询参数切换tab
-    watch(() => route.query.tab, (newTab) => {
-      if (newTab && visibleTabs.value.some(t => t.key === newTab)) {
-        activeTab.value = newTab
-      }
-    }, { immediate: true })
+    // 处理路由查询参数切换tab/合规内联展示
+    watch(
+      () => [route.query.tab, route.query.section],
+      ([newTab, section]) => {
+        if (newTab && visibleTabs.value.some(t => t.key === newTab)) {
+          activeTab.value = newTab
+        }
+        if (section === 'compliance' && isRegulator.value) {
+          showCompliance.value = true
+          activeNav.value = 'compliance'
+        } else if (pageIsCompliance(route)) {
+          showCompliance.value = true
+          activeNav.value = 'compliance'
+        } else {
+          showCompliance.value = false
+        }
+      },
+      { immediate: true }
+    )
     
     onMounted(() => { 
       window.addEventListener('storage', refreshUser)
@@ -456,7 +510,7 @@ export default {
     resetSupplyForm, submitSupply, records,
     realRecords, recordsLoading, loadRecentRecords, getRecordStatusType,
     isLogistics, isSupplier, isPharmacy, isRegulator, isAdmin, canViewAnalysis,
-    route
+    route, showCompliance
   }
   }
 }
