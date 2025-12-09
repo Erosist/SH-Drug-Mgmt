@@ -95,15 +95,15 @@
           <div id="amap-container" style="width: 100%; height: 600px;"></div>
           <div class="map-legend">
             <div class="legend-item">
-              <span class="legend-icon pharmacy">📍</span>
-              <span>我的位置</span>
+                <img :src="pharmacyIcon" class="legend-img" alt="我的位置" />
+                <span>我的位置</span>
             </div>
             <div class="legend-item">
-              <span class="legend-icon supplier-normal">⚪</span>
+              <img :src="supplierNormalIcon" class="legend-img" alt="普通供应商" />
               <span>普通供应商</span>
             </div>
             <div class="legend-item">
-              <span class="legend-icon supplier-matched">🏭</span>
+              <img :src="supplierMatchedIcon" class="legend-img" alt="匹配的供应商" />
               <span>匹配的供应商</span>
             </div>
           </div>
@@ -117,15 +117,25 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="药品名称" required>
-                <el-input 
+                <el-autocomplete
                   v-model="searchForm.drugName" 
+                  :fetch-suggestions="queryDrugSuggestions"
                   placeholder="请输入药品名称，如：阿莫西林"
                   clearable
+                  :trigger-on-focus="false"
+                  @select="handleDrugSelect"
+                  style="width: 100%"
                 >
                   <template #prefix>
                     <el-icon><Search /></el-icon>
                   </template>
-                </el-input>
+                  <template #default="{ item }">
+                    <div class="drug-suggestion-item">
+                      <span class="drug-name">{{ item.value }}</span>
+                      <span class="drug-count">{{ item.supplier_count }} 个供应商</span>
+                    </div>
+                  </template>
+                </el-autocomplete>
               </el-form-item>
             </el-col>
           </el-row>
@@ -589,6 +599,17 @@ let markers = []
 let polylines = [] // 存储路径线
 const allSuppliers = ref([]) // 所有供应商
 
+// 统一的药店图标（SVG -> base64 data URL），在地图 marker 和图例中复用
+const pharmacyIconSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="15" fill="#ef4444"/><circle cx="20" cy="20" r="10" fill="#fff"/><circle cx="20" cy="20" r="5" fill="#ef4444"/></svg>`
+const pharmacyIcon = `data:image/svg+xml;base64,${btoa(pharmacyIconSvg)}`
+
+// 供应商图标（普通 / 匹配），使用 base SVG 并在图例与 marker 中复用
+const supplierNormalSvg = `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="16" fill="#999999"/><circle cx="18" cy="18" r="10" fill="#fff"/><circle cx="18" cy="18" r="6" fill="#999999"/></svg>`
+const supplierMatchedSvg = `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="16" fill="#4096ff"/><circle cx="18" cy="18" r="10" fill="#fff"/><circle cx="18" cy="18" r="6" fill="#4096ff"/></svg>`
+
+const supplierNormalIcon = `data:image/svg+xml;base64,${btoa(supplierNormalSvg)}`
+const supplierMatchedIcon = `data:image/svg+xml;base64,${btoa(supplierMatchedSvg)}`
+
 // 搜索类型
 const searchType = ref('location') // location, address, coords
 
@@ -793,6 +814,39 @@ const searchNearbySuppliers = async () => {
   }
 }
 
+// 查询药品候选项（用于自动完成下拉框）
+const queryDrugSuggestions = async (queryString, callback) => {
+  if (!queryString || queryString.trim() === '') {
+    callback([])
+    return
+  }
+
+  try {
+    const response = await nearbyApi.getDrugSuggestions(queryString.trim(), 10)
+    if (response.data.success) {
+      // 将药品列表转换为 el-autocomplete 需要的格式
+      const suggestions = response.data.drugs.map(drug => ({
+        value: drug.generic_name,
+        supplier_count: drug.supplier_count,
+        brand_name: drug.brand_name,
+        specification: drug.specification
+      }))
+      callback(suggestions)
+    } else {
+      callback([])
+    }
+  } catch (error) {
+    console.error('获取药品候选项失败:', error)
+    callback([])
+  }
+}
+
+// 选择药品候选项时的处理
+const handleDrugSelect = (item) => {
+  console.log('选择了药品:', item)
+  // 可以在这里添加额外的逻辑，比如自动搜索
+}
+
 // 重置搜索
 const resetSearch = () => {
   searchForm.drugName = ''
@@ -911,7 +965,7 @@ const updateMapMarkers = () => {
       title: '我的位置',
       icon: new AMap.Icon({
         size: new AMap.Size(40, 40),
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxNSIgZmlsbD0iI2VmNDQ0NCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iNSIgZmlsbD0iI2VmNDQ0NCIvPjwvc3ZnPg==',
+        image: pharmacyIcon,
         imageSize: new AMap.Size(40, 40)
       }),
       offset: new AMap.Pixel(-20, -20),
@@ -959,7 +1013,8 @@ const updateMapMarkers = () => {
       title: supplier.name,
       icon: new AMap.Icon({
         size: new AMap.Size(iconSize, iconSize),
-        image: `data:image/svg+xml;base64,${btoa(`<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" xmlns="http://www.w3.org/2000/svg"><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-2}" fill="${iconColor}"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-6}" fill="#fff"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-10}" fill="${iconColor}"/></svg>`)}`,
+        // 使用预生成的 data URL，根据是否匹配选择图标
+        image: isMatched ? supplierMatchedIcon : supplierNormalIcon,
         imageSize: new AMap.Size(iconSize, iconSize)
       }),
       offset: new AMap.Pixel(-iconSize/2, -iconSize/2),
@@ -1362,5 +1417,33 @@ onBeforeUnmount(() => {
 
 .legend-icon {
   font-size: 20px;
+}
+
+.legend-img {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+/* 药品候选项样式 */
+.drug-suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.drug-name {
+  flex: 1;
+  color: #303133;
+  font-size: 14px;
+}
+
+.drug-count {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 10px;
 }
 </style>
