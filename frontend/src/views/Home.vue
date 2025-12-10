@@ -175,11 +175,6 @@
               <div v-else class="urgent-notice">
                 <div class="notice-title" style="color: #999;">暂无紧急通知</div>
               </div>
-              
-              <div class="report-input">
-                <input type="text" v-model="reportText" placeholder="本市2024年度报告请输入" class="report-field">
-                <button class="submit-btn" @click="submitReport">提交</button>
-              </div>
             </div>
           </div>
         </div>
@@ -313,7 +308,6 @@ export default {
     const healthNewsList = ref([])
     const urgentNotices = ref([])
     const userStats = ref({})
-    const reportText = ref('')
 
     // 附近药房数据
     const nearbyPharmacies = ref([])
@@ -566,16 +560,6 @@ export default {
       router.push({ name: 'health-news' })
     }
 
-    // 提交报告
-    const submitReport = () => {
-      if (!reportText.value.trim()) {
-        ElMessage.warning('请输入报告内容')
-        return
-      }
-      ElMessage.success('报告提交成功')
-      reportText.value = ''
-    }
-
     // 跳转到就近推荐页面
     const goToNearbySuppliers = () => {
       if (!currentUser.value) {
@@ -824,7 +808,6 @@ export default {
       healthNewsList,
       urgentNotices,
       userStats,
-      reportText,
       // 附近药房
       nearbyPharmacies,
       nearbyLoading,
@@ -854,8 +837,7 @@ export default {
       goToReminders,
       // 主页方法
       formatNewsDate,
-      loadMoreNews,
-      submitReport
+      loadMoreNews
     }
   }
 }
@@ -1290,36 +1272,6 @@ export default {
   color: #999;
   font-size: 12px;
   margin-top: 4px;
-}
-
-.report-input {
-  display: flex;
-  margin-top: 15px;
-}
-
-.report-field {
-  flex-grow: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px 0 0 4px;
-  outline: none;
-}
-
-.report-field:focus {
-  border-color: #1a73e8;
-}
-
-.submit-btn {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 0 4px 4px 0;
-  cursor: pointer;
-}
-
-.submit-btn:hover {
-  background-color: #0d62d9;
 }
 
 /* 特色服务样式 */
