@@ -380,7 +380,7 @@ export default {
 .auth-btn, .review-btn, .admin-btn, .change-btn, .login-btn { font-size: 14px; }
 .change-btn { border: 1px solid #1a73e8; background-color: transparent; color: #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; transition: background-color 0.3s; }
 .change-btn:hover { background-color: rgba(26,115,232,0.08); }
-.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
 .auth-btn:hover { background-color: rgba(26,115,232,0.08); }
 .review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
 .review-btn:hover { background-color: #ffeccc; }
