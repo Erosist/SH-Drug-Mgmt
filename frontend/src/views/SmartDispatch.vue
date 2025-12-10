@@ -97,6 +97,21 @@
             <button @click="addDestination" class="add-btn">+ 添加目的地</button>
           </div>
 
+          <div class="form-row">
+            <label>距离计算方式</label>
+            <div class="distance-options">
+              <label class="radio-option">
+                <input type="radio" v-model="useApiDistance" :value="false" />
+                <span>直线距离（快速）</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" v-model="useApiDistance" :value="true" />
+                <span>驾车距离（精确）</span>
+              </label>
+            </div>
+            <small class="muted">驾车距离计算更准确但速度较慢</small>
+          </div>
+
           <div class="form-row actions">
             <button class="primary" @click="geocodeAllAndOptimize" :disabled="computing">
               {{ computing ? '计算中...' : '计算最优配送顺序' }}
@@ -121,6 +136,26 @@
 
         <section class="map-area">
           <div id="dispatch-amap-container" class="map-container">地图加载中...</div>
+          <div class="map-info" v-if="deliveryOrder.length > 0">
+            <div class="info-item">
+              <span class="info-label">路线类型:</span>
+              <span class="info-value" :style="{ color: useApiDistance ? '#4caf50' : '#1a73e8' }">
+                {{ useApiDistance ? '驾车路线' : '直线距离' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">配送点:</span>
+              <span class="info-value">{{ deliveryOrder.length }} 个</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">地图标记:</span>
+              <span class="info-value">{{ markers.length }} 个</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">路线段:</span>
+              <span class="info-value">{{ polylines.length }} 条</span>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -187,6 +222,7 @@ export default {
     const deliveryOrder = ref([])
     const errorMessage = ref('')
     const successMessage = ref('')
+    const useApiDistance = ref(false) // 是否使用驾车距离（API），默认使用直线距离
     
     // 地址搜索相关
     const startSuggestions = ref([])
@@ -412,9 +448,11 @@ export default {
             // 如果目的地也存了 coords（未来可支持），优先使用 coords
             location: (d.coords && Array.isArray(d.coords) && d.coords.length === 2) ? `${d.coords[0]},${d.coords[1]}` : d.input
           })),
-          use_api: false,  // 使用直线距离（快速），如需驾车距离改为 true
+          use_api: useApiDistance.value,  // 使用用户选择的距离计算方式
           algorithm: 'greedy'  // 使用贪心算法（快速）
         }
+
+        console.log('路径优化请求参数:', requestData)
 
         // 调用后端API
         const response = await axios.post(
@@ -431,6 +469,8 @@ export default {
         if (response.data.success) {
           const result = response.data
           
+          console.log('路径优化成功，返回结果:', result)
+          
           // 更新起点坐标
           start.value.coords = [result.start.longitude, result.start.latitude]
           
@@ -442,12 +482,22 @@ export default {
             distanceFromPrev: r.distance_from_prev_text
           }))
           
-          // 在地图上绘制路线
-          await drawRouteOnMap(result.start, result.route)
+          console.log('配送顺序已更新:', deliveryOrder.value)
           
-          successMessage.value = `路径优化成功！总距离：${result.total_distance_text}`
+          // 在地图上绘制路线
+          try {
+            await drawRouteOnMap(result.start, result.route)
+            console.log('地图路线绘制完成')
+          } catch (drawError) {
+            console.error('绘制地图路线时出错:', drawError)
+            errorMessage.value = '路线绘制失败: ' + drawError.message
+          }
+          
+          const distanceType = useApiDistance.value ? '驾车距离' : '直线距离'
+          successMessage.value = `路径优化成功！总距离：${result.total_distance_text}（${distanceType}）`
         } else {
           errorMessage.value = response.data.message || '路径优化失败'
+          console.error('路径优化失败:', response.data)
           alert(errorMessage.value)
         }
       } catch (error) {
@@ -469,14 +519,20 @@ export default {
     let _drivingPluginLoaded = false
     const ensureDrivingPlugin = () => {
       return new Promise((resolve) => {
-        if (!window.AMap) return resolve(false)
+        if (!window.AMap) {
+          console.warn('AMap 未加载')
+          return resolve(false)
+        }
         // 如果已经存在 Driving 类或之前已加载插件，直接返回
         if (window.AMap.Driving || _drivingPluginLoaded) {
+          console.log('驾车插件已加载')
           _drivingPluginLoaded = true
           return resolve(true)
         }
         try {
+          console.log('开始加载 AMap.Driving 插件...')
           AMap.plugin(['AMap.Driving'], () => {
+            console.log('AMap.Driving 插件加载成功')
             _drivingPluginLoaded = true
             resolve(true)
           })
@@ -488,108 +544,221 @@ export default {
     }
 
     const drawRouteOnMap = async (startPoint, orderedPoints) => {
+      console.log('开始在地图上绘制路线...')
+      console.log('起点:', startPoint)
+      console.log('目的地点数:', orderedPoints.length)
+      console.log('使用驾车距离:', useApiDistance.value)
+      
       clearMapOverlays()
-      if (!map || !window.AMap) return
+      if (!map || !window.AMap) {
+        console.error('地图未初始化')
+        return
+      }
 
-      // 添加起点标记
-      const startMarker = new AMap.Marker({
-        position: [startPoint.longitude, startPoint.latitude],
-        title: '起点（仓库）',
-        icon: new AMap.Icon({
-          size: new AMap.Size(32, 32),
-          image: '//a.amap.com/jsapi_demos/static/demo-center/icons/dir-marker.png',
-          imageSize: new AMap.Size(32, 32)
-        }),
-        offset: new AMap.Pixel(-16, -32)
-      })
-      markers.push(startMarker)
-
-      // 添加目的地标记
-      orderedPoints.forEach((p, idx) => {
-        const m = new AMap.Marker({
-          position: [p.longitude, p.latitude],
-          title: `${idx + 1}. ${p.name}`,
-          label: {
-            content: `${idx + 1}`,
-            offset: new AMap.Pixel(0, -5),
-            direction: 'top'
-          },
-          offset: new AMap.Pixel(-12, -24)
+      try {
+        // 添加起点标记（使用红色标记）
+        const startMarker = new AMap.Marker({
+          position: [startPoint.longitude, startPoint.latitude],
+          title: '起点（仓库）',
+          icon: new AMap.Icon({
+            size: new AMap.Size(40, 40),
+            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxOCIgZmlsbD0iI2VmNDQ0NCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEyIiBmaWxsPSIjZmZmIi8+PHRleHQgeD0iMjAiIHk9IjI1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iI2VmNDQ0NCI+UzwvdGV4dD48L3N2Zz4=',
+            imageSize: new AMap.Size(40, 40)
+          }),
+          offset: new AMap.Pixel(-20, -20),
+          zIndex: 200
         })
-        markers.push(m)
-      })
+        markers.push(startMarker)
+        console.log('起点标记已添加')
 
-      map.add(markers)
+        // 添加目的地标记（带编号的蓝色标记）
+        orderedPoints.forEach((p, idx) => {
+          const markerIcon = new AMap.Icon({
+            size: new AMap.Size(36, 36),
+            image: `data:image/svg+xml;base64,${btoa(`<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="16" fill="#1a73e8"/><circle cx="18" cy="18" r="11" fill="#fff"/><text x="18" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#1a73e8">${idx + 1}</text></svg>`)}`,
+            imageSize: new AMap.Size(36, 36)
+          })
+          
+          const m = new AMap.Marker({
+            position: [p.longitude, p.latitude],
+            title: `${idx + 1}. ${p.name}`,
+            icon: markerIcon,
+            offset: new AMap.Pixel(-18, -18),
+            zIndex: 150
+          })
+          markers.push(m)
+        })
+        console.log(`已添加 ${orderedPoints.length} 个目的地标记`)
 
-      // 尝试加载驾车规划插件（若不可用则使用直线连线回退）
-      const pluginReady = await ensureDrivingPlugin()
+        // 将所有标记添加到地图
+        map.add(markers)
 
-      // 逐段调用驾车规划以获得实际道路 polyline
-      for (let i = 0; i < orderedPoints.length; i++) {
-        const origin = (i === 0)
-          ? [startPoint.longitude, startPoint.latitude]
-          : [orderedPoints[i - 1].longitude, orderedPoints[i - 1].latitude]
-        const dest = [orderedPoints[i].longitude, orderedPoints[i].latitude]
+        // 根据用户选择决定是否使用驾车规划
+        const shouldUseDriving = useApiDistance.value
+        let pluginReady = false
+        
+        if (shouldUseDriving) {
+          // 只有选择驾车距离时才加载驾车插件
+          pluginReady = await ensureDrivingPlugin()
+          console.log('驾车插件加载状态:', pluginReady)
+          
+          if (!pluginReady) {
+            console.warn('驾车插件加载失败，将使用直线绘制')
+          }
+        } else {
+          console.log('用户选择直线距离，将使用直线绘制路线')
+        }
 
-        if (pluginReady && window.AMap && AMap.Driving) {
-          // eslint-disable-next-line no-await-in-loop
-          await new Promise((resolve) => {
-            const drivingOptions = { map: map, hideMarkers: true }
-            if (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME !== undefined) {
-              drivingOptions.policy = AMap.DrivingPolicy.LEAST_TIME
-            }
-            const driving = new AMap.Driving(drivingOptions)
-            driving.search(origin, dest, (status, result) => {
-              if (status === 'complete' && result.routes && result.routes.length > 0) {
-                const route = result.routes[0]
-                const pathCoords = []
-                ;(route.paths || []).forEach(pth => {
-                  (pth.steps || []).forEach(step => {
-                    if (step.path && Array.isArray(step.path)) {
-                      step.path.forEach(pt => pathCoords.push([pt.lng, pt.lat]))
-                    } else if (step.polyline && typeof step.polyline === 'string') {
-                      step.polyline.split(';').forEach(pair => {
-                        if (!pair) return
-                        const [lng, lat] = pair.split(',').map(Number)
-                        pathCoords.push([lng, lat])
+        // 逐段绘制路线
+        for (let i = 0; i < orderedPoints.length; i++) {
+          const origin = (i === 0)
+            ? [startPoint.longitude, startPoint.latitude]
+            : [orderedPoints[i - 1].longitude, orderedPoints[i - 1].latitude]
+          const dest = [orderedPoints[i].longitude, orderedPoints[i].latitude]
+
+          console.log(`绘制路段 ${i + 1}:`, origin, '->', dest)
+
+          // 只有在选择驾车距离且插件加载成功时才使用驾车规划
+          if (shouldUseDriving && pluginReady && window.AMap && AMap.Driving) {
+            console.log(`路段 ${i + 1} 使用驾车规划API`)
+            // 使用驾车规划API获取真实路线
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((resolve) => {
+              const drivingOptions = { 
+                map: map, 
+                hideMarkers: true,
+                autoFitView: false
+              }
+              // 设置驾车策略为最快捷路线
+              if (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME !== undefined) {
+                drivingOptions.policy = AMap.DrivingPolicy.LEAST_TIME
+              }
+              
+              const driving = new AMap.Driving(drivingOptions)
+              
+              driving.search(origin, dest, (status, result) => {
+                console.log(`路段 ${i + 1} 驾车规划状态:`, status)
+                
+                if (status === 'complete' && result.routes && result.routes.length > 0) {
+                  const route = result.routes[0]
+                  console.log(`路段 ${i + 1} 驾车路线:`, route)
+                  
+                  const pathCoords = []
+                  
+                  // 提取路径坐标
+                  if (route.steps && Array.isArray(route.steps)) {
+                    // 新版API格式
+                    route.steps.forEach(step => {
+                      if (step.path && Array.isArray(step.path)) {
+                        step.path.forEach(pt => {
+                          if (pt.lng !== undefined && pt.lat !== undefined) {
+                            pathCoords.push([pt.lng, pt.lat])
+                          } else if (pt[0] !== undefined && pt[1] !== undefined) {
+                            pathCoords.push([pt[0], pt[1]])
+                          }
+                        })
+                      }
+                    })
+                  } else if (route.paths && Array.isArray(route.paths)) {
+                    // 老版API格式
+                    route.paths.forEach(pth => {
+                      (pth.steps || []).forEach(step => {
+                        if (step.path && Array.isArray(step.path)) {
+                          step.path.forEach(pt => {
+                            if (pt.lng !== undefined && pt.lat !== undefined) {
+                              pathCoords.push([pt.lng, pt.lat])
+                            } else if (pt[0] !== undefined && pt[1] !== undefined) {
+                              pathCoords.push([pt[0], pt[1]])
+                            }
+                          })
+                        } else if (step.polyline && typeof step.polyline === 'string') {
+                          step.polyline.split(';').forEach(pair => {
+                            if (!pair) return
+                            const parts = pair.split(',')
+                            const lng = parseFloat(parts[0])
+                            const lat = parseFloat(parts[1])
+                            if (!isNaN(lng) && !isNaN(lat)) {
+                              pathCoords.push([lng, lat])
+                            }
+                          })
+                        }
                       })
-                    }
-                  })
-                })
+                    })
+                  }
 
-                if (pathCoords.length > 0) {
+                  if (pathCoords.length > 0) {
+                    console.log(`路段 ${i + 1} 驾车路径点数:`, pathCoords.length)
+                    const pl = new AMap.Polyline({
+                      path: pathCoords,
+                      strokeColor: '#1a73e8',
+                      strokeWeight: 6,
+                      strokeOpacity: 0.8,
+                      showDir: true,
+                      lineJoin: 'round',
+                      zIndex: 100
+                    })
+                    polylines.push(pl)
+                    map.add(pl)
+                    console.log(`路段 ${i + 1} 驾车路线绘制成功`)
+                  } else {
+                    console.warn(`路段 ${i + 1} 驾车规划返回的路径为空，使用直线`)
+                    const pl = new AMap.Polyline({
+                      path: [origin, dest],
+                      strokeColor: '#1a73e8',
+                      strokeWeight: 4,
+                      strokeOpacity: 0.6,
+                      strokeStyle: 'dashed',
+                      zIndex: 100
+                    })
+                    polylines.push(pl)
+                    map.add(pl)
+                  }
+                } else {
+                  console.warn(`路段 ${i + 1} 驾车规划失败 (status: ${status})，使用直线`)
                   const pl = new AMap.Polyline({
-                    path: pathCoords,
-                    strokeColor: '#2db7f5',
-                    strokeWeight: 6,
-                    strokeOpacity: 0.8
+                    path: [origin, dest],
+                    strokeColor: '#1a73e8',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.6,
+                    strokeStyle: 'dashed',
+                    zIndex: 100
                   })
                   polylines.push(pl)
                   map.add(pl)
                 }
-              }
-              setTimeout(resolve, 120)
+                setTimeout(resolve, 200) // 增加延迟避免API限流
+              })
             })
-          })
-        } else {
-          // 回退：直接绘制起点到终点的直线段
-          const pl = new AMap.Polyline({
-            path: [origin, dest],
-            strokeColor: '#2db7f5',
-            strokeWeight: 4,
-            strokeOpacity: 0.6,
-            dashStyle: 'solid'
-          })
-          polylines.push(pl)
-          map.add(pl)
+          } else {
+            // 使用直线绘制
+            console.log(`路段 ${i + 1} 使用直线绘制`)
+            const pl = new AMap.Polyline({
+              path: [origin, dest],
+              strokeColor: shouldUseDriving ? '#ff9800' : '#1a73e8', // 如果用户选了驾车但插件失败，用橙色提示
+              strokeWeight: 4,
+              strokeOpacity: 0.7,
+              strokeStyle: 'solid',
+              zIndex: 100
+            })
+            polylines.push(pl)
+            map.add(pl)
+          }
         }
-      }
 
-      // 自适应视野
-      try {
-        map.setFitView(markers.concat(polylines), false, [40, 40, 40, 40])
-      } catch (e) {
-        console.error('地图视野调整失败:', e)
+        console.log(`共绘制了 ${polylines.length} 条路线段`)
+
+        // 自适应视野
+        try {
+          const allOverlays = markers.concat(polylines)
+          if (allOverlays.length > 0) {
+            map.setFitView(allOverlays, false, [60, 60, 60, 60])
+            console.log('地图视野已调整')
+          }
+        } catch (e) {
+          console.error('地图视野调整失败:', e)
+        }
+      } catch (error) {
+        console.error('绘制路线时出错:', error)
       }
     }
 
@@ -607,17 +776,56 @@ export default {
 
     // 地图辅助：清理
     const clearMapOverlays = () => {
-      if (!map) return
-      if (markers.length) { map.remove(markers); markers = [] }
-      if (polylines.length) { map.remove(polylines); polylines = [] }
+      console.log('清理地图覆盖物...')
+      if (!map) {
+        console.warn('地图未初始化，无法清理')
+        return
+      }
+      try {
+        if (markers.length) { 
+          console.log(`移除 ${markers.length} 个标记`)
+          map.remove(markers)
+          markers = []
+        }
+        if (polylines.length) { 
+          console.log(`移除 ${polylines.length} 条路线`)
+          map.remove(polylines)
+          polylines = []
+        }
+      } catch (e) {
+        console.error('清理地图覆盖物时出错:', e)
+        markers = []
+        polylines = []
+      }
     }
 
     // 初始化地图
     const initMap = () => {
-      if (!window.AMap) return
-      map = new AMap.Map('dispatch-amap-container', { zoom: 12, center: [121.48, 31.23], viewMode: '2D' })
-      map.addControl(new AMap.Scale())
-      map.addControl(new AMap.ToolBar())
+      console.log('初始化地图...')
+      if (!window.AMap) {
+        console.error('高德地图 JS API 未加载')
+        return
+      }
+      try {
+        map = new AMap.Map('dispatch-amap-container', { 
+          zoom: 12, 
+          center: [121.48, 31.23], 
+          viewMode: '2D',
+          mapStyle: 'amap://styles/normal'
+        })
+        
+        // 添加控件
+        try {
+          map.addControl(new AMap.Scale())
+          map.addControl(new AMap.ToolBar())
+        } catch (e) {
+          console.warn('添加地图控件失败:', e)
+        }
+        
+        console.log('地图初始化成功')
+      } catch (e) {
+        console.error('地图初始化失败:', e)
+      }
     }
 
     const refreshUser = () => { currentUser.value = getCurrentUser() }
@@ -669,13 +877,17 @@ export default {
       clearRoute,
       errorMessage,
       successMessage,
+      useApiDistance,
       // 地址搜索
       startSuggestions,
       showStartSuggestions,
       onStartInputChange,
       onStartInputFocus,
       onStartInputBlur,
-      selectStartSuggestion
+      selectStartSuggestion,
+      // 地图状态（用于显示信息）
+      markers: computed(() => markers),
+      polylines: computed(() => polylines)
     }
   }
 }
@@ -727,6 +939,30 @@ export default {
 .form-row label { display: block; color: #333; margin-bottom: 8px; font-size: 15px; font-weight: 600; }
 .form-row input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
 .muted { color: #777; font-size: 13px; }
+
+/* 距离计算方式选择 */
+.distance-options {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
+  color: #333;
+}
+.radio-option input[type="radio"] {
+  width: auto;
+  cursor: pointer;
+  margin: 0;
+}
+.radio-option:hover {
+  color: #1a73e8;
+}
 
 /* 地址搜索自动补全样式 */
 .autocomplete-wrapper { position: relative; }
@@ -788,5 +1024,57 @@ export default {
 /* 地图样式保留 */
 .map-area .map-container { width: 100%; height: 520px; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; }
 
-@media (max-width: 1000px) { .panel-grid { grid-template-columns: 1fr; } .map-area .map-container { height: 360px; } }
+/* 地图信息显示 */
+.map-info { 
+  margin-top: 12px; 
+  padding: 12px; 
+  background: #fff; 
+  border-radius: 8px; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 12px;
+}
+.info-item { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  padding: 8px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+.info-label { 
+  font-size: 12px; 
+  color: #999; 
+  margin-bottom: 4px;
+}
+.info-value { 
+  font-size: 16px; 
+  color: #1a73e8; 
+  font-weight: 600;
+}
+
+.suggestion-meta {
+  font-size: 11px;
+  color: #ccc;
+  margin-top: 2px;
+}
+
+.suggestion-coords {
+  font-size: 11px;
+  color: #1a73e8;
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+.start-coords-info {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f0f5ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
+}
+
+@media (max-width: 1000px) { .panel-grid { grid-template-columns: 1fr; } .map-area .map-container { height: 360px; } .map-info { grid-template-columns: repeat(2, 1fr); } }
 </style>
