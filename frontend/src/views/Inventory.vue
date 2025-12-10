@@ -29,10 +29,11 @@
               @click="navigateTo('b2b')"
             >B2B供求平台</div>
             <div 
+              v-if="isLogistics || isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div 
               v-if="canViewAnalysis"
               class="nav-item" 
@@ -83,59 +84,54 @@
 
       <div v-if="activeInventoryTab === 'overview'" class="tab-panel">
         <div v-if="myTenantId">
-          <div class="section my-tenant-overview">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">我的企业库存概览</h2>
-                <p class="section-subtitle">聚焦当前登录用户所在企业的主体信息与库存统计</p>
-              </div>
-              <button v-if="!isLogistics" class="ghost-btn" @click="goToMyTenantInventory">查看全部明细</button>
-            </div>
+          <div class="section my-tenant-overview enhanced-overview-section">
             <div v-if="myTenantLoading" class="info-placeholder">正在加载企业信息...</div>
             <div v-else-if="myTenantError" class="info-placeholder error">
               {{ myTenantError }}
               <button class="ghost-btn retry-btn" @click="reloadMyTenant">重新加载</button>
             </div>
             <div v-else-if="myTenantDetail" class="tenant-overview-content">
-              <div class="tenant-header">
-                <div>
-                  <h3>{{ myTenantDetail.name }}</h3>
-                  <p class="tenant-address">{{ myTenantDetail.address }}</p>
+              <div class="enterprise-info-card">
+                <div class="enterprise-basic-info">
+                  <div class="enterprise-details">
+                    <h3 class="enterprise-name">{{ myTenantDetail.name }}</h3>
+                    <p class="enterprise-address">{{ myTenantDetail.address }}</p>
+                    <div class="enterprise-meta">
+                      <span class="enterprise-type">{{ myTenantDetail.type }}</span>
+                      <span class="enterprise-status" :class="{ active: myTenantDetail.is_active }">
+                        {{ myTenantDetail.is_active ? '在营' : '停业' }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div class="tenant-tags">
-                  <span class="tag">{{ myTenantDetail.type }}</span>
-                  <span class="status" :class="{ active: myTenantDetail.is_active }">
-                    {{ myTenantDetail.is_active ? '在营' : '停业' }}
-                  </span>
-                </div>
-              </div>
-              <div class="stats-grid">
-                <div class="stat-card">
-                  <span class="stat-label">库存批次</span>
-                  <span class="stat-value">{{ myTenantStats.total_batches }}</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">药品种类</span>
-                  <span class="stat-value">{{ myTenantStats.unique_drugs }}</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">总库存量</span>
-                  <span class="stat-value">{{ myTenantStats.total_quantity }}</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">最近更新</span>
-                  <span class="stat-value">{{ myLatestUpdateText }}</span>
+                <div class="enterprise-stats">
+                  <div class="stat-item">
+                    <span class="stat-number">{{ myTenantStats.total_batches }}</span>
+                    <span class="stat-label">库存批次</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-number">{{ myTenantStats.unique_drugs }}</span>
+                    <span class="stat-label">药品种类</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-number">{{ myTenantStats.total_quantity }}</span>
+                    <span class="stat-label">总库存量</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-number">{{ myLatestUpdateText }}</span>
+                    <span class="stat-label">最近更新</span>
+                  </div>
                 </div>
               </div>
             </div>
             <div v-else class="info-placeholder">暂无企业信息</div>
           </div>
 
-          <div class="section my-tenant-inventory">
+          <div class="section my-tenant-inventory enhanced-inventory-section">
             <div class="section-header">
               <div>
                 <h2 class="section-title">企业库存明细</h2>
-                <p class="section-subtitle">仅展示当前企业的库存批次</p>
+                <p class="section-subtitle">当前企业的全部库存批次详情</p>
               </div>
               <div class="search-controls">
                 <input
@@ -172,39 +168,25 @@
                 </thead>
                 <tbody>
                   <tr v-for="item in myInventory" :key="item.id">
-                    <td>
-                      <div class="tuple-box small">
-                        <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
-                        <template v-else>—</template>
-                      </div>
+                    <td class="table-cell">
+                      <template v-if="isAuthenticatedViewer">{{ item.batch_number }}</template>
+                      <template v-else>—</template>
                     </td>
-                    <td>
-                      <div class="tuple-box">
-                        <div class="drug-name">{{ item.drug_name || '—' }}</div>
-                        <div class="drug-brand">{{ item.drug_brand }}</div>
-                      </div>
+                    <td class="table-cell drug-cell">
+                      <div class="drug-name">{{ item.drug_name || '—' }}</div>
+                      <div class="drug-brand">{{ item.drug_brand }}</div>
                     </td>
-                    <td>
-                      <div class="tuple-box small">
-                        <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
-                        <template v-else>需认证后查看</template>
-                      </div>
+                    <td class="table-cell">
+                      <template v-if="isAuthenticatedViewer">{{ item.quantity }}</template>
+                      <template v-else>需认证后查看</template>
                     </td>
-                    <td>
-                      <div class="tuple-box small">
-                        <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
-                        <template v-else>—</template>
-                      </div>
+                    <td class="table-cell">
+                      <template v-if="isAuthenticatedViewer">{{ formatPrice(item.unit_price) }}</template>
+                      <template v-else>—</template>
                     </td>
-                    <td>
-                      <div class="tuple-box small">{{ formatDate(item.production_date) }}</div>
-                    </td>
-                    <td>
-                      <div class="tuple-box small">{{ formatDate(item.expiry_date) }}</div>
-                    </td>
-                    <td>
-                      <div class="tuple-box small">{{ formatDateTime(item.updated_at) }}</div>
-                    </td>
+                    <td class="table-cell">{{ formatDate(item.production_date) }}</td>
+                    <td class="table-cell">{{ formatDate(item.expiry_date) }}</td>
+                    <td class="table-cell">{{ formatDateTime(item.updated_at) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -232,10 +214,7 @@
       <div v-else-if="activeInventoryTab === 'maintenance'" class="tab-panel">
         <div v-if="myTenantId && canManageInventory" class="section manual-inventory-section">
           <div class="section-header">
-            <div>
-              <h2 class="section-title">库存维护</h2>
-              <p class="section-subtitle">通过标准化操作板维护库存批次与补货计划</p>
-            </div>
+            <div></div>
           </div>
           <InventoryManagePanel />
         </div>
@@ -247,10 +226,7 @@
       <div v-else class="tab-panel">
         <div class="section inventory-warning-section">
           <div class="section-header">
-            <div>
-              <h2 class="section-title">库存预警管理</h2>
-              <p class="section-subtitle">实时监测低库存、临期批次并给出调拨建议</p>
-            </div>
+            <div></div>
           </div>
           <div style="padding: 10px 0">
             <InventoryWarning />
@@ -574,11 +550,6 @@ export default {
       }
     }
 
-    const goToMyTenantInventory = () => {
-      if (!myTenantId.value) return
-      router.push({ name: 'tenant-inventory', params: { tenantId: myTenantId.value } })
-    }
-
     onMounted(() => {
       activeNav.value = mapRouteToNav(route.name)
       window.addEventListener('storage', refreshUser)
@@ -632,7 +603,6 @@ export default {
       searchMyInventory,
       resetMyInventorySearch,
       changeMyInventoryPage,
-      goToMyTenantInventory,
       formatDate,
       formatPrice,
       formatDateTime
@@ -919,7 +889,7 @@ export default {
 .tab-panel {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 32px;
 }
 
 .section {
@@ -940,6 +910,11 @@ export default {
   margin-top: 6px;
   color: #6b7280;
   font-size: 14px;
+}
+
+.warning-note {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .tag {
@@ -983,18 +958,13 @@ export default {
 .result-table th,
 .result-table td {
   text-align: left;
-  padding: 0; /* 内边距由 .tuple-box 控制 */
   border-bottom: none;
   font-size: 14px;
   vertical-align: middle;
 }
 
-.result-table tbody tr .tuple-box {
-  width: 100%;
-}
-.result-table tbody tr:hover .tuple-box {
-  border-color: rgba(26, 115, 232, 0.22);
-  box-shadow: 0 6px 18px rgba(26,115,232,0.06);
+.result-table tbody tr:hover {
+  background-color: rgba(33, 150, 243, 0.04);
 }
 
 .result-table th {
@@ -1111,12 +1081,279 @@ export default {
 }
 
 .search-btn {
-  background-color: #1a73e8;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
   color: white;
   border: none;
-  padding: 8px 15px;
+  padding: 8px 16px;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+/* 增强的库存概览部分样式 */
+.enhanced-overview-section {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e1f5fe;
+  box-shadow: 0 2px 16px rgba(33, 150, 243, 0.08);
+  border-radius: 12px;
+}
+
+.enhanced-overview-section .section-title {
+  color: #1976d2;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.enhanced-overview-section .section-subtitle {
+  color: #546e7a;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* 企业信息卡片 */
+.enterprise-info-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  box-shadow: 0 1px 6px rgba(33, 150, 243, 0.06);
+  border: 1px solid #e3f2fd;
+  gap: 32px;
+}
+
+.enterprise-basic-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+}
+
+.enterprise-details {
+  flex: 1;
+}
+
+.enterprise-name {
+  color: #1565c0;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.enterprise-address {
+  color: #78909c;
+  font-size: 14px;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.enterprise-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.enterprise-type {
+  padding: 4px 12px;
+  border-radius: 16px;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.enterprise-status {
+  padding: 4px 12px;
+  border-radius: 16px;
+  background-color: #f5f5f5;
+  color: #757575;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.enterprise-status.active {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+/* 企业统计数据 */
+.enterprise-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  min-width: 400px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+  border-radius: 8px;
+  border: 1px solid #e1f5fe;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.12);
+}
+
+.stat-number {
+  color: #1565c0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.stat-label {
+  color: #78909c;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 增强的库存明细部分样式 */
+.enhanced-inventory-section {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e1f5fe;
+  box-shadow: 0 2px 16px rgba(33, 150, 243, 0.08);
+  border-radius: 12px;
+  margin-top: 40px;
+}
+
+.enhanced-inventory-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e3f2fd;
+}
+
+.enhanced-inventory-section .section-title {
+  color: #1976d2;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.enhanced-inventory-section .section-subtitle {
+  color: #546e7a;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.search-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-controls input {
+  padding: 10px 16px;
+  border: 2px solid #e1f5fe;
+  border-radius: 8px 0 0 8px;
+  font-size: 14px;
+  width: 280px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #ffffff;
+}
+
+.search-controls input:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.enhanced-inventory-section .search-btn {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.enhanced-inventory-section .search-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.enhanced-inventory-section .my-inventory-table {
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 8px rgba(33, 150, 243, 0.06);
+  border: 1px solid #e3f2fd;
+}
+
+.enhanced-inventory-section .my-inventory-table th {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  color: white;
+  font-weight: 600;
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  border: none;
+}
+
+.enhanced-inventory-section .my-inventory-table .table-cell {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  color: #333;
+  vertical-align: middle;
+  transition: background-color 0.2s ease;
+}
+
+.enhanced-inventory-section .my-inventory-table .drug-cell {
+  padding: 10px 16px;
+}
+
+.enhanced-inventory-section .my-inventory-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.enhanced-inventory-section .my-inventory-table tbody tr:last-child .table-cell {
+  border-bottom: none;
+}
+
+.enhanced-inventory-section .my-inventory-table tbody tr:nth-child(even) {
+  background-color: #f8fbff;
+}
+
+.enhanced-inventory-section .my-inventory-table tbody tr:hover {
+  background-color: #e3f2fd;
+  transform: none;
+  transition: all 0.2s ease;
+}
+
+.enhanced-inventory-section .my-inventory-table tbody tr:hover .table-cell {
+  background-color: transparent;
+}
+
+.enhanced-inventory-section .my-inventory-table .drug-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.enhanced-inventory-section .my-inventory-table .drug-brand {
+  font-size: 12px;
+  color: #78909c;
 }
 
 /* 响应式设计 */
@@ -1139,6 +1376,46 @@ export default {
   
   .main-content {
     padding: 10px;
+  }
+  
+  .enterprise-info-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  
+  .enterprise-basic-info {
+    width: 100%;
+  }
+  
+  .enterprise-stats {
+    width: 100%;
+    min-width: auto;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stats-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .stat-item {
+    width: 100%;
+  }
+  
+  .search-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .search-controls input {
+    width: 100%;
+    border-radius: 8px;
+  }
+  
+  .enhanced-inventory-section .search-btn {
+    border-radius: 8px;
   }
 }
 </style>

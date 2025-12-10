@@ -33,10 +33,11 @@
               @click="navigateTo('b2b')"
             >B2B供求平台</div>
             <div 
+              v-if="isLogistics || isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div 
               v-if="canViewAnalysis"
               class="nav-item" 
@@ -272,7 +273,9 @@ export default {
             router.push({ name: 'unauth', query: { active: 'nearby' } })
             break
           }
+          
           router.push('/nearby-suppliers')
+          break
           break
         case 'b2b':
           router.push('/b2b')

@@ -75,6 +75,82 @@ export const homeApi = {
    */
   getRecentActivities: (params = {}) => {
     return apiClient.get('/api/home/recent-activities', { params })
+  },
+
+  /**
+   * 药品搜索
+   */
+  searchDrugs: (keyword, page = 1, perPage = 5) => {
+    return apiClient.get('/api/catalog/drugs/search', {
+      params: { q: keyword, page, per_page: perPage }
+    })
+  },
+
+  /**
+   * 获取药品详情
+   */
+  getDrugDetail: (drugId) => {
+    return apiClient.get(`/api/catalog/drugs/${drugId}`)
+  },
+
+  /**
+   * 药品价格对比
+   */
+  compareDrugPrices: (drugName, sort = 'price_asc') => {
+    return apiClient.get('/api/catalog/price/compare', {
+      params: { drug_name: drugName, sort }
+    })
+  },
+
+  // ========== 用药提醒 API ==========
+  
+  /**
+   * 获取用药提醒列表
+   */
+  getReminders: (params = {}) => {
+    return apiClient.get('/api/reminders', { params })
+  },
+
+  /**
+   * 获取今日提醒
+   */
+  getTodayReminders: () => {
+    return apiClient.get('/api/reminders/today')
+  },
+
+  /**
+   * 获取单个提醒详情
+   */
+  getReminderDetail: (id) => {
+    return apiClient.get(`/api/reminders/${id}`)
+  },
+
+  /**
+   * 创建用药提醒
+   */
+  createReminder: (data) => {
+    return apiClient.post('/api/reminders', data)
+  },
+
+  /**
+   * 更新用药提醒
+   */
+  updateReminder: (id, data) => {
+    return apiClient.put(`/api/reminders/${id}`, data)
+  },
+
+  /**
+   * 删除用药提醒
+   */
+  deleteReminder: (id) => {
+    return apiClient.delete(`/api/reminders/${id}`)
+  },
+
+  /**
+   * 切换提醒状态
+   */
+  toggleReminder: (id) => {
+    return apiClient.post(`/api/reminders/${id}/toggle`)
   }
 }
 

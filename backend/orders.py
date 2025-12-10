@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from extensions import db
 from models import User, Order, OrderItem, SupplyInfo, Drug, Tenant, InventoryItem, InventoryTransaction
+from supply_utils import update_supply_info_quantity
 
 bp = Blueprint('orders', __name__, url_prefix='/api/orders')
 
@@ -320,8 +321,17 @@ def create_order(current_user):
         db.session.flush()  # 获取订单ID
         
         # 更新供应信息的可用数量（预占库存）
-        supply_info.available_quantity -= quantity
-        supply_info.updated_at = datetime.utcnow()
+        updated_supply_info = update_supply_info_quantity(
+            supply_info.tenant_id, 
+            supply_info.drug_id, 
+            -quantity,
+            f"订单{order.order_number}创建，预占库存",
+            supply_info_id=supply_info.id
+        )
+        
+        if not updated_supply_info:
+            db.session.rollback()
+            return jsonify({'msg': '供应信息数量不足，无法创建订单'}), 400
         
         db.session.commit()
         
@@ -537,15 +547,13 @@ def confirm_order(current_user, order_id):
             
             # 恢复供应信息的可用数量
             for item in order.items:
-                supply_info = SupplyInfo.query.filter_by(
-                    tenant_id=order.supplier_tenant_id,
-                    drug_id=item.drug_id,
-                    status='ACTIVE'
-                ).first()
-                
-                if supply_info:
-                    supply_info.available_quantity += item.quantity
-                    supply_info.updated_at = datetime.utcnow()
+                update_supply_info_quantity(
+                    order.supplier_tenant_id,
+                    item.drug_id, 
+                    item.quantity,
+                    f"订单{order.order_number}被供应商拒绝，恢复库存",
+                    supply_info_id=order.supply_info_id
+                )
             
             message = '订单已拒绝'
         
@@ -598,15 +606,13 @@ def cancel_order(current_user, order_id):
         
         # 恢复供应信息的可用数量
         for item in order.items:
-            supply_info = SupplyInfo.query.filter_by(
-                tenant_id=order.supplier_tenant_id,
-                drug_id=item.drug_id,
-                status='ACTIVE'
-            ).first()
-            
-            if supply_info:
-                supply_info.available_quantity += item.quantity
-                supply_info.updated_at = datetime.utcnow()
+            update_supply_info_quantity(
+                order.supplier_tenant_id,
+                item.drug_id, 
+                item.quantity,
+                f"订单{order.order_number}取消，恢复库存",
+                supply_info_id=order.supply_info_id
+            )
         
         db.session.commit()
         
@@ -931,6 +937,12 @@ def get_logistics_orders():
     """
     获取物流公司的订单列表
     物流公司只能看到分配给自己的订单，且状态为 SHIPPED, IN_TRANSIT, DELIVERED
+    支持筛选参数：
+    - order_no: 订单号（模糊查询）
+    - tracking_number: 运单号（模糊查询）
+    - status: 订单状态（精确匹配）
+    - start_date: 开始日期（按更新时间过滤）
+    - end_date: 结束日期（按更新时间过滤）
     """
     try:
         current_user = get_authenticated_user()
@@ -950,31 +962,74 @@ def get_logistics_orders():
         # 只显示物流相关的订单状态
         query = query.filter(Order.status.in_(['SHIPPED', 'IN_TRANSIT', 'DELIVERED']))
         
-        # 按创建时间倒序排列
-        query = query.order_by(desc(Order.created_at))
+        # 获取筛选参数
+        order_no = request.args.get('order_no', '').strip()
+        tracking_number = request.args.get('tracking_number', '').strip()
+        status = request.args.get('status', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        
+        # 应用筛选条件
+        if order_no:
+            query = query.filter(Order.order_number.like(f'%{order_no}%'))
+        
+        if tracking_number:
+            query = query.filter(Order.tracking_number.like(f'%{tracking_number}%'))
+        
+        if status:
+            query = query.filter(Order.status == status)
+        
+        if start_date:
+            try:
+                from datetime import datetime
+                # 处理 ISO 格式日期字符串
+                start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                query = query.filter(Order.updated_at >= start)
+            except Exception as e:
+                current_app.logger.warning(f'解析开始日期失败: {e}')
+        
+        if end_date:
+            try:
+                from datetime import datetime
+                # 处理 ISO 格式日期字符串
+                end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                query = query.filter(Order.updated_at <= end)
+            except Exception as e:
+                current_app.logger.warning(f'解析结束日期失败: {e}')
+        
+        # 按更新时间倒序排列
+        query = query.order_by(desc(Order.updated_at))
         
         orders = query.all()
         
         orders_data = []
         for order in orders:
-            # 获取药房名称
+            # 获取药房信息（买方租户）
             pharmacy = Tenant.query.get(order.buyer_tenant_id)
             pharmacy_name = pharmacy.name if pharmacy else 'Unknown'
+            pharmacy_address = pharmacy.address if pharmacy else None
             
             # 获取供应商名称
             supplier = Tenant.query.get(order.supplier_tenant_id)
             supplier_name = supplier.name if supplier else 'Unknown'
             
-            # 获取药品信息（从订单明细中获取）
+            # 收集批号（从订单明细中获取第一个批号）
+            batch_numbers = []
             drug_names = []
             total_quantity = 0
+            
             for item in order.items:
+                if item.batch_number:
+                    batch_numbers.append(item.batch_number)
+                
                 drug = Drug.query.get(item.drug_id)
                 if drug:
                     drug_names.append(f"{drug.generic_name or drug.brand_name}")
+                
                 total_quantity += item.quantity
             
             drug_name = ', '.join(drug_names) if drug_names else 'Unknown'
+            batch_number = batch_numbers[0] if batch_numbers else None
             
             # 获取物流公司名称
             logistics_company_name = None
@@ -983,31 +1038,41 @@ def get_logistics_orders():
                 if logistics_company:
                     logistics_company_name = logistics_company.name
             
+            # 返回前端需要的字段格式
             orders_data.append({
                 'id': order.id,
-                'order_id': order.id,
-                'order_number': order.order_number,
+                'order_no': order.order_number,  # 前端使用 order_no
+                'tracking_number': order.tracking_number,  # 运单号
+                'batch_number': batch_number,  # 批号
+                'status': order.status,
+                'address': pharmacy_address,  # 收货地址（药房地址）
+                'updated_at': order.updated_at.isoformat() if order.updated_at else None,
+                # 额外的字段（可选）
                 'pharmacy_name': pharmacy_name,
                 'supplier_name': supplier_name,
                 'drug_name': drug_name,
                 'quantity': total_quantity,
                 'total_amount': str(order.total_amount),
-                'status': order.status,
-                'logistics_company_id': order.logistics_tenant_id,
                 'logistics_company_name': logistics_company_name,
-                'created_at': order.created_at.isoformat() if order.created_at else None,
-                'updated_at': order.updated_at.isoformat() if order.updated_at else None
+                'created_at': order.created_at.isoformat() if order.created_at else None
             })
         
         return jsonify({
             'success': True,
             'message': '获取物流订单列表成功',
-            'data': orders_data
+            'data': orders_data,
+            'total': len(orders_data)
         })
         
     except Exception as e:
         current_app.logger.error(f'获取物流订单列表失败: {str(e)}')
-        return jsonify({'success': False, 'message': '获取物流订单列表失败', 'error': str(e)}), 500
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': '获取物流订单列表失败',
+            'error': str(e)
+        }), 500
 
 
 def register_logistics_blueprint(app):

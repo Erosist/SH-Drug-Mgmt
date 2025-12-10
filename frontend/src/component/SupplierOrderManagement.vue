@@ -316,19 +316,13 @@
             placeholder="请输入运单号（可选）"
           />
         </el-form-item>
-        <el-form-item label="物流公司">
-          <el-select
-            v-model="shipForm.logistics_tenant_id"
-            placeholder="选择物流公司（可选）"
-            clearable
-          >
-            <el-option
-              v-for="logistics in logisticsList"
-              :key="logistics.id"
-              :label="logistics.name"
-              :value="logistics.id"
-            />
-          </el-select>
+        <el-form-item>
+          <el-checkbox v-model="shipForm.has_reported">
+            已在「流通监管 - 流通数据上报」中完成该运单号的上报
+          </el-checkbox>
+          <div class="ship-hint">
+            提示：未上报的运单号不可发货，请先到「流通监管」完成上报。
+          </div>
         </el-form-item>
       </el-form>
 
@@ -390,11 +384,8 @@ const rejectForm = reactive({
 // 发货表单
 const shipForm = reactive({
   tracking_number: '',
-  logistics_tenant_id: null
+  has_reported: false
 })
-
-// 物流公司列表
-const logisticsList = ref([])
 
 // 计算属性
 const shouldShowStats = computed(() => {
@@ -542,21 +533,25 @@ const submitReject = async () => {
 const shipOrder = (order) => {
   selectedOrder.value = order
   shipForm.tracking_number = ''
-  shipForm.logistics_tenant_id = null
+  shipForm.has_reported = false
   showShipDialog.value = true
   showDetailDialog.value = false
 }
 
 const submitShip = async () => {
+  if (!shipForm.tracking_number?.trim()) {
+    ElMessage.error('请输入运单号')
+    return
+  }
+  if (!shipForm.has_reported) {
+    ElMessage.error('请先在「流通监管」完成该运单号的上报后再发货')
+    return
+  }
+
   shipLoading.value = true
   try {
     const shipData = {}
-    if (shipForm.tracking_number) {
-      shipData.tracking_number = shipForm.tracking_number
-    }
-    if (shipForm.logistics_tenant_id) {
-      shipData.logistics_tenant_id = shipForm.logistics_tenant_id
-    }
+    shipData.tracking_number = shipForm.tracking_number.trim()
 
     const response = await orderApi.shipOrder(selectedOrder.value.id, shipData)
 

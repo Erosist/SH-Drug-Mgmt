@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from app import create_app
 from extensions import db
 from models import Order, SupplyInfo
+from supply_utils import update_supply_info_quantity
 
 
 def handle_expired_orders():
@@ -43,16 +44,12 @@ def handle_expired_orders():
                 
                 # 恢复供应信息的可用数量
                 for item in order.items:
-                    supply_info = SupplyInfo.query.filter_by(
-                        tenant_id=order.supplier_tenant_id,
-                        drug_id=item.drug_id,
-                        status='ACTIVE'
-                    ).first()
-                    
-                    if supply_info:
-                        supply_info.available_quantity += item.quantity
-                        supply_info.updated_at = datetime.utcnow()
-                        print(f"恢复供应信息 {supply_info.id} 库存 {item.quantity} 件")
+                    update_supply_info_quantity(
+                        order.supplier_tenant_id,
+                        item.drug_id,
+                        item.quantity,
+                        f"订单{order.order_number}超时自动取消，恢复库存"
+                    )
                 
                 db.session.commit()
                 print(f"订单 {order.order_number} 已标记为超时取消")

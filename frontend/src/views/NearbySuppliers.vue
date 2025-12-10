@@ -34,10 +34,11 @@
               @click="navigateTo('b2b')"
             >B2B供求平台</div>
             <div 
+              v-if="isLogistics || isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div 
               v-if="canViewAnalysis"
               class="nav-item" 
@@ -95,15 +96,15 @@
           <div id="amap-container" style="width: 100%; height: 600px;"></div>
           <div class="map-legend">
             <div class="legend-item">
-              <span class="legend-icon pharmacy">📍</span>
-              <span>我的位置</span>
+                <img :src="pharmacyIcon" class="legend-img" alt="我的位置" />
+                <span>我的位置</span>
             </div>
             <div class="legend-item">
-              <span class="legend-icon supplier-normal">⚪</span>
+              <img :src="supplierNormalIcon" class="legend-img" alt="普通供应商" />
               <span>普通供应商</span>
             </div>
             <div class="legend-item">
-              <span class="legend-icon supplier-matched">🏭</span>
+              <img :src="supplierMatchedIcon" class="legend-img" alt="匹配的供应商" />
               <span>匹配的供应商</span>
             </div>
           </div>
@@ -117,15 +118,25 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="药品名称" required>
-                <el-input 
+                <el-autocomplete
                   v-model="searchForm.drugName" 
+                  :fetch-suggestions="queryDrugSuggestions"
                   placeholder="请输入药品名称，如：阿莫西林"
                   clearable
+                  :trigger-on-focus="false"
+                  @select="handleDrugSelect"
+                  style="width: 100%"
                 >
                   <template #prefix>
                     <el-icon><Search /></el-icon>
                   </template>
-                </el-input>
+                  <template #default="{ item }">
+                    <div class="drug-suggestion-item">
+                      <span class="drug-name">{{ item.value }}</span>
+                      <span class="drug-count">{{ item.supplier_count }} 个供应商</span>
+                    </div>
+                  </template>
+                </el-autocomplete>
               </el-form-item>
             </el-col>
           </el-row>
@@ -269,6 +280,9 @@
           <span>搜索结果 - {{ searchResult.drug_name }}</span>
           <div>
             <el-tag type="success">找到 {{ searchResult.filtered }} 个供应商</el-tag>
+            <el-tag v-if="searchResult.geocode_failed > 0" type="warning" style="margin-left: 10px;">
+              {{ searchResult.geocode_failed }} 个供应商位置获取失败
+            </el-tag>
           </div>
         </div>
       </template>
@@ -586,6 +600,17 @@ let markers = []
 let polylines = [] // 存储路径线
 const allSuppliers = ref([]) // 所有供应商
 
+// 统一的药店图标（SVG -> base64 data URL），在地图 marker 和图例中复用
+const pharmacyIconSvg = `<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="15" fill="#ef4444"/><circle cx="20" cy="20" r="10" fill="#fff"/><circle cx="20" cy="20" r="5" fill="#ef4444"/></svg>`
+const pharmacyIcon = `data:image/svg+xml;base64,${btoa(pharmacyIconSvg)}`
+
+// 供应商图标（普通 / 匹配），使用 base SVG 并在图例与 marker 中复用
+const supplierNormalSvg = `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="16" fill="#999999"/><circle cx="18" cy="18" r="10" fill="#fff"/><circle cx="18" cy="18" r="6" fill="#999999"/></svg>`
+const supplierMatchedSvg = `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="16" fill="#4096ff"/><circle cx="18" cy="18" r="10" fill="#fff"/><circle cx="18" cy="18" r="6" fill="#4096ff"/></svg>`
+
+const supplierNormalIcon = `data:image/svg+xml;base64,${btoa(supplierNormalSvg)}`
+const supplierMatchedIcon = `data:image/svg+xml;base64,${btoa(supplierMatchedSvg)}`
+
 // 搜索类型
 const searchType = ref('location') // location, address, coords
 
@@ -639,6 +664,11 @@ const loadAllSuppliers = async () => {
     if (response.data.success) {
       allSuppliers.value = response.data.suppliers
       console.log('All suppliers loaded:', allSuppliers.value.length)
+      
+      // 提示地理编码失败的信息
+      if (response.data.geocode_failed > 0) {
+        ElMessage.warning(`已加载 ${allSuppliers.value.length} 个供应商，${response.data.geocode_failed} 个供应商位置获取失败`)
+      }
     }
   } catch (error) {
     console.error('获取供应商失败:', error)
@@ -769,7 +799,11 @@ const searchNearbySuppliers = async () => {
       if (response.data.filtered === 0) {
         ElMessage.info(response.data.message || '未找到符合条件的供应商，请尝试扩大搜索范围')
       } else {
-        ElMessage.success(`找到 ${response.data.filtered} 个有 ${response.data.drug_name} 库存的供应商`)
+        let successMsg = `找到 ${response.data.filtered} 个有 ${response.data.drug_name} 库存的供应商`
+        if (response.data.geocode_failed > 0) {
+          successMsg += `（${response.data.geocode_failed} 个供应商位置获取失败）`
+        }
+        ElMessage.success(successMsg)
       }
     }
   } catch (error) {
@@ -779,6 +813,39 @@ const searchNearbySuppliers = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 查询药品候选项（用于自动完成下拉框）
+const queryDrugSuggestions = async (queryString, callback) => {
+  if (!queryString || queryString.trim() === '') {
+    callback([])
+    return
+  }
+
+  try {
+    const response = await nearbyApi.getDrugSuggestions(queryString.trim(), 10)
+    if (response.data.success) {
+      // 将药品列表转换为 el-autocomplete 需要的格式
+      const suggestions = response.data.drugs.map(drug => ({
+        value: drug.generic_name,
+        supplier_count: drug.supplier_count,
+        brand_name: drug.brand_name,
+        specification: drug.specification
+      }))
+      callback(suggestions)
+    } else {
+      callback([])
+    }
+  } catch (error) {
+    console.error('获取药品候选项失败:', error)
+    callback([])
+  }
+}
+
+// 选择药品候选项时的处理
+const handleDrugSelect = (item) => {
+  console.log('选择了药品:', item)
+  // 可以在这里添加额外的逻辑，比如自动搜索
 }
 
 // 重置搜索
@@ -840,9 +907,28 @@ const initMap = () => {
     viewMode: '2D'
   })
 
-  // 添加缩放控件
-  map.addControl(new AMap.Scale())
-  map.addControl(new AMap.ToolBar())
+  // 添加缩放控件（有时部分高德控件在某些环境会抛错，使用 try/catch 保护）
+  try {
+    if (AMap.Scale) map.addControl(new AMap.Scale())
+  } catch (err) {
+    console.warn('AMap.Scale 控件初始化失败:', err)
+  }
+
+  try {
+    if (AMap.ToolBar) map.addControl(new AMap.ToolBar())
+  } catch (err) {
+    console.warn('AMap.ToolBar 控件初始化失败:', err)
+  }
+
+  // 在地图完全初始化后触发一次标记更新，确保在地图 ready/complete 之后再添加 marker
+  map.on && map.on('complete', () => {
+    try {
+      console.log('AMap complete event fired — map ready')
+      updateMapMarkers()
+    } catch (e) {
+      console.error('updateMapMarkers 在 map.complete 回调中失败:', e)
+    }
+  })
 }
 
 // 清除所有标记和路径
@@ -880,7 +966,7 @@ const updateMapMarkers = () => {
       title: '我的位置',
       icon: new AMap.Icon({
         size: new AMap.Size(40, 40),
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxNSIgZmlsbD0iI2VmNDQ0NCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iNSIgZmlsbD0iI2VmNDQ0NCIvPjwvc3ZnPg==',
+        image: pharmacyIcon,
         imageSize: new AMap.Size(40, 40)
       }),
       offset: new AMap.Pixel(-20, -20),
@@ -928,7 +1014,8 @@ const updateMapMarkers = () => {
       title: supplier.name,
       icon: new AMap.Icon({
         size: new AMap.Size(iconSize, iconSize),
-        image: `data:image/svg+xml;base64,${btoa(`<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" xmlns="http://www.w3.org/2000/svg"><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-2}" fill="${iconColor}"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-6}" fill="#fff"/><circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2-10}" fill="${iconColor}"/></svg>`)}`,
+        // 使用预生成的 data URL，根据是否匹配选择图标
+        image: isMatched ? supplierMatchedIcon : supplierNormalIcon,
         imageSize: new AMap.Size(iconSize, iconSize)
       }),
       offset: new AMap.Pixel(-iconSize/2, -iconSize/2),
@@ -954,12 +1041,17 @@ const updateMapMarkers = () => {
       `
     }
 
+    // 地理编码标识
+    const geocodedBadge = supplier.geocoded 
+      ? '<span style="background: #fef0c7; color: #9c6400; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">📍 地址解析</span>' 
+      : ''
+
     // 添加供应商信息窗口
     const supplierInfo = new AMap.InfoWindow({
       content: `
         <div style="padding: 12px; min-width: 260px;">
           <h4 style="margin: 0 0 10px 0; color: ${iconColor}; font-size: 16px;">
-            ${isMatched ? '🏭' : '⚪'} ${supplier.name}
+            ${isMatched ? '🏭' : '⚪'} ${supplier.name} ${geocodedBadge}
           </h4>
           <p style="margin: 5px 0;"><strong>地址:</strong> ${supplier.address}</p>
           <p style="margin: 5px 0;"><strong>联系人:</strong> ${supplier.contact_person}</p>
@@ -1008,7 +1100,18 @@ const updateMapMarkers = () => {
   // 自动调整视野以包含所有标记
   if (allPoints.length > 0) {
     console.log('Setting fit view for', allPoints.length, 'points')
-    map.setFitView(markers, false, [50, 50, 50, 50])
+    // 如果只有一个点（一般是只有我的位置），更友好地居中并设置合适缩放
+    if (allPoints.length === 1) {
+      try {
+        map.setCenter(allPoints[0])
+        map.setZoom(14)
+      } catch (e) {
+        console.warn('单点居中失败，回退到 setFitView:', e)
+        map.setFitView(markers, false, [50, 50, 50, 50])
+      }
+    } else {
+      map.setFitView(markers, false, [50, 50, 50, 50])
+    }
   }
   
   console.log('Map markers updated successfully')
@@ -1024,21 +1127,19 @@ onMounted(async () => {
     loadAllSuppliers()
   ])
   
-  // 等待DOM渲染
+  // 等待DOM渲染后初始化地图，并依赖 map.complete 事件进行标记更新
   await nextTick()
-  
-  // 延迟初始化地图，确保DOM已完全渲染
+  initMap()
+
+  // 作为容错回退：如果 map 在短时间内没有触发 complete，我们在 800ms 后再尝试一次更新标记
   setTimeout(() => {
-    initMap()
-    
-    // 再次延迟确保地图完全初始化后再添加标记
-    setTimeout(() => {
-      console.log('Updating map markers...')
-      console.log('My location:', myLocation.value)
-      console.log('All suppliers:', allSuppliers.value.length)
+    try {
+      console.log('Fallback updateMapMarkers check — myLocation:', myLocation.value)
       updateMapMarkers()
-    }, 300)
-  }, 200)
+    } catch (e) {
+      console.warn('Fallback updateMapMarkers 失败:', e)
+    }
+  }, 800)
 })
 
 onBeforeUnmount(() => {
@@ -1317,5 +1418,33 @@ onBeforeUnmount(() => {
 
 .legend-icon {
   font-size: 20px;
+}
+
+.legend-img {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+/* 药品候选项样式 */
+.drug-suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.drug-name {
+  flex: 1;
+  color: #303133;
+  font-size: 14px;
+}
+
+.drug-count {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 10px;
 }
 </style>

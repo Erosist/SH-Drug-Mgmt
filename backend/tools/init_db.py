@@ -101,6 +101,50 @@ def create_tenants():
             'contact_email': 'pharm@huashan.com',
             'address': '上海市静安区乌鲁木齐中路12号',
             'business_scope': '医疗服务、处方药调剂'
+        },
+        {
+            'name': '顺丰速运',
+            'type': 'LOGISTICS',
+            'unified_social_credit_code': '91310000600060006C',
+            'legal_representative': '王卫',
+            'contact_person': '张经理',
+            'contact_phone': '400-111-1111',
+            'contact_email': 'service@sf-express.com',
+            'address': '上海市浦东新区申江路5005号',
+            'business_scope': '物流配送、快递服务'
+        },
+        {
+            'name': '申通快递',
+            'type': 'LOGISTICS',
+            'unified_social_credit_code': '91310000700070007D',
+            'legal_representative': '陈德军',
+            'contact_person': '李经理',
+            'contact_phone': '400-222-2222',
+            'contact_email': 'service@sto.com.cn',
+            'address': '上海市青浦区华新镇华志路1688号',
+            'business_scope': '快递物流、仓储配送'
+        },
+        {
+            'name': '圆通速递',
+            'type': 'LOGISTICS',
+            'unified_social_credit_code': '91310000800080008E',
+            'legal_representative': '喻渭蛟',
+            'contact_person': '王经理',
+            'contact_phone': '400-333-3333',
+            'contact_email': 'service@yto.net.cn',
+            'address': '上海市青浦区华新镇华志路1685号',
+            'business_scope': '快递物流、仓储配送'
+        },
+        {
+            'name': '中通快递',
+            'type': 'LOGISTICS',
+            'unified_social_credit_code': '91310000900090009F',
+            'legal_representative': '赖梅松',
+            'contact_person': '赵经理',
+            'contact_phone': '400-444-4444',
+            'contact_email': 'service@zto.com',
+            'address': '上海市青浦区华新镇华志路1689号',
+            'business_scope': '快递配送、物流仓储'
         }
     ]
     

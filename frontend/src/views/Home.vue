@@ -34,10 +34,11 @@
               @click="navigateTo('b2b')"
             >B2B供求平台</div>
             <div 
+              v-if="isLogistics || isRegulator"
               class="nav-item" 
               :class="{ active: activeNav === 'circulation' }"
               @click="navigateTo('circulation')"
-            >流通监管</div>
+            >{{ isRegulator ? '药品追溯查询' : '流通数据上报' }}</div>
             <div 
               v-if="canViewAnalysis"
               class="nav-item" 
@@ -55,6 +56,11 @@
               :class="{ active: activeNav === 'service' }"
               @click="navigateTo('service')"
             >智能调度</div>
+            <div v-if="isLogistics"
+              class="nav-item"
+              :class="{ active: activeNav === 'orders' }"
+              @click="navigateTo('logistics-orders')"
+            >订单查看</div>
           </div>
           <div v-else class="nav-menu disabled-nav">
             <span class="nav-disabled-text">管理员账号无法访问业务功能</span>
@@ -92,20 +98,47 @@
             <h2 class="section-title">核心功能服务</h2>
             <div class="function-cards three-columns">
               <!-- 药品信息查询 -->
-              <div class="function-card">
+              <div class="function-card drug-search-card">
                 <h3>药品信息查询</h3>
-                <p>快速查询超过10000种药品信息，包含药品成分、使用说明及注意事项</p>
-                <button class="action-btn">立即查询</button>
+                <div class="drug-search-box">
+                  <input type="text" v-model="drugSearchKeyword" placeholder="输入药品名称或厂家" class="drug-search-input" @keyup.enter="handleDrugSearch" />
+                  <button class="drug-search-btn" @click="handleDrugSearch" :disabled="drugSearching">{{ drugSearching ? '搜索中...' : '搜索' }}</button>
+                </div>
+                <div class="drug-search-results">
+                  <div v-if="drugSearchResults.length > 0" class="drug-list">
+                    <div v-for="drug in drugSearchResults" :key="drug.id" class="drug-item" @click="showDrugDetail(drug)">
+                      <div class="drug-name">{{ drug.generic_name }}</div>
+                      <div class="drug-brand">{{ drug.brand_name }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="drugSearched && !drugSearching" class="no-drug-result">未找到相关药品</div>
+                  <div v-else class="drug-search-hint">支持按药品名称、厂家搜索</div>
+                </div>
               </div>
               
               <!-- 附近药房定位 -->
-              <div class="function-card">
+              <div class="function-card nearby-pharmacy-card">
                 <h3>附近药房定位</h3>
-                <p>基于地理位置查找附近药房，实时获取查询时间与库存信息</p>
-                <div class="map-container">
-                  <div class="map-placeholder">地图定位区域</div>
+                <p>基于地理位置查找附近药房，实时获取库存信息</p>
+                <div class="mini-map-container">
+                  <div id="home-mini-map" class="mini-map"></div>
+                  <div v-if="nearbyLoading" class="map-loading">
+                    <span>加载中...</span>
+                  </div>
                 </div>
-                <div class="pharmacy-info">上海第一医药商城</div>
+                <div class="nearby-pharmacy-list">
+                  <div v-if="nearbyPharmacies.length > 0">
+                    <div v-for="pharmacy in nearbyPharmacies" :key="pharmacy.id" class="pharmacy-item">
+                      <div class="pharmacy-name">{{ pharmacy.name }}</div>
+                      <div class="pharmacy-distance">{{ pharmacy.distance_text || '计算中...' }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="!nearbyLoading" class="no-pharmacy">
+                    <span v-if="!currentUser">请登录查看附近药房</span>
+                    <span v-else>暂无附近药房数据</span>
+                  </div>
+                </div>
+                <button class="action-btn" @click="goToNearbySuppliers">查看更多</button>
               </div>
               
               <!-- 健康资讯中心 -->
@@ -132,9 +165,12 @@
           <div class="section notices">
             <h2 class="section-title">重要提醒与公告</h2>
             <div class="notice-content">
-              <div v-if="urgentNotice" class="urgent-notice">
-                <div class="notice-title">{{ urgentNotice.title }}</div>
-                <div class="notice-desc">{{ urgentNotice.content }}</div>
+              <div v-if="urgentNotices.length > 0" class="urgent-notice-list">
+                <div v-for="notice in urgentNotices" :key="notice.id" class="urgent-notice-item">
+                  <div class="notice-title">{{ notice.title }}</div>
+                  <div class="notice-desc">{{ notice.content }}</div>
+                  <div class="notice-date">{{ notice.publish_date }}</div>
+                </div>
               </div>
               <div v-else class="urgent-notice">
                 <div class="notice-title" style="color: #999;">暂无紧急通知</div>
@@ -153,21 +189,47 @@
           <div class="section feature-services">
             <h2 class="section-title">特色服务</h2>
             <div class="feature-list">
-              <div class="feature-item">
+              <div class="feature-item reminder-card">
                 <div class="feature-icon">⏰</div>
                 <div class="feature-content">
                   <h3>个性化用药提醒</h3>
-                  <p>定制您的用药计划，维护健康生活，确保您享受健康</p>
-                  <button class="feature-btn">创建提醒</button>
+                  <div class="today-reminders" v-if="currentUser">
+                    <div v-if="todayRemindersLoading" class="reminder-loading">加载中...</div>
+                    <div v-else-if="todayReminders.length > 0" class="reminder-preview">
+                      <div class="reminder-count">今日待提醒: <strong>{{ todayReminders.length }}</strong> 条</div>
+                      <div v-for="item in todayReminders.slice(0, 2)" :key="item.id + item.remind_time" class="reminder-item">
+                        <span class="time">{{ item.remind_time }}</span>
+                        <span class="drug">{{ item.drug_name }}</span>
+                      </div>
+                    </div>
+                    <div v-else class="no-reminders">暂无今日提醒</div>
+                  </div>
+                  <div v-else class="login-hint">登录后可创建用药提醒</div>
+                  <button class="feature-btn" @click="goToReminders">创建提醒</button>
                 </div>
               </div>
               
-              <div class="feature-item">
+              <div class="feature-item price-compare-card">
                 <div class="feature-icon">💰</div>
                 <div class="feature-content">
                   <h3>药品价格对比</h3>
-                  <p>一批批次药品在附近药房的价格差异，选择最低限购买方案</p>
-                  <button class="feature-btn">比价查询</button>
+                  <div class="price-search-box">
+                    <input type="text" v-model="priceSearchKeyword" placeholder="输入药品名称" class="price-search-input" @keyup.enter="handlePriceCompare" />
+                    <button class="price-search-btn" @click="handlePriceCompare" :disabled="priceSearching">{{ priceSearching ? '查询中...' : '比价' }}</button>
+                  </div>
+                  <div class="price-sort-toggle" v-if="priceResults.length > 0">
+                    <span @click="togglePriceSort" class="sort-link">{{ priceSort === 'price_asc' ? '价格 ↑' : '价格 ↓' }}</span>
+                  </div>
+                  <div class="price-results">
+                    <div v-if="priceResults.length > 0" class="price-list">
+                      <div v-for="(item, index) in priceResults" :key="item.supply_id" class="price-item" :class="{ 'lowest-price': index === 0 && priceSort === 'price_asc' }">
+                        <div class="price-supplier">{{ item.supplier_name }}</div>
+                        <div class="price-value">¥{{ item.unit_price.toFixed(2) }}</div>
+                        <div class="price-stock">库存: {{ item.available_quantity }}</div>
+                      </div>
+                    </div>
+                    <div v-else-if="priceSearched && !priceSearching" class="no-price-result">未找到价格信息</div>
+                  </div>
                 </div>
               </div>
               
@@ -185,15 +247,35 @@
       </div>
     </div>
   </div>
+  
+  <!-- 药品详情对话框 -->
+  <el-dialog v-model="drugDetailVisible" :title="currentDrug?.generic_name || '药品详情'" width="500px">
+    <div v-if="drugDetailLoading" class="drug-detail-loading">加载中...</div>
+    <div v-else-if="currentDrugDetail" class="drug-detail-content">
+      <div class="detail-row"><span class="label">通用名：</span><span>{{ currentDrugDetail.generic_name }}</span></div>
+      <div class="detail-row"><span class="label">商品名：</span><span>{{ currentDrugDetail.brand_name || '-' }}</span></div>
+      <div class="detail-row"><span class="label">制造商：</span><span>{{ currentDrugDetail.manufacturer || '-' }}</span></div>
+      <div class="detail-row"><span class="label">剖型：</span><span>{{ currentDrugDetail.dosage_form || '-' }}</span></div>
+      <div class="detail-row"><span class="label">规格：</span><span>{{ currentDrugDetail.specification || '-' }}</span></div>
+      <div class="detail-row"><span class="label">批准文号：</span><span>{{ currentDrugDetail.approval_number || '-' }}</span></div>
+      <div class="detail-row"><span class="label">分类：</span><span>{{ currentDrugDetail.category || '-' }}</span></div>
+      <div class="detail-row"><span class="label">OTC类型：</span><span>{{ currentDrugDetail.otc_type || '-' }}</span></div>
+      <div class="detail-row" v-if="currentDrugDetail.description"><span class="label">说明：</span><span>{{ currentDrugDetail.description }}</span></div>
+    </div>
+    <template #footer>
+      <el-button @click="drugDetailVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
 import { useRouter, useRoute } from 'vue-router'
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { getCurrentUser, clearAuth } from '@/utils/authSession'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { homeApi } from '@/api/home'
+import { nearbyApi } from '@/api/nearby'
 
 export default {
   name: 'Home',
@@ -210,6 +292,7 @@ export default {
       if (name === 'circulation') return 'circulation'
       if (name === 'analysis') return 'analysis'
       if (name === 'service') return 'service'
+      if (name === 'logistics-orders') return 'orders'
       return 'home'
     }
 
@@ -228,9 +311,36 @@ export default {
     // 主页数据
     const platformStats = ref({})
     const healthNewsList = ref([])
-    const urgentNotice = ref(null)
+    const urgentNotices = ref([])
     const userStats = ref({})
     const reportText = ref('')
+
+    // 附近药房数据
+    const nearbyPharmacies = ref([])
+    const nearbyLoading = ref(false)
+    let miniMap = null
+
+    // 药品搜索数据
+    const drugSearchKeyword = ref('')
+    const drugSearchResults = ref([])
+    const drugSearching = ref(false)
+    const drugSearched = ref(false)
+    const drugDetailVisible = ref(false)
+    const drugDetailLoading = ref(false)
+    const currentDrug = ref(null)
+    const currentDrugDetail = ref(null)
+
+    // 药品价格对比数据
+    const priceSearchKeyword = ref('')
+    const priceResults = ref([])
+    const priceSearching = ref(false)
+    const priceSearched = ref(false)
+    const priceSort = ref('price_asc')
+
+    // 今日用药提醒数据
+    const todayReminders = ref([])
+    const todayRemindersLoading = ref(false)
+    const isNotificationSupported = ref('Notification' in window)
 
     // 动态日期
     const currentDate = computed(() => {
@@ -323,7 +433,10 @@ export default {
             router.push({ name: 'unauth', query: { active: 'nearby' } })
             break
           }
-          router.push('/nearby-suppliers'); break
+          
+          // 立即导航到就近推荐页面（移除延迟定位触发）
+          router.push('/nearby-suppliers')
+          break
         case 'b2b':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/b2b' } })
@@ -364,6 +477,16 @@ export default {
             break
           }
           router.push('/service'); break
+        case 'logistics-orders':
+          if (!currentUser.value) {
+            router.push({ name: 'login', query: { redirect: '/logistics-orders' } })
+            break
+          }
+          if (currentUser.value.role === 'unauth') {
+            router.push({ name: 'unauth', query: { active: 'orders' } })
+            break
+          }
+          router.push('/logistics-orders'); break
         case 'compliance':
           if (!currentUser.value) {
             router.push({ name: 'login', query: { redirect: '/compliance-report' } })
@@ -407,9 +530,9 @@ export default {
     // 加载紧急通知
     const loadUrgentNotices = async () => {
       try {
-        const response = await homeApi.getUrgentNotices({ limit: 1 })
+        const response = await homeApi.getUrgentNotices({ limit: 5 })
         if (response.data?.data && response.data.data.length > 0) {
-          urgentNotice.value = response.data.data[0]
+          urgentNotices.value = response.data.data
         }
       } catch (error) {
         console.error('加载紧急通知失败:', error)
@@ -440,7 +563,7 @@ export default {
 
     // 加载更多资讯
     const loadMoreNews = () => {
-      ElMessage.info('更多资讯功能开发中...')
+      router.push({ name: 'health-news' })
     }
 
     // 提交报告
@@ -452,6 +575,207 @@ export default {
       ElMessage.success('报告提交成功')
       reportText.value = ''
     }
+
+    // 跳转到就近推荐页面
+    const goToNearbySuppliers = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/nearby-suppliers' } })
+        return
+      }
+      router.push('/nearby-suppliers')
+    }
+
+    // 初始化迷你地图
+    const initMiniMap = async () => {
+      await nextTick()
+      const container = document.getElementById('home-mini-map')
+      if (!container || !window.AMap) {
+        console.warn('地图容器或AMap未加载')
+        return
+      }
+
+      try {
+        miniMap = new AMap.Map('home-mini-map', {
+          zoom: 12,
+          center: [121.4737, 31.2304], // 默认上海中心
+          viewMode: '2D',
+          dragEnable: false,
+          zoomEnable: false,
+          doubleClickZoom: false
+        })
+      } catch (error) {
+        console.error('初始化迷你地图失败:', error)
+      }
+    }
+
+    // 加载附近药房
+    const loadNearbyPharmacies = async () => {
+      if (!currentUser.value) return
+      
+      nearbyLoading.value = true
+      try {
+        // 获取所有供应商（这里简化处理，取前3个）
+        const response = await nearbyApi.getAllSuppliers()
+        if (response.data?.success && response.data.suppliers) {
+          const suppliers = response.data.suppliers.slice(0, 3)
+          
+          // 计算与默认中心点的距离
+          const centerLng = 121.4737
+          const centerLat = 31.2304
+          
+          nearbyPharmacies.value = suppliers.map(s => ({
+            ...s,
+            distance_text: formatDistance(calculateHaversine(centerLng, centerLat, s.longitude, s.latitude))
+          }))
+
+          // 在地图上添加标记
+          if (miniMap && suppliers.length > 0) {
+            suppliers.forEach(supplier => {
+              if (supplier.longitude && supplier.latitude) {
+                new AMap.Marker({
+                  position: [supplier.longitude, supplier.latitude],
+                  map: miniMap,
+                  title: supplier.name
+                })
+              }
+            })
+            // 调整视图到第一个供应商
+            if (suppliers[0]?.longitude && suppliers[0]?.latitude) {
+              miniMap.setCenter([suppliers[0].longitude, suppliers[0].latitude])
+            }
+          }
+        }
+      } catch (error) {
+        console.error('加载附近药房失败:', error)
+      } finally {
+        nearbyLoading.value = false
+      }
+    }
+
+    // Haversine公式计算距离（米）
+    const calculateHaversine = (lng1, lat1, lng2, lat2) => {
+      const R = 6371000
+      const toRad = (deg) => deg * Math.PI / 180
+      const dLat = toRad(lat2 - lat1)
+      const dLng = toRad(lng2 - lng1)
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng/2) * Math.sin(dLng/2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      return R * c
+    }
+
+    // 格式化距离
+    const formatDistance = (meters) => {
+      if (meters < 1000) return `${Math.round(meters)}m`
+      return `${(meters / 1000).toFixed(1)}km`
+    }
+
+    // 药品搜索
+    const handleDrugSearch = async () => {
+      const keyword = drugSearchKeyword.value.trim()
+      if (!keyword) {
+        ElMessage.warning('请输入药品名称或厂家')
+        return
+      }
+      drugSearching.value = true
+      drugSearched.value = false
+      try {
+        const response = await homeApi.searchDrugs(keyword)
+        if (response.data?.success) {
+          drugSearchResults.value = response.data.items || []
+        } else {
+          drugSearchResults.value = []
+        }
+      } catch (error) {
+        console.error('药品搜索失败:', error)
+        drugSearchResults.value = []
+        ElMessage.error('搜索失败，请重试')
+      } finally {
+        drugSearching.value = false
+        drugSearched.value = true
+      }
+    }
+
+    // 显示药品详情
+    const showDrugDetail = async (drug) => {
+      currentDrug.value = drug
+      drugDetailVisible.value = true
+      drugDetailLoading.value = true
+      try {
+        const response = await homeApi.getDrugDetail(drug.id)
+        if (response.data?.success) {
+          currentDrugDetail.value = response.data.data
+        } else {
+          currentDrugDetail.value = drug
+        }
+      } catch (error) {
+        console.error('获取药品详情失败:', error)
+        currentDrugDetail.value = drug
+      } finally {
+        drugDetailLoading.value = false
+      }
+    }
+
+    // 药品价格对比
+    const handlePriceCompare = async () => {
+      const keyword = priceSearchKeyword.value.trim()
+      if (!keyword) {
+        ElMessage.warning('请输入药品名称')
+        return
+      }
+      priceSearching.value = true
+      priceSearched.value = false
+      try {
+        const response = await homeApi.compareDrugPrices(keyword, priceSort.value)
+        if (response.data?.success) {
+          priceResults.value = response.data.items || []
+        } else {
+          priceResults.value = []
+        }
+      } catch (error) {
+        console.error('价格查询失败:', error)
+        priceResults.value = []
+        ElMessage.error('查询失败，请重试')
+      } finally {
+        priceSearching.value = false
+        priceSearched.value = true
+      }
+    }
+
+    // 切换价格排序
+    const togglePriceSort = () => {
+      priceSort.value = priceSort.value === 'price_asc' ? 'price_desc' : 'price_asc'
+      if (priceSearchKeyword.value.trim()) {
+        handlePriceCompare()
+      }
+    }
+
+    // 加载今日用药提醒
+    const loadTodayReminders = async () => {
+      if (!currentUser.value) return
+      todayRemindersLoading.value = true
+      try {
+        const response = await homeApi.getTodayReminders()
+        if (response.data?.success) {
+          todayReminders.value = response.data.items || []
+        }
+      } catch (error) {
+        console.error('加载今日提醒失败:', error)
+      } finally {
+        todayRemindersLoading.value = false
+      }
+    }
+
+    // 跳转到用药提醒页面
+    const goToReminders = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/medication-reminders' } })
+        return
+      }
+      router.push({ name: 'medication-reminders' })
+    }
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -459,9 +783,19 @@ export default {
       loadHealthNews()
       loadUrgentNotices()
       loadUserStats()
+      // 初始化迷你地图并加载附近药房
+      initMiniMap()
+      loadNearbyPharmacies()
+      // 加载今日用药提醒
+      loadTodayReminders()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
+      // 清理地图实例
+      if (miniMap) {
+        miniMap.destroy()
+        miniMap = null
+      }
     })
 
     return {
@@ -488,9 +822,36 @@ export default {
       // 主页数据
       platformStats,
       healthNewsList,
-      urgentNotice,
+      urgentNotices,
       userStats,
       reportText,
+      // 附近药房
+      nearbyPharmacies,
+      nearbyLoading,
+      goToNearbySuppliers,
+      // 药品搜索
+      drugSearchKeyword,
+      drugSearchResults,
+      drugSearching,
+      drugSearched,
+      drugDetailVisible,
+      drugDetailLoading,
+      currentDrug,
+      currentDrugDetail,
+      handleDrugSearch,
+      showDrugDetail,
+      // 药品价格对比
+      priceSearchKeyword,
+      priceResults,
+      priceSearching,
+      priceSearched,
+      priceSort,
+      handlePriceCompare,
+      togglePriceSort,
+      // 用药提醒
+      todayReminders,
+      todayRemindersLoading,
+      goToReminders,
       // 主页方法
       formatNewsDate,
       loadMoreNews,
@@ -769,6 +1130,90 @@ export default {
   margin-top: 10px;
 }
 
+/* 附近药房卡片样式 */
+.nearby-pharmacy-card {
+  background-color: #f8fafc;
+}
+
+.nearby-pharmacy-card p {
+  flex-grow: 0;
+  margin-bottom: 10px;
+}
+
+.mini-map-container {
+  position: relative;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.mini-map {
+  width: 100%;
+  height: 100%;
+  background-color: #e8f4f8;
+}
+
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 13px;
+}
+
+.nearby-pharmacy-list {
+  flex: 1;
+  min-height: 80px;
+  overflow-y: auto;
+}
+
+.pharmacy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.pharmacy-item:last-child {
+  border-bottom: none;
+}
+
+.pharmacy-name {
+  font-size: 13px;
+  color: #333;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 10px;
+}
+
+.pharmacy-distance {
+  font-size: 12px;
+  color: #1a73e8;
+  background-color: #e6f0ff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.no-pharmacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 13px;
+}
+
 /* 健康资讯中心样式 */
 .health-news-card {
   background-color: #f8fafc;
@@ -809,15 +1254,42 @@ export default {
   margin-bottom: 20px;
 }
 
+.urgent-notice-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.urgent-notice-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.urgent-notice-item:last-child {
+  border-bottom: none;
+}
+
 .notice-title {
   font-weight: bold;
   color: #e74c3c;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
 }
 
 .notice-desc {
   color: #666;
   line-height: 1.5;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notice-date {
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .report-input {
@@ -1139,5 +1611,225 @@ export default {
   .main-content {
     padding: 10px;
   }
+}
+
+/* 药品搜索样式 */
+.drug-search-card .drug-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.drug-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.drug-search-btn {
+  padding: 8px 16px;
+  background: #3498db;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.drug-search-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.drug-search-results {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.drug-list .drug-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.drug-list .drug-item:hover {
+  background: #f5f5f5;
+}
+
+.drug-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.drug-brand {
+  color: #999;
+  font-size: 12px;
+}
+
+.no-drug-result,
+.drug-search-hint {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+}
+
+/* 药品详情弹窗样式 */
+.drug-detail-loading {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.drug-detail-content .detail-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.drug-detail-content .detail-row .label {
+  width: 90px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+/* 价格对比样式 */
+.price-compare-card .price-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.price-search-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.price-search-btn {
+  padding: 6px 12px;
+  background: #e67e22;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.price-search-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.price-sort-toggle {
+  margin-bottom: 8px;
+}
+
+.sort-link {
+  color: #3498db;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.price-results {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.price-list .price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.price-item.lowest-price {
+  background: #e8f8f0;
+  border-left: 3px solid #27ae60;
+}
+
+.price-supplier {
+  flex: 1;
+  font-size: 13px;
+}
+
+.price-value {
+  color: #e74c3c;
+  font-weight: bold;
+  margin: 0 12px;
+}
+
+.price-stock {
+  color: #999;
+  font-size: 12px;
+}
+
+.no-price-result {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+}
+
+/* 用药提醒卡片样式 */
+.reminder-card .today-reminders {
+  margin: 10px 0;
+  min-height: 60px;
+}
+
+.reminder-loading {
+  color: #999;
+  font-size: 13px;
+}
+
+.reminder-preview {
+  background: #f0f7ff;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.reminder-count {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.reminder-count strong {
+  color: #1a73e8;
+  font-size: 16px;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.reminder-item .time {
+  background: #1a73e8;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.reminder-item .drug {
+  color: #333;
+}
+
+.no-reminders {
+  color: #999;
+  font-size: 13px;
+}
+
+.login-hint {
+  color: #999;
+  font-size: 13px;
+  margin: 10px 0;
 }
 </style>

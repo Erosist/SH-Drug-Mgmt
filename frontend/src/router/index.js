@@ -17,12 +17,16 @@ import EnterpriseReview from '../views/EnterpriseReview.vue'
 import AdminUsers from '../views/AdminUsers.vue'
 import SystemStatus from '../views/SystemStatus.vue'
 import AdminAuditLogs from '../views/AdminAuditLogs.vue'
+import AdminAnnouncements from '../views/AdminAnnouncements.vue'
 import ChangePassword from '../views/ChangePassword.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
 import TenantInventory from '../views/TenantInventory.vue'
 import NearbySuppliers from '../views/NearbySuppliers.vue'
 import { getCurrentUser } from '@/utils/authSession'
 import ComplianceReport from '../views/ComplianceReport.vue'
+import LogisticsOrders from '../views/LogisticsOrders.vue'
+import MedicationReminders from '../views/MedicationReminders.vue'
+import HealthNewsList from '../views/HealthNewsList.vue'
 
 // 允许未完成企业认证（role === 'unauth'）的登录用户仍可浏览的公共路由
 // 若以后需要更精细的控制，可改为基于 route.meta 来判断
@@ -54,12 +58,16 @@ const router = createRouter({
     { path: '/circulation', name: 'circulation', component: circulation },
     { path: '/analysis', name: 'analysis', component: analysis },
     { path: '/service', name: 'service', component: service, meta: { requiresAuth: true, requiresVerified: true } },
+    { path: '/logistics-orders', name: 'logistics-orders', component: LogisticsOrders, meta: { requiresAuth: true, requiresRole: 'logistics' } },
+    { path: '/medication-reminders', name: 'medication-reminders', component: MedicationReminders, meta: { requiresAuth: true } },
+        { path: '/health-news', name: 'health-news', component: HealthNewsList },
   { path: '/compliance-report', name: 'compliance-report', component: ComplianceReport, meta: { requiresAuth: true, requiresRole: 'regulator' } },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/status', name: 'admin-status', component: SystemStatus, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/audit-logs', name: 'admin-audit-logs', component: AdminAuditLogs, meta: { requiresAuth: true, requiresRole: 'admin' } },
+    { path: '/admin/announcements', name: 'admin-announcements', component: AdminAnnouncements, meta: { requiresAuth: true, requiresRole: 'admin' } },
 
     // 基于角色的用户界面（无后端，使用前端mock登录）
     { path: '/pharmacy', name: 'pharmacy', component: PharmacyUser, meta: { requiresAuth: true } },
@@ -81,6 +89,15 @@ router.beforeEach((to, from, next) => {
   }
 
   // 如果页面要求登录且用户未登录 -> 跳转登录
+  // 将独立的合规报告路由统一折叠到 B2B 页的内联模式
+  if (to.name === 'compliance-report') {
+    // 若已在 b2b 页面则直接放行（避免循环）；否则重定向到 b2b 并携带 section 标记
+    if (from.name !== 'b2b') {
+      next({ name: 'b2b', query: { ...to.query, section: 'compliance' } })
+      return
+    }
+  }
+
   if (to.meta?.requiresAuth && !user) {
     next({ name: 'login', query: { redirect: to.fullPath } })
     return
