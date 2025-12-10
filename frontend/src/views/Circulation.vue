@@ -1028,12 +1028,13 @@ export default {
 }
 
 .auth-btn {
-  border: 1px solid #1a73e8;
-  background-color: transparent;
+  background-color: #fff;
   color: #1a73e8;
-  padding: 6px 14px;
+  border: 1px solid #1a73e8;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
   margin-right: 10px;
   transition: background-color 0.3s;
 }

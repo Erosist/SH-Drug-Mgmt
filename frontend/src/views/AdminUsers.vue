@@ -557,7 +557,7 @@ onMounted(() => {
 .user-info { display:flex; align-items:center; padding:6px 12px; border-radius:999px; background-color:#f0f5ff; color:#1a73e8; font-size:14px; font-weight:600; gap:8px; }
 .user-name { white-space:nowrap; }
 .user-role { padding:2px 10px; border-radius:999px; background-color:#fff; border:1px solid rgba(26,115,232,0.2); font-size:12px; color:#1a73e8; }
-.auth-btn { border:1px solid #1a73e8; background-color:transparent; color:#1a73e8; padding:8px 14px; border-radius:4px; cursor:pointer; transition:background-color 0.3s; }
+.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; transition: background-color 0.3s; }
 .auth-btn:hover { background-color:rgba(26,115,232,0.08); }
 .admin-btn { background-color:#f0f5ff; color:#1a73e8; border:1px solid #d6e4ff; padding:8px 14px; border-radius:4px; cursor:pointer; }
 .admin-btn:hover { background-color:#e5edff; }

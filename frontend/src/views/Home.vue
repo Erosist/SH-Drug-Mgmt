@@ -974,6 +974,17 @@ export default {
   font-size: 12px;
   color: #1a73e8;
 }
+.auth-btn {
+  background-color: #fff;
+  color: #1a73e8;
+  border: 1px solid #1a73e8;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 10px;
+}
+
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
