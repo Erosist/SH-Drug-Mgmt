@@ -1292,6 +1292,28 @@ export default {
   gap: 20px;
 }
 
+/* 右侧容器拉伸，使特色服务板块能够撑满与左侧对齐 */
+.right-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* 让右侧占满可用高度由父容器控制（content-wrapper height:100%） */
+  height: 100%;
+}
+
+.feature-services {
+  display: flex;
+  flex-direction: column;
+  /* 关键：让特色服务板块在右侧拉伸以对齐左侧总高度 */
+  flex: 1 1 auto;
+}
+
+.feature-services .feature-list {
+  /* 当内容过多时启用内部滚动，避免推高整列 */
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
 .feature-item {
   display: flex;
   gap: 15px;
