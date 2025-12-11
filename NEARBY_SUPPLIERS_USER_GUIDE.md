@@ -202,7 +202,7 @@ await nearbyApi.updateMyLocation({
 在 `backend/config.py` 中配置：
 
 ```python
-AMAP_WEB_KEY = '7fdb9359ad81879b1f935cfa51dc43f0'
+AMAP_WEB_KEY = 'f166e2abf0a854cb3246c68f287628a8'
 AMAP_REST_KEY = '143117d600102600e70696533eb39a5b'
 ```
 

@@ -15,7 +15,7 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2)
     
     # 高德地图 API 配置
-    AMAP_WEB_KEY = os.getenv('AMAP_WEB_KEY', '7fdb9359ad81879b1f935cfa51dc43f0')
+    AMAP_WEB_KEY = os.getenv('AMAP_WEB_KEY', 'f166e2abf0a854cb3246c68f287628a8')
     AMAP_REST_KEY = os.getenv('AMAP_REST_KEY', '143117d600102600e70696533eb39a5b')
     # 高德 API 安全密钥（用于签名，请在 .env 中配置）
     AMAP_API_SECRET = os.getenv('AMAP_API_SECRET', '')
