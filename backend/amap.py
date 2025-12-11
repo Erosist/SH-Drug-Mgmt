@@ -4,6 +4,7 @@
 """
 import requests
 import math
+import hashlib
 from typing import Dict, List, Tuple, Optional
 from flask import current_app
 
@@ -14,11 +15,17 @@ class AmapService:
     # 高德地图 API 端点
     GEOCODE_URL = "https://restapi.amap.com/v3/geocode/geo"
     DISTANCE_URL = "https://restapi.amap.com/v3/distance"
+    DRIVING_URL = "https://restapi.amap.com/v3/direction/driving"
     
     @staticmethod
     def get_api_key() -> str:
         """获取高德地图 REST API Key"""
         return current_app.config.get('AMAP_REST_KEY')
+    
+    @staticmethod
+    def get_api_secret() -> str:
+        """获取高德地图 API 安全密钥（用于签名）"""
+        return current_app.config.get('AMAP_API_SECRET', '')
     
     @staticmethod
     def geocode_address(address: str, city: Optional[str] = None) -> Optional[Dict]:
@@ -170,6 +177,125 @@ class AmapService:
             return f"{distance / 1000:.1f}km"
         else:
             return f"{int(distance)}m"
+    
+    @staticmethod
+    def generate_signature(params: Dict[str, str], secret: str) -> str:
+        """
+        生成高德 API 请求签名
+        
+        Args:
+            params: 请求参数字典（不含 sig）
+            secret: API 安全密钥
+            
+        Returns:
+            MD5 签名字符串
+        """
+        # 按参数名升序排列
+        sorted_params = sorted(params.items())
+        # 拼接为 key1=value1&key2=value2 格式
+        param_str = '&'.join([f"{k}={v}" for k, v in sorted_params])
+        # 添加密钥
+        sign_str = param_str + secret
+        # 计算 MD5
+        return hashlib.md5(sign_str.encode('utf-8')).hexdigest()
+    
+    @staticmethod
+    def get_driving_route(origin: Tuple[float, float],
+                         destination: Tuple[float, float],
+                         waypoints: Optional[List[Tuple[float, float]]] = None) -> Optional[Dict]:
+        """
+        获取驾车路径规划详情（包含路径坐标）
+        
+        Args:
+            origin: 起点坐标 (longitude, latitude)
+            destination: 终点坐标 (longitude, latitude)
+            waypoints: 途经点列表（可选）
+            
+        Returns:
+            路径详情字典，包含：
+            {
+                'distance': 12345,  # 总距离（米）
+                'duration': 1234,   # 预计耗时（秒）
+                'path': [[lng1, lat1], [lng2, lat2], ...],  # 路径坐标点数组
+                'steps': [...]      # 详细步骤
+            }
+            失败返回 None
+        """
+        try:
+            origin_str = f"{origin[0]},{origin[1]}"
+            destination_str = f"{destination[0]},{destination[1]}"
+            
+            params = {
+                'key': AmapService.get_api_key(),
+                'origin': origin_str,
+                'destination': destination_str,
+                'output': 'json',
+                'extensions': 'all'  # 返回详细信息
+            }
+            
+            # 如果有途经点，添加到参数
+            if waypoints and len(waypoints) > 0:
+                waypoints_str = ';'.join([f"{w[0]},{w[1]}" for w in waypoints])
+                params['waypoints'] = waypoints_str
+            
+            # 如果配置了安全密钥，生成签名
+            secret = AmapService.get_api_secret()
+            if secret:
+                params['sig'] = AmapService.generate_signature(params, secret)
+            
+            response = requests.get(AmapService.DRIVING_URL, params=params, timeout=15)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data.get('status') == '1' and data.get('route'):
+                route = data['route']
+                paths = route.get('paths', [])
+                
+                if not paths:
+                    print("驾车路径规划返回空路径")
+                    return None
+                
+                # 取第一条路径（通常是最优路径）
+                path_info = paths[0]
+                distance = int(path_info.get('distance', 0))
+                duration = int(path_info.get('duration', 0))
+                
+                # 解析路径坐标
+                path_coords = []
+                steps = path_info.get('steps', [])
+                
+                for step in steps:
+                    # 每个 step 包含 polyline 字段（坐标点字符串）
+                    polyline = step.get('polyline', '')
+                    if polyline:
+                        # polyline 格式: "lng1,lat1;lng2,lat2;..."
+                        points = polyline.split(';')
+                        for point in points:
+                            if point:
+                                coords = point.split(',')
+                                if len(coords) == 2:
+                                    try:
+                                        path_coords.append([float(coords[0]), float(coords[1])])
+                                    except ValueError:
+                                        continue
+                
+                return {
+                    'distance': distance,
+                    'duration': duration,
+                    'path': path_coords,
+                    'steps': steps
+                }
+            else:
+                error_msg = data.get('info', 'Unknown error')
+                print(f"驾车路径规划失败: {error_msg}")
+                return None
+                
+        except Exception as e:
+            print(f"驾车路径规划异常: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 
 def find_nearby_suppliers(pharmacy_location: Tuple[float, float],

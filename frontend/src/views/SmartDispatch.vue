@@ -612,19 +612,8 @@ export default {
 
         // 根据用户选择决定是否使用驾车规划
         const shouldUseDriving = useApiDistance.value
-        let pluginReady = false
         
-        if (shouldUseDriving) {
-          // 只有选择驾车距离时才加载驾车插件
-          pluginReady = await ensureDrivingPlugin()
-          console.log('驾车插件加载状态:', pluginReady)
-          
-          if (!pluginReady) {
-            console.warn('驾车插件加载失败，将使用直线绘制')
-          }
-        } else {
-          console.log('用户选择直线距离，将使用直线绘制路线')
-        }
+        console.log('用户选择的距离计算方式:', shouldUseDriving ? '驾车距离（调用后端API）' : '直线距离')
 
         // 逐段绘制路线
         for (let i = 0; i < orderedPoints.length; i++) {
@@ -635,139 +624,93 @@ export default {
 
           console.log(`绘制路段 ${i + 1}:`, origin, '->', dest)
 
-          // 只有在选择驾车距离且插件加载成功时才使用驾车规划
-          if (shouldUseDriving && pluginReady && window.AMap && AMap.Driving) {
-            console.log(`路段 ${i + 1} 使用驾车规划API`)
-            // 使用驾车规划API获取真实路线
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise((resolve) => {
-              const drivingOptions = { 
-                map: map, 
-                hideMarkers: true,
-                autoFitView: false
-              }
-              // 设置驾车策略为最快捷路线
-              if (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME !== undefined) {
-                drivingOptions.policy = AMap.DrivingPolicy.LEAST_TIME
-              }
-              
-              const driving = new AMap.Driving(drivingOptions)
-              
-              driving.search(origin, dest, (status, result) => {
-                console.log(`路段 ${i + 1} 驾车规划状态:`, status)
-                
-                if (status === 'complete' && result.routes && result.routes.length > 0) {
-                  const route = result.routes[0]
-                  console.log(`路段 ${i + 1} 驾车路线:`, route)
-
-                  const pathCoords = []
-
-                  // 多种版本兼容：优先查找 steps[*].path（数组或字符串），再查找 paths/steps.polyline 字符串
-                  const pushPoint = (lng, lat) => {
-                    const _lng = parseFloat(lng)
-                    const _lat = parseFloat(lat)
-                    if (!isNaN(_lng) && !isNaN(_lat)) pathCoords.push([_lng, _lat])
-                  }
-
-                  if (route.steps && Array.isArray(route.steps)) {
-                    route.steps.forEach(step => {
-                      // step.path 可能是数组 [{lng,lat},...] 或 [[lng,lat],...]
-                      if (step.path && Array.isArray(step.path)) {
-                        step.path.forEach(pt => {
-                          if (pt && typeof pt === 'object') {
-                            if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
-                            else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
-                          }
-                        })
-                      } else if (step.polyline && typeof step.polyline === 'string') {
-                        // 老格式 polyline 字符串
-                        step.polyline.split(';').forEach(pair => {
-                          if (!pair) return
-                          const parts = pair.split(',')
-                          pushPoint(parts[0], parts[1])
-                        })
-                      }
-                    })
-                  } else if (route.path && Array.isArray(route.path)) {
-                    // 某些版本可能直接返回 path 数组
-                    route.path.forEach(pt => {
-                      if (pt && typeof pt === 'object') {
-                        if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
-                        else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
-                      }
-                    })
-                  } else if (route.paths && Array.isArray(route.paths)) {
-                    route.paths.forEach(pth => {
-                      (pth.steps || []).forEach(step => {
-                        if (step.path && Array.isArray(step.path)) {
-                          step.path.forEach(pt => {
-                            if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
-                            else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
-                          })
-                        } else if (step.polyline && typeof step.polyline === 'string') {
-                          step.polyline.split(';').forEach(pair => {
-                            if (!pair) return
-                            const parts = pair.split(',')
-                            pushPoint(parts[0], parts[1])
-                          })
-                        }
-                      })
-                    })
-                  }
-
-                  if (pathCoords.length > 0) {
-                    console.log(`路段 ${i + 1} 驾车路径点数:`, pathCoords.length)
-                    const pl = new AMap.Polyline({
-                      path: pathCoords,
-                      strokeColor: '#1a73e8',
-                      strokeWeight: 6,
-                      strokeOpacity: 0.8,
-                      showDir: true,
-                      lineJoin: 'round',
-                      zIndex: 100
-                    })
-                    polylines.push(pl)
-                    map.add(pl)
-                    console.log(`路段 ${i + 1} 驾车路线绘制成功`)
-                  } else {
-                    console.warn(`路段 ${i + 1} 驾车规划返回的路径为空，使用直线`)
-                    const pl = new AMap.Polyline({
-                      path: [origin, dest],
-                      strokeColor: '#1a73e8',
-                      strokeWeight: 4,
-                      strokeOpacity: 0.6,
-                      strokeStyle: 'dashed',
-                      zIndex: 100
-                    })
-                    polylines.push(pl)
-                    map.add(pl)
-                  }
-                } else {
-                  // 打印完整返回以便排查错误原因（例如权限/配额/参数错误）
-                  try { console.error(`路段 ${i + 1} 驾车规划失败 (status: ${status})，返回:`, result) } catch (e) { console.error('路段驾车规划失败，无法打印 result:', e) }
-                  // 如果返回中包含 info 或 message 字段，额外记录
-                  try {
-                    if (result && (result.info || result.message || result.errmsg)) {
-                      console.warn('驾车规划错误详情:', result.info || result.message || result.errmsg)
-                    }
-                  } catch (e) {
-                    // ignore
-                  }
-                  console.warn(`路段 ${i + 1} 驾车规划失败 (status: ${status})，使用直线`)
-                  const pl = new AMap.Polyline({
-                    path: [origin, dest],
-                    strokeColor: '#1a73e8',
-                    strokeWeight: 4,
-                    strokeOpacity: 0.6,
-                    strokeStyle: 'dashed',
-                    zIndex: 100
-                  })
-                  polylines.push(pl)
-                  map.add(pl)
-                }
-                setTimeout(resolve, 200) // 增加延迟避免API限流
+          // 使用后端API获取驾车路径（安全且支持签名）
+          if (shouldUseDriving) {
+            console.log(`路段 ${i + 1} 调用后端API获取驾车路径`)
+            // 获取当前用户 token，后端接口需要鉴权
+            const token = getAuthToken()
+            if (!token) {
+              console.warn('未获取到 token，后端驾车路径接口需要登录，使用直线绘制')
+              const pl = new AMap.Polyline({
+                path: [origin, dest],
+                strokeColor: '#ff9800',
+                strokeWeight: 4,
+                strokeOpacity: 0.6,
+                strokeStyle: 'dashed',
+                zIndex: 100
               })
-            })
+              polylines.push(pl)
+              map.add(pl)
+              // continue to next segment
+              // eslint-disable-next-line no-await-in-loop
+              await new Promise(resolve => setTimeout(resolve, 200))
+              continue
+            }
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const response = await axios.post(
+                `${API_BASE_URL}/api/dispatch/get_driving_route`,
+                {
+                  origin: `${origin[0]},${origin[1]}`,
+                  destination: `${dest[0]},${dest[1]}`
+                },
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              )
+
+              if (response.data.success && response.data.path && response.data.path.length > 0) {
+                console.log(`路段 ${i + 1} 驾车路径获取成功，点数:`, response.data.path.length)
+                console.log(`路段 ${i + 1} 距离: ${response.data.distance_text}, 预计耗时: ${response.data.duration_text}`)
+                
+                const pl = new AMap.Polyline({
+                  path: response.data.path,
+                  strokeColor: '#1a73e8',
+                  strokeWeight: 6,
+                  strokeOpacity: 0.8,
+                  showDir: true,
+                  lineJoin: 'round',
+                  zIndex: 100
+                })
+                polylines.push(pl)
+                map.add(pl)
+                console.log(`路段 ${i + 1} 驾车路线绘制成功`)
+              } else {
+                console.warn(`路段 ${i + 1} 后端返回路径为空，使用直线`)
+                const pl = new AMap.Polyline({
+                  path: [origin, dest],
+                  strokeColor: '#ff9800',
+                  strokeWeight: 4,
+                  strokeOpacity: 0.6,
+                  strokeStyle: 'dashed',
+                  zIndex: 100
+                })
+                polylines.push(pl)
+                map.add(pl)
+              }
+            } catch (error) {
+              console.error(`路段 ${i + 1} 调用后端API失败:`, error)
+              if (error.response) {
+                console.error('后端返回错误:', error.response.data)
+              }
+              console.warn(`路段 ${i + 1} 使用直线绘制`)
+              const pl = new AMap.Polyline({
+                path: [origin, dest],
+                strokeColor: '#ff9800',
+                strokeWeight: 4,
+                strokeOpacity: 0.6,
+                strokeStyle: 'dashed',
+                zIndex: 100
+              })
+              polylines.push(pl)
+              map.add(pl)
+            }
+            // 添加延迟避免API限流
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise(resolve => setTimeout(resolve, 200))
           } else {
             // 使用直线绘制
             console.log(`路段 ${i + 1} 使用直线绘制`)
