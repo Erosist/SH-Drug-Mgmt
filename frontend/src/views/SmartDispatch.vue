@@ -523,19 +523,36 @@ export default {
           console.warn('AMap 未加载')
           return resolve(false)
         }
+
         // 如果已经存在 Driving 类或之前已加载插件，直接返回
         if (window.AMap.Driving || _drivingPluginLoaded) {
-          console.log('驾车插件已加载')
+          console.log('驾车插件已加载 (AMap.Driving 存在)')
           _drivingPluginLoaded = true
           return resolve(true)
         }
+
+        // 如果脚本在 index.html 中通过 plugin 参数加载，AMap.Driving 可能会在短时间后存在
+        // 这里尝试使用 AMap.plugin 加载，如果该方法不可用或抛错则返回 false
         try {
-          console.log('开始加载 AMap.Driving 插件...')
-          AMap.plugin(['AMap.Driving'], () => {
-            console.log('AMap.Driving 插件加载成功')
-            _drivingPluginLoaded = true
-            resolve(true)
-          })
+          if (typeof AMap.plugin === 'function') {
+            console.log('尝试通过 AMap.plugin 加载 AMap.Driving 插件...')
+            AMap.plugin(['AMap.Driving'], () => {
+              console.log('AMap.Driving 插件加载成功 (通过 AMap.plugin)')
+              _drivingPluginLoaded = true
+              resolve(true)
+            })
+            // 给 AMap.plugin 的异步回调一些时间，如果未触发则在超时后检查 AMap.Driving
+            setTimeout(() => {
+              if (window.AMap.Driving) {
+                _drivingPluginLoaded = true
+                resolve(true)
+              }
+            }, 800)
+          } else {
+            console.warn('AMap.plugin 不可用，检查是否使用了 AMap v2.x 或脚本未正确加载')
+            // 直接检查 AMap.Driving 并返回
+            resolve(!!window.AMap.Driving)
+          }
         } catch (e) {
           console.warn('加载 AMap.Driving 插件失败，后续将回退为直线段绘制', e)
           resolve(false)
@@ -642,44 +659,56 @@ export default {
                 if (status === 'complete' && result.routes && result.routes.length > 0) {
                   const route = result.routes[0]
                   console.log(`路段 ${i + 1} 驾车路线:`, route)
-                  
+
                   const pathCoords = []
-                  
-                  // 提取路径坐标
+
+                  // 多种版本兼容：优先查找 steps[*].path（数组或字符串），再查找 paths/steps.polyline 字符串
+                  const pushPoint = (lng, lat) => {
+                    const _lng = parseFloat(lng)
+                    const _lat = parseFloat(lat)
+                    if (!isNaN(_lng) && !isNaN(_lat)) pathCoords.push([_lng, _lat])
+                  }
+
                   if (route.steps && Array.isArray(route.steps)) {
-                    // 新版API格式
                     route.steps.forEach(step => {
+                      // step.path 可能是数组 [{lng,lat},...] 或 [[lng,lat],...]
                       if (step.path && Array.isArray(step.path)) {
                         step.path.forEach(pt => {
-                          if (pt.lng !== undefined && pt.lat !== undefined) {
-                            pathCoords.push([pt.lng, pt.lat])
-                          } else if (pt[0] !== undefined && pt[1] !== undefined) {
-                            pathCoords.push([pt[0], pt[1]])
+                          if (pt && typeof pt === 'object') {
+                            if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
+                            else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
                           }
+                        })
+                      } else if (step.polyline && typeof step.polyline === 'string') {
+                        // 老格式 polyline 字符串
+                        step.polyline.split(';').forEach(pair => {
+                          if (!pair) return
+                          const parts = pair.split(',')
+                          pushPoint(parts[0], parts[1])
                         })
                       }
                     })
+                  } else if (route.path && Array.isArray(route.path)) {
+                    // 某些版本可能直接返回 path 数组
+                    route.path.forEach(pt => {
+                      if (pt && typeof pt === 'object') {
+                        if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
+                        else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
+                      }
+                    })
                   } else if (route.paths && Array.isArray(route.paths)) {
-                    // 老版API格式
                     route.paths.forEach(pth => {
                       (pth.steps || []).forEach(step => {
                         if (step.path && Array.isArray(step.path)) {
                           step.path.forEach(pt => {
-                            if (pt.lng !== undefined && pt.lat !== undefined) {
-                              pathCoords.push([pt.lng, pt.lat])
-                            } else if (pt[0] !== undefined && pt[1] !== undefined) {
-                              pathCoords.push([pt[0], pt[1]])
-                            }
+                            if (pt.lng !== undefined && pt.lat !== undefined) pushPoint(pt.lng, pt.lat)
+                            else if (pt[0] !== undefined && pt[1] !== undefined) pushPoint(pt[0], pt[1])
                           })
                         } else if (step.polyline && typeof step.polyline === 'string') {
                           step.polyline.split(';').forEach(pair => {
                             if (!pair) return
                             const parts = pair.split(',')
-                            const lng = parseFloat(parts[0])
-                            const lat = parseFloat(parts[1])
-                            if (!isNaN(lng) && !isNaN(lat)) {
-                              pathCoords.push([lng, lat])
-                            }
+                            pushPoint(parts[0], parts[1])
                           })
                         }
                       })
@@ -714,6 +743,16 @@ export default {
                     map.add(pl)
                   }
                 } else {
+                  // 打印完整返回以便排查错误原因（例如权限/配额/参数错误）
+                  try { console.error(`路段 ${i + 1} 驾车规划失败 (status: ${status})，返回:`, result) } catch (e) { console.error('路段驾车规划失败，无法打印 result:', e) }
+                  // 如果返回中包含 info 或 message 字段，额外记录
+                  try {
+                    if (result && (result.info || result.message || result.errmsg)) {
+                      console.warn('驾车规划错误详情:', result.info || result.message || result.errmsg)
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
                   console.warn(`路段 ${i + 1} 驾车规划失败 (status: ${status})，使用直线`)
                   const pl = new AMap.Polyline({
                     path: [origin, dest],
@@ -898,7 +937,7 @@ export default {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 .smart-dispatch-container { min-height: 100vh; background-color: #f5f7fa; font-family: "Microsoft YaHei", Arial, sans-serif; display: flex; flex-direction: column; }
 
-/* Header / 导航：与 LogisticsOrders.vue 保持一致 */
+/* Header  */
 .header { background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 15px 0; width: 100%; }
 .header-content { width: 100%; max-width: 100%; margin: 0 auto; padding: 0 20px; }
 .platform-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
