@@ -564,6 +564,7 @@ def trace_drug():
         }
         
         # 添加起始节点（生产厂家）
+        prev_node_idx = None
         if drug and drug.manufacturer:
             if drug.manufacturer not in node_index_map:
                 nodes.append({
@@ -571,10 +572,9 @@ def trace_drug():
                     'category': 'manufacturer'
                 })
                 node_index_map[drug.manufacturer] = len(nodes) - 1
+                prev_node_idx = node_index_map[drug.manufacturer]
         
         # 添加状态节点和链接
-        prev_node_idx = None
-        
         for record in records:
             status_node_name = status_nodes.get(record.transport_status, record.transport_status)
             
@@ -587,8 +587,8 @@ def trace_drug():
             
             current_node_idx = node_index_map[status_node_name]
             
-            # 创建链接
-            if prev_node_idx is not None:
+            # 创建链接（避免自循环，即 source != target）
+            if prev_node_idx is not None and prev_node_idx != current_node_idx:
                 link_exists = any(
                     link['source'] == prev_node_idx and link['target'] == current_node_idx
                     for link in links
@@ -600,7 +600,9 @@ def trace_drug():
                         'value': 1
                     })
             
-            prev_node_idx = current_node_idx
+            # 只有当节点不同时才更新 prev_node_idx，避免同状态跳过
+            if prev_node_idx is None or prev_node_idx != current_node_idx:
+                prev_node_idx = current_node_idx
         
         # 构建返回数据
         result = {

@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash
 from extensions import db, mail
 from models import User, PasswordResetCode
 from audit import record_admin_action
+from notifications.email_service import send_password_reset_email, EmailDispatchError
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -296,6 +297,20 @@ def request_reset_code():
     )
     db.session.add(reset_code)
     db.session.commit()
+
+    # 发送验证码
+    if channel == 'email':
+        try:
+            send_password_reset_email(expected, code_plain, RESET_CODE_TTL_MINUTES)
+            current_app.logger.info(f'Password reset email sent to {expected}')
+        except EmailDispatchError as e:
+            current_app.logger.error(f'Failed to send reset email: {e}')
+            # 邮件发送失败时，在开发环境仍返回验证码便于测试
+            if not current_app.config.get('DEBUG'):
+                return jsonify({'msg': '验证码发送失败，请稍后重试'}), 500
+    else:
+        # 短信发送暂未实现
+        current_app.logger.warning(f'SMS sending not implemented, code: {code_plain}')
 
     current_app.logger.info(
         'Reset code generated for user %s via %s (expires %s)',
