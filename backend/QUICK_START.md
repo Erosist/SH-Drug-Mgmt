@@ -19,7 +19,7 @@ python run.py
 在新的终端窗口：
 ```bash
 cd backend
-python task_inventory_warning.py
+python tasks/task_inventory_warning.py
 ```
 
 ### 4. 运行测试（开发时）
@@ -35,7 +35,7 @@ pytest
 ## 📁 重要文件说明
 
 - `run.py` - 主启动脚本，包含数据库初始化
-- `task_inventory_warning.py` - 库存预警定时任务
+- `tasks/task_inventory_warning.py` - 库存预警定时任务
 - `run_tests.py` - 测试运行脚本
 - `tests/` - 所有测试代码
 - `requirements.txt` - 生产依赖
@@ -46,7 +46,7 @@ pytest
 1. **日常开发**: 运行 `python run.py`
 2. **测试**: 运行 `python run_tests.py`
 3. **CI/CD**: GitLab会自动运行 `pytest`
-4. **定时任务**: 生产环境运行 `python task_inventory_warning.py`
+4. **定时任务**: 生产环境运行 `python tasks/task_inventory_warning.py`
 
 ## ✅ 项目已清理
 

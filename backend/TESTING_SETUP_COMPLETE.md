@@ -89,7 +89,7 @@ pip install -r requirements-test.txt
 python run.py
 
 # 启动定时任务（可选，另一个终端）
-python task_inventory_warning.py
+python tasks/task_inventory_warning.py
 ```
 
 ### 运行测试
