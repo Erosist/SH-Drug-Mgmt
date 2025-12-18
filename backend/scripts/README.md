@@ -18,6 +18,19 @@
 - **`api_test_order_flow.py`** - 订单流程测试
 - **`api_test_token_info.py`** - JWT token和用户信息测试
 
+### 校验/调试脚本（从根目录收拢迁移）
+- **`verify_amap_implementation.py`** - 高德地图实现校验
+- **`verify_gps_storage.py`** - GPS 存储校验
+- **`verify_nearby_api.py`** - 附近搜索 API 校验
+- **`quick_check.py`** - 快速连通性/基本功能检查
+- **`see_data.py`** - 快速查看数据脚本
+- **`simple_check.py`** - 轻量检查脚本
+- **`simulate_order_creation.py`** - 模拟订单创建
+- **`demo_dispatch.py`** - 配送演示脚本
+- **`check_data.py`** - 数据一致性/完整性检查
+- **`check_db_config.py`** - 数据库配置检查
+- **`check_latest_gps.py`** - 最近 GPS 数据检查
+
 ## 🚀 使用方法
 
 ### PowerShell 脚本
@@ -40,6 +53,10 @@ python run.py
 # 在新的终端中运行API测试
 python scripts/api_test_supply.py
 python scripts/api_test_inventory_warning.py
+
+# 运行校验/调试脚本示例
+python scripts/verify_nearby_api.py
+python scripts/quick_check.py
 ```
 
 ## ⚠️ 注意事项
@@ -53,3 +70,4 @@ python scripts/api_test_inventory_warning.py
 - `../create_warning_test_data.py` - 创建测试数据
 - `../tests/` - 自动化单元测试目录
 - `../run.py` - 后端服务启动文件
+ - `../tasks/` - 定时任务脚本目录（如 task_inventory_warning.py）
