@@ -357,7 +357,7 @@ const currentOrder = ref(null)
 
 // 获取token
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('access_token')
   return { headers: { Authorization: `Bearer ${token}` } }
 }
 
