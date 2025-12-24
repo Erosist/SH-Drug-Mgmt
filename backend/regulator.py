@@ -170,16 +170,8 @@ def get_orders_overview():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
-        # 构建查询
-        query = db.session.query(
-            Order,
-            Tenant.label('buyer'),
-            Tenant.label('supplier')
-        ).join(
-            Tenant, Order.buyer_tenant_id == Tenant.id, isouter=False
-        ).join(
-            Tenant, Order.supplier_tenant_id == Tenant.id, isouter=False
-        )
+        # 构建查询 - 直接查询Order对象
+        query = Order.query
         
         # 应用过滤
         if status:
