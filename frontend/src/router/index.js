@@ -111,9 +111,9 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 对于已登录但企业未认证的用户（role === 'unauth'），允许访问首页、未认证提示页和企业认证页
+  // 对于已登录但企业未认证的用户（role === 'unauth'），允许访问首页、未认证提示页、企业认证页、修改密码页和忘记密码页
   if (user?.role === 'unauth') {
-    const allowNames = new Set(['home', 'unauth', 'enterprise-auth'])
+    const allowNames = new Set(['home', 'unauth', 'enterprise-auth', 'change-password', 'forgot-password'])
     if (!allowNames.has(to.name)) {
       next({ name: 'unauth' })
       return

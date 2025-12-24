@@ -52,17 +52,10 @@ export function changePassword({ oldPassword, newPassword, token }) {
 	});
 }
 
-export function requestResetCode({ identifier, channel, contact }) {
-	return request('/request-reset-code', {
-		method: 'POST',
-		body: { identifier, channel, contact }
-	});
-}
-
-export function resetPassword({ identifier, channel, contact, code, newPassword }) {
+export function resetPassword({ identifier, channel, contact, newPassword }) {
 	return request('/reset-password', {
 		method: 'POST',
-		body: { identifier, channel, contact, code, new_password: newPassword }
+		body: { identifier, channel, contact, newPassword }
 	});
 }
 
@@ -77,4 +70,4 @@ export function adminResetUserPassword({ userId, identifier, newPassword, token 
 	})
 }
 
-export default { register, login, me, changePassword, requestResetCode, resetPassword, adminResetUserPassword };
+export default { register, login, me, changePassword, resetPassword, adminResetUserPassword };
