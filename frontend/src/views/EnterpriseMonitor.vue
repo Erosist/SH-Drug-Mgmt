@@ -328,9 +328,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { OfficeBuilding, Document, Box, Warning, Search } from '@element-plus/icons-vue'
 import axios from 'axios'
+
+const router = useRouter()
 
 const API_BASE_URL = 'http://127.0.0.1:5000'
 
