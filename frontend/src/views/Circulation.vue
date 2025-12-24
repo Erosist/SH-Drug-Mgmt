@@ -223,6 +223,67 @@
               <div ref="sankeyChart" class="sankey-chart"></div>
             </div>
           </div>
+
+          <!-- 全部订单列表（监管视角） -->
+          <div class="section regulator-orders-section">
+            <h3 class="section-title">全部订单列表（监管用户可见）</h3>
+            <p class="section-subtitle">
+              显示平台内所有订单的基础信息与物流信息，无需输入查询条件；可与上方运单号追溯功能配合使用。
+            </p>
+
+            <div v-if="regulatorOrdersLoading" class="regulator-orders-loading">
+              正在加载订单数据...
+            </div>
+
+            <div v-else class="regulator-orders-table-wrapper">
+              <table class="regulator-orders-table">
+                <thead>
+                  <tr>
+                    <th>订单号</th>
+                    <th>买方企业</th>
+                    <th>卖方企业</th>
+                    <th>状态</th>
+                    <th>运单号</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!regulatorOrders.length">
+                    <td colspan="6" class="empty-cell">暂无订单数据</td>
+                  </tr>
+                  <tr v-for="order in regulatorOrders" :key="order.id">
+                    <td>{{ order.order_number }}</td>
+                    <td>{{ order.buyer_tenant?.name || '-' }}</td>
+                    <td>{{ order.supplier_tenant?.name || '-' }}</td>
+                    <td>{{ order.status }}</td>
+                    <td>{{ order.tracking_number || '-' }}</td>
+                    <td>{{ formatTime(order.created_at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="regulator-orders-pagination" v-if="regulatorPagination && regulatorPagination.pages > 1">
+                <button
+                  class="pager-btn"
+                  :disabled="!regulatorPagination.has_prev"
+                  @click="goRegulatorOrdersPrev"
+                >
+                  上一页
+                </button>
+                <span class="pager-info">
+                  第 {{ regulatorPagination.page || 1 }} / {{ regulatorPagination.pages }} 页，
+                  共 {{ regulatorPagination.total || 0 }} 条订单
+                </span>
+                <button
+                  class="pager-btn"
+                  :disabled="!regulatorPagination.has_next"
+                  @click="goRegulatorOrdersNext"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 物流用户：流通数据上报 -->
@@ -395,6 +456,7 @@ import { getCurrentUser, getToken, isAuthenticated as checkAuth } from '@/utils/
 import { roleToRoute } from '@/utils/roleRoute'
 import { getRoleLabel } from '@/utils/roleLabel'
 import { reportCirculation, traceDrug } from '@/api/circulation'
+import { orderApi } from '@/api/orders'
 
 export default {
   name: 'Circulation',
@@ -447,6 +509,18 @@ export default {
     // 追溯结果
     const traceResult = ref(null)
     const tracing = ref(false)
+
+    // 监管用户：订单总览
+    const regulatorOrders = ref([])
+    const regulatorOrdersLoading = ref(false)
+    const regulatorPagination = ref({
+      page: 1,
+      per_page: 20,
+      total: 0,
+      pages: 0,
+      has_next: false,
+      has_prev: false
+    })
     const sankeyChart = ref(null)
     let sankeyChartInstance = null
     
@@ -596,7 +670,7 @@ export default {
       })
     }
     
-    // 处理追溯查询 - 修改为使用运单号查询
+    // 处理追溯查询 - 使用运单号查询
     const handleTrace = async () => {
       if (!traceForm.value.tracking_number.trim()) {
         ElMessage.warning('请输入运单号')
@@ -638,6 +712,38 @@ export default {
       } finally {
         tracing.value = false
       }
+    }
+
+    // 拉取监管用户的全部订单列表
+    const fetchRegulatorOrders = async (page = 1) => {
+      if (!isRegulator.value) return
+      regulatorOrdersLoading.value = true
+      try {
+        const resp = await orderApi.getOrders({
+          page,
+          per_page: 50
+        })
+        const data = resp.data?.data || {}
+        regulatorOrders.value = data.items || []
+        regulatorPagination.value = data.pagination || regulatorPagination.value
+      } catch (error) {
+        console.error('获取订单列表失败:', error)
+        ElMessage.error(error.message || '获取订单列表失败')
+      } finally {
+        regulatorOrdersLoading.value = false
+      }
+    }
+
+    const goRegulatorOrdersPrev = () => {
+      if (!regulatorPagination.value.has_prev) return
+      const targetPage = (regulatorPagination.value.page || 1) - 1
+      fetchRegulatorOrders(targetPage)
+    }
+
+    const goRegulatorOrdersNext = () => {
+      if (!regulatorPagination.value.has_next) return
+      const targetPage = (regulatorPagination.value.page || 1) + 1
+      fetchRegulatorOrders(targetPage)
     }
     
     // 渲染Sankey流向图
@@ -859,6 +965,11 @@ export default {
       window.addEventListener('storage', refreshUser)
       // 每秒更新一次时间戳
       setInterval(updateTimestamp, 1000)
+
+      // 监管用户进入页面时，自动拉取订单总览
+      if (isRegulator.value) {
+        fetchRegulatorOrders(1)
+      }
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -899,6 +1010,12 @@ export default {
       resetForm,
       submitProcess,
       handleTrace,
+      fetchRegulatorOrders,
+      regulatorOrders,
+      regulatorOrdersLoading,
+      regulatorPagination,
+      goRegulatorOrdersPrev,
+      goRegulatorOrdersNext,
       formatTime,
       currentUser,
       isLogistics,
@@ -1735,6 +1852,92 @@ export default {
   width: 100%;
   height: 500px;
   min-height: 400px;
+}
+
+/* 监管用户订单总览表 */
+.regulator-orders-section {
+  margin-top: 24px;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.regulator-orders-loading {
+  padding: 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+.regulator-orders-table-wrapper {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.regulator-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.regulator-orders-table th {
+  background-color: #f5f7fa;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  white-space: nowrap;
+}
+
+.regulator-orders-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.regulator-orders-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+.regulator-orders-table .empty-cell {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.regulator-orders-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 12px;
+  background-color: #fafafa;
+}
+
+.pager-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pager-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pager-btn:not(:disabled):hover {
+  background-color: #f5f5f5;
+}
+
+.pager-info {
+  font-size: 13px;
+  color: #666;
 }
 
 /* 操作提示 */
