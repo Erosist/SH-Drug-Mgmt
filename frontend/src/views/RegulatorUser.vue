@@ -54,6 +54,24 @@
             </div>
           </el-card>
 
+          <el-card class="panel enterprise-monitor-quick-access">
+            <div class="panel-head">
+              <span>企业监控中心</span>
+              <el-button size="small" type="success" @click="goEnterpriseMonitor">进入监控</el-button>
+            </div>
+            <div class="monitor-intro">
+              <p>实时监控所有企业的库存和订单情况</p>
+            </div>
+            <div class="stats-tiles">
+              <div class="tile highlight"><div class="num">92</div><div class="label">企业总数</div></div>
+              <div class="tile highlight"><div class="num">32</div><div class="label">订单总数</div></div>
+              <div class="tile highlight"><div class="num">193</div><div class="label">库存记录</div></div>
+              <div class="tile highlight"><div class="num">2</div><div class="label">低库存预警</div></div>
+            </div>
+          </el-card>
+        </section>
+
+        <section class="cards-row">
           <el-card class="panel">
             <div class="panel-head">
               <span>基础数据管理</span>
@@ -247,6 +265,25 @@ export default {
 .tile { background: #f7f9fc; border-radius: 8px; padding: 10px; text-align: center; }
 .tile .num { font-size: 20px; font-weight: 700; }
 .tile .label { color: #909399; font-size: 12px; margin-top: 4px; }
+.tile.highlight { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.tile.highlight .num { color: white; }
+.tile.highlight .label { color: rgba(255, 255, 255, 0.9); }
+
+.enterprise-monitor-quick-access {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border: 2px solid #409eff;
+}
+.enterprise-monitor-quick-access .panel-head span {
+  font-weight: 700;
+  font-size: 16px;
+  color: #409eff;
+}
+.monitor-intro {
+  padding: 8px 0;
+  color: #606266;
+  font-size: 14px;
+  text-align: center;
+}
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
