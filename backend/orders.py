@@ -396,9 +396,9 @@ def get_orders():
         elif current_user.role == 'logistics':
             # 物流用户不允许通过此接口查看订单（有专用接口 /api/logistics/orders）
             return jsonify({'msg': '权限不足：物流用户不可通过此接口查看订单'}), 403
-        elif current_user.role == 'admin':
-            # 管理员可以看到所有订单
-            current_app.logger.info('get_orders - 管理员用户，无过滤')
+        elif current_user.role in ['admin', 'regulator']:
+            # 管理员与监管用户可以看到所有订单
+            current_app.logger.info(f'get_orders - {current_user.role} 用户，无过滤')
             pass
         else:
             current_app.logger.warning(f'get_orders - 权限不足: 角色={current_user.role}')
