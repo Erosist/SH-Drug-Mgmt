@@ -1,8 +1,13 @@
 <template>
   <div class="enterprise-monitor">
     <el-card class="header-card">
-      <h2>企业监控中心</h2>
-      <p class="subtitle">监控所有企业的库存和订单情况</p>
+      <div class="header-content">
+        <div>
+          <h2>企业监控中心</h2>
+          <p class="subtitle">监控所有企业的库存和订单情况</p>
+        </div>
+        <el-button type="primary" @click="goHome">返回首页</el-button>
+      </div>
     </el-card>
 
     <!-- 仪表盘统计 -->
@@ -531,6 +536,10 @@ const getOrderStatusTag = (status) => {
   return tags[status] || ''
 }
 
+const goHome = () => {
+  router.push({ name: 'home' })
+}
+
 // 初始化
 onMounted(() => {
   loadStatistics()
@@ -545,6 +554,12 @@ onMounted(() => {
 
 .header-card {
   margin-bottom: 20px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .header-card h2 {

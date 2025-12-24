@@ -7,8 +7,7 @@
         <router-link class="nav-item" :class="{ active: isActive('inventory') }" :to="{ name: 'inventory' }">库存管理</router-link>
         <router-link class="nav-item" :class="{ active: isActive('b2b') }" :to="{ name: 'b2b' }">B2B供货平台</router-link>
         <router-link v-if="canViewCirculation" class="nav-item" :class="{ active: isActive('circulation') }" :to="{ name: 'circulation' }">流通监管</router-link>
-        <router-link class="nav-item" :class="{ active: isActive('analysis') }" :to="{ name: 'analysis' }">监管分析</router-link>
-        <router-link v-if="isRegulator" class="nav-item" :class="{ active: isActive('enterprise-monitor') }" :to="{ name: 'enterprise-monitor' }">企业监控中心</router-link>
+        <router-link class="nav-item" :class="{ active: isActive('analysis') }" :to="{ name: 'analysis' }">监管分析</router-link>        <router-link class="nav-item" :class="{ active: isActive('compliance-report') }" :to="{ name: 'compliance-report' }">合规分析报告</router-link>        <router-link v-if="isRegulator" class="nav-item" :class="{ active: isActive('enterprise-monitor') }" :to="{ name: 'enterprise-monitor' }">企业监控中心</router-link>
         <router-link class="nav-item" :class="{ active: isActive('service') }" :to="{ name: 'service' }">智能调度</router-link>
       </nav>
     </div>
