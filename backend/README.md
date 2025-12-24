@@ -722,7 +722,7 @@ Authorization: Bearer <admin_token>
 
 启动定时任务：
 ```bash
-python task_inventory_warning.py
+python tasks/task_inventory_warning.py
 ```
 
 ## 测试指南
@@ -842,22 +842,28 @@ flask db upgrade
 ### 项目结构
 ```
 backend/
-├── app.py              # 应用工厂
-├── run.py              # 启动文件
-├── config.py           # 配置文件
-├── extensions.py       # 扩展初始化
-├── models.py           # 数据模型
-├── auth.py             # 认证模块
-├── supply.py           # 供应管理
-├── orders.py           # 订单管理
-├── inventory_warning.py # 库存预警
-├── catalog.py          # 基础数据
-├── init_db.py          # 数据库初始化
-├── requirements.txt    # 依赖包
-├── migrations/         # 数据库迁移
-├── instance/           # 实例配置
-├── docs/              # API文档
-└── tools/             # 工具脚本
+├── app.py                 # 应用工厂
+├── run.py                 # 启动文件
+├── start_app.py           # 启动辅助脚本
+├── config.py              # 配置文件
+├── extensions.py          # 扩展初始化
+├── models.py              # 数据模型
+├── auth.py                # 认证模块
+├── supply.py              # 供应管理
+├── orders.py              # 订单管理
+├── inventory_warning.py   # 库存预警核心逻辑
+├── catalog.py             # 基础数据
+├── requirements.txt       # 依赖包
+├── migrations/            # 数据库迁移
+├── instance/              # 实例配置
+├── docs/                  # 文档与报告（如 database_report.html）
+├── scripts/               # 手动校验/调试脚本（从根目录迁移：verify_*.py、quick_check.py 等）
+├── tools/                 # 维护/导入/批处理工具（如数据导入、迁移、初始化等）
+├── tasks/                 # 定时任务脚本（task_*.py）
+└── tests/
+    ├── conftest.py        # pytest 配置（自动添加项目根到 PYTHONPATH）
+    ├── …                  # 正式单元/集成测试
+    └── legacy/            # 历史测试用例（从根目录收拢迁移的 test_*.py）
 ```
 
 ### 添加新功能模块

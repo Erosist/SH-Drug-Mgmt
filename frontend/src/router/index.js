@@ -27,6 +27,7 @@ import ComplianceReport from '../views/ComplianceReport.vue'
 import LogisticsOrders from '../views/LogisticsOrders.vue'
 import MedicationReminders from '../views/MedicationReminders.vue'
 import HealthNewsList from '../views/HealthNewsList.vue'
+import EnterpriseMonitor from '../views/EnterpriseMonitor.vue'
 
 // 允许未完成企业认证（role === 'unauth'）的登录用户仍可浏览的公共路由
 // 若以后需要更精细的控制，可改为基于 route.meta 来判断
@@ -60,8 +61,9 @@ const router = createRouter({
     { path: '/service', name: 'service', component: service, meta: { requiresAuth: true, requiresVerified: true } },
     { path: '/logistics-orders', name: 'logistics-orders', component: LogisticsOrders, meta: { requiresAuth: true, requiresRole: 'logistics' } },
     { path: '/medication-reminders', name: 'medication-reminders', component: MedicationReminders, meta: { requiresAuth: true } },
-        { path: '/health-news', name: 'health-news', component: HealthNewsList },
-  { path: '/compliance-report', name: 'compliance-report', component: ComplianceReport, meta: { requiresAuth: true, requiresRole: 'regulator' } },
+    { path: '/health-news', name: 'health-news', component: HealthNewsList },
+    { path: '/enterprise-monitor', name: 'enterprise-monitor', component: EnterpriseMonitor, meta: { requiresAuth: true, requiresRole: 'regulator' } },
+    { path: '/compliance-report', name: 'compliance-report', component: ComplianceReport, meta: { requiresAuth: true, requiresRole: 'regulator' } },
   { path: '/enterprise-auth', name: 'enterprise-auth', component: EnterpriseAuth, meta: { requiresAuth: true } },
   { path: '/enterprise-review', name: 'enterprise-review', component: EnterpriseReview, meta: { requiresAuth: true, requiresRole: 'admin' } },
   { path: '/admin/users', name: 'admin-users', component: AdminUsers, meta: { requiresAuth: true, requiresRole: 'admin' } },
@@ -109,9 +111,9 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 对于已登录但企业未认证的用户（role === 'unauth'），允许访问首页、未认证提示页和企业认证页
+  // 对于已登录但企业未认证的用户（role === 'unauth'），允许访问首页、未认证提示页、企业认证页、修改密码页和忘记密码页
   if (user?.role === 'unauth') {
-    const allowNames = new Set(['home', 'unauth', 'enterprise-auth'])
+    const allowNames = new Set(['home', 'unauth', 'enterprise-auth', 'change-password', 'forgot-password'])
     if (!allowNames.has(to.name)) {
       next({ name: 'unauth' })
       return

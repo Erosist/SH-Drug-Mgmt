@@ -160,6 +160,7 @@ def get_supply_info_list():
     - supplier_name: 供应商名称搜索
     - status: 状态筛选 (ACTIVE/INACTIVE/EXPIRED)
     - only_mine: 只显示我的供应信息 (仅对供应商用户)
+    - price_sort: 价格排序 (asc/desc)，如果提供则按价格排序，否则按创建时间排序
     """
     try:
         current_user = get_authenticated_user()
@@ -176,6 +177,7 @@ def get_supply_info_list():
         supplier_name = request.args.get('supplier_name', '').strip()
         status = request.args.get('status', '').strip()
         only_mine = request.args.get('only_mine', '').lower() == 'true'
+        price_sort = request.args.get('price_sort', '').strip()
         
         # 构建查询
         query = db.session.query(SupplyInfo).join(Drug).join(Tenant)
@@ -209,8 +211,13 @@ def get_supply_info_list():
         if only_mine and current_user.role == 'supplier' and current_user.tenant_id:
             query = query.filter(SupplyInfo.tenant_id == current_user.tenant_id)
         
-        # 排序
-        query = query.order_by(SupplyInfo.created_at.desc())
+        # 排序：如果指定了价格排序，则按价格排序；否则按创建时间排序
+        if price_sort == 'asc':
+            query = query.order_by(SupplyInfo.unit_price.asc())
+        elif price_sort == 'desc':
+            query = query.order_by(SupplyInfo.unit_price.desc())
+        else:
+            query = query.order_by(SupplyInfo.created_at.desc())
         
         # 分页
         pagination = query.paginate(

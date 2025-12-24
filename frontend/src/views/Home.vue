@@ -175,11 +175,6 @@
               <div v-else class="urgent-notice">
                 <div class="notice-title" style="color: #999;">暂无紧急通知</div>
               </div>
-              
-              <div class="report-input">
-                <input type="text" v-model="reportText" placeholder="本市2024年度报告请输入" class="report-field">
-                <button class="submit-btn" @click="submitReport">提交</button>
-              </div>
             </div>
           </div>
         </div>
@@ -206,6 +201,26 @@
                   </div>
                   <div v-else class="login-hint">登录后可创建用药提醒</div>
                   <button class="feature-btn" @click="goToReminders">创建提醒</button>
+                </div>
+              </div>
+              
+              <!-- 企业监控中心 - 仅监管用户可见 -->
+              <div v-if="isRegulator" class="feature-item enterprise-monitor-card">
+                <div class="feature-icon">🏢</div>
+                <div class="feature-content">
+                  <h3>企业监控中心</h3>
+                  <p>监控所有企业的库存和订单情况</p>
+                  <div class="monitor-stats" v-if="enterpriseStats">
+                    <div class="stat-item">
+                      <span class="stat-label">企业总数</span>
+                      <span class="stat-value">{{ enterpriseStats.enterprises || 0 }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">订单总数</span>
+                      <span class="stat-value">{{ enterpriseStats.orders || 0 }}</span>
+                    </div>
+                  </div>
+                  <button class="feature-btn" @click="goToEnterpriseMonitor">进入监控中心</button>
                 </div>
               </div>
               
@@ -313,7 +328,6 @@ export default {
     const healthNewsList = ref([])
     const urgentNotices = ref([])
     const userStats = ref({})
-    const reportText = ref('')
 
     // 附近药房数据
     const nearbyPharmacies = ref([])
@@ -341,6 +355,9 @@ export default {
     const todayReminders = ref([])
     const todayRemindersLoading = ref(false)
     const isNotificationSupported = ref('Notification' in window)
+
+    // 企业监控统计数据（仅监管用户）
+    const enterpriseStats = ref(null)
 
     // 动态日期
     const currentDate = computed(() => {
@@ -566,16 +583,6 @@ export default {
       router.push({ name: 'health-news' })
     }
 
-    // 提交报告
-    const submitReport = () => {
-      if (!reportText.value.trim()) {
-        ElMessage.warning('请输入报告内容')
-        return
-      }
-      ElMessage.success('报告提交成功')
-      reportText.value = ''
-    }
-
     // 跳转到就近推荐页面
     const goToNearbySuppliers = () => {
       if (!currentUser.value) {
@@ -776,6 +783,37 @@ export default {
       router.push({ name: 'medication-reminders' })
     }
 
+    // 跳转到企业监控中心
+    const goToEnterpriseMonitor = () => {
+      if (!currentUser.value) {
+        router.push({ name: 'login', query: { redirect: '/enterprise-monitor' } })
+        return
+      }
+      if (currentUser.value.role !== 'regulator') {
+        ElMessage.warning('仅监管用户可访问企业监控中心')
+        return
+      }
+      router.push({ name: 'enterprise-monitor' })
+    }
+
+    // 加载企业监控统计数据
+    const loadEnterpriseStats = async () => {
+      if (!currentUser.value || currentUser.value.role !== 'regulator') return
+      
+      try {
+        const token = localStorage.getItem('access_token')
+        const response = await axios.get(`${API_BASE_URL}/api/regulator/statistics/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        enterpriseStats.value = {
+          enterprises: response.data.enterprises?.total || 0,
+          orders: response.data.orders?.total || 0
+        }
+      } catch (error) {
+        console.error('加载企业监控统计失败:', error)
+      }
+    }
+
     onMounted(() => {
       window.addEventListener('storage', refreshUser)
       // 加载主页数据
@@ -788,6 +826,8 @@ export default {
       loadNearbyPharmacies()
       // 加载今日用药提醒
       loadTodayReminders()
+      // 加载企业监控统计（仅监管用户）
+      loadEnterpriseStats()
     })
     onBeforeUnmount(() => {
       window.removeEventListener('storage', refreshUser)
@@ -824,7 +864,6 @@ export default {
       healthNewsList,
       urgentNotices,
       userStats,
-      reportText,
       // 附近药房
       nearbyPharmacies,
       nearbyLoading,
@@ -852,10 +891,12 @@ export default {
       todayReminders,
       todayRemindersLoading,
       goToReminders,
+      // 企业监控
+      enterpriseStats,
+      goToEnterpriseMonitor,
       // 主页方法
       formatNewsDate,
-      loadMoreNews,
-      submitReport
+      loadMoreNews
     }
   }
 }
@@ -992,6 +1033,17 @@ export default {
   font-size: 12px;
   color: #1a73e8;
 }
+.auth-btn {
+  background-color: #fff;
+  color: #1a73e8;
+  border: 1px solid #1a73e8;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 10px;
+}
+
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
@@ -1292,41 +1344,33 @@ export default {
   margin-top: 4px;
 }
 
-.report-input {
-  display: flex;
-  margin-top: 15px;
-}
-
-.report-field {
-  flex-grow: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px 0 0 4px;
-  outline: none;
-}
-
-.report-field:focus {
-  border-color: #1a73e8;
-}
-
-.submit-btn {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 0 4px 4px 0;
-  cursor: pointer;
-}
-
-.submit-btn:hover {
-  background-color: #0d62d9;
-}
-
 /* 特色服务样式 */
 .feature-list {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* 右侧容器拉伸，使特色服务板块能够撑满与左侧对齐 */
+.right-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* 让右侧占满可用高度由父容器控制（content-wrapper height:100%） */
+  height: 100%;
+}
+
+.feature-services {
+  display: flex;
+  flex-direction: column;
+  /* 关键：让特色服务板块在右侧拉伸以对齐左侧总高度 */
+  flex: 1 1 auto;
+}
+
+.feature-services .feature-list {
+  /* 当内容过多时启用内部滚动，避免推高整列 */
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 .feature-item {
@@ -1831,5 +1875,42 @@ export default {
   color: #999;
   font-size: 13px;
   margin: 10px 0;
+}
+
+/* 企业监控卡片样式 */
+.enterprise-monitor-card {
+  border-left: 4px solid #67C23A;
+}
+
+.enterprise-monitor-card .feature-icon {
+  background: linear-gradient(135deg, #67C23A, #85ce61);
+}
+
+.monitor-stats {
+  display: flex;
+  gap: 20px;
+  margin: 12px 0;
+  padding: 10px;
+  background: #f0f9ff;
+  border-radius: 6px;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  color: #67C23A;
 }
 </style>

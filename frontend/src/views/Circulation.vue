@@ -1044,7 +1044,7 @@ export default {
   font-family: "Microsoft YaHei", Arial, sans-serif;
   display: flex;
   flex-direction: column;
-  line-height: 1.6;
+  /* line-height: 1.6; //宽度不一致的关键 */
 }
 
 /* 顶部导航栏样式 - 与Home.vue保持一致 */
@@ -1053,7 +1053,6 @@ export default {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 15px 0;
   width: 100%;
-  line-height: normal;
 }
 
 .header-content {
@@ -1075,7 +1074,6 @@ export default {
   font-weight: bold;
   color: #1a73e8;
   margin: 0;
-  line-height: 1;
 }
 
 .current-date {
@@ -1094,6 +1092,18 @@ export default {
 .nav-menu {
   display: flex;
   gap: 30px;
+}
+
+.nav-menu.disabled-nav {
+  flex: 1;
+  align-items: center;
+  gap: 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.nav-disabled-text {
+  color: #999;
 }
 
 .nav-item {
@@ -1145,12 +1155,13 @@ export default {
 }
 
 .auth-btn {
-  border: 1px solid #1a73e8;
-  background-color: transparent;
+  background-color: #fff;
   color: #1a73e8;
-  padding: 6px 14px;
+  border: 1px solid #1a73e8;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
   margin-right: 10px;
   transition: background-color 0.3s;
 }
@@ -1158,6 +1169,17 @@ export default {
 .auth-btn:hover {
   background-color: rgba(26, 115, 232, 0.08);
 }
+
+.admin-btn {
+  background-color: #f0f5ff;
+  color: #1a73e8;
+  border: 1px solid #d6e4ff;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
 
 .review-btn {
   background-color: #fff7e6;
@@ -1172,6 +1194,7 @@ export default {
 .review-btn:hover {
   background-color: #ffeccc;
 }
+
 
 .admin-btn {
   background-color: #f0f5ff;
@@ -1223,12 +1246,12 @@ export default {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 14px;
+  padding: 20px;
 }
 
 .content-wrapper {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
 }
 
 /* 监管用户内容布局 */
@@ -1241,14 +1264,19 @@ export default {
 /* 物流用户内容布局 */
 .logistics-content {
   display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 24px;
-  grid-template-rows: auto auto;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  /* 第一行为弹性高度，底部操作为自适应高度 */
+  grid-template-rows: 1fr auto;
+  height: 100%;
 }
 
 .logistics-content .left-content {
   grid-column: 1;
   grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 允许子元素溢出/滚动 */
 }
 
 .logistics-content .right-content {
@@ -1257,6 +1285,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
 }
 
 .logistics-content .action-buttons {
@@ -1467,6 +1496,23 @@ export default {
   font-size: 12px;
   color: #666;
   margin-top: 4px;
+}
+
+/* 使左侧的 data-reporting 与右侧的 location-info 能够对齐底部 */
+.data-reporting {
+  display: flex;
+  flex-direction: column;
+  /* 在网格的1fr行中拉伸填满高度 */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.location-info {
+  display: flex;
+  flex-direction: column;
+  /* 右侧位置信息拉伸，与左侧 data-reporting 保持相同高度 */
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* 权限提示 */

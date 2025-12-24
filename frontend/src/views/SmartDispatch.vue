@@ -523,19 +523,36 @@ export default {
           console.warn('AMap 未加载')
           return resolve(false)
         }
+
         // 如果已经存在 Driving 类或之前已加载插件，直接返回
         if (window.AMap.Driving || _drivingPluginLoaded) {
-          console.log('驾车插件已加载')
+          console.log('驾车插件已加载 (AMap.Driving 存在)')
           _drivingPluginLoaded = true
           return resolve(true)
         }
+
+        // 如果脚本在 index.html 中通过 plugin 参数加载，AMap.Driving 可能会在短时间后存在
+        // 这里尝试使用 AMap.plugin 加载，如果该方法不可用或抛错则返回 false
         try {
-          console.log('开始加载 AMap.Driving 插件...')
-          AMap.plugin(['AMap.Driving'], () => {
-            console.log('AMap.Driving 插件加载成功')
-            _drivingPluginLoaded = true
-            resolve(true)
-          })
+          if (typeof AMap.plugin === 'function') {
+            console.log('尝试通过 AMap.plugin 加载 AMap.Driving 插件...')
+            AMap.plugin(['AMap.Driving'], () => {
+              console.log('AMap.Driving 插件加载成功 (通过 AMap.plugin)')
+              _drivingPluginLoaded = true
+              resolve(true)
+            })
+            // 给 AMap.plugin 的异步回调一些时间，如果未触发则在超时后检查 AMap.Driving
+            setTimeout(() => {
+              if (window.AMap.Driving) {
+                _drivingPluginLoaded = true
+                resolve(true)
+              }
+            }, 800)
+          } else {
+            console.warn('AMap.plugin 不可用，检查是否使用了 AMap v2.x 或脚本未正确加载')
+            // 直接检查 AMap.Driving 并返回
+            resolve(!!window.AMap.Driving)
+          }
         } catch (e) {
           console.warn('加载 AMap.Driving 插件失败，后续将回退为直线段绘制', e)
           resolve(false)
@@ -595,19 +612,8 @@ export default {
 
         // 根据用户选择决定是否使用驾车规划
         const shouldUseDriving = useApiDistance.value
-        let pluginReady = false
         
-        if (shouldUseDriving) {
-          // 只有选择驾车距离时才加载驾车插件
-          pluginReady = await ensureDrivingPlugin()
-          console.log('驾车插件加载状态:', pluginReady)
-          
-          if (!pluginReady) {
-            console.warn('驾车插件加载失败，将使用直线绘制')
-          }
-        } else {
-          console.log('用户选择直线距离，将使用直线绘制路线')
-        }
+        console.log('用户选择的距离计算方式:', shouldUseDriving ? '驾车距离（调用后端API）' : '直线距离')
 
         // 逐段绘制路线
         for (let i = 0; i < orderedPoints.length; i++) {
@@ -618,117 +624,93 @@ export default {
 
           console.log(`绘制路段 ${i + 1}:`, origin, '->', dest)
 
-          // 只有在选择驾车距离且插件加载成功时才使用驾车规划
-          if (shouldUseDriving && pluginReady && window.AMap && AMap.Driving) {
-            console.log(`路段 ${i + 1} 使用驾车规划API`)
-            // 使用驾车规划API获取真实路线
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise((resolve) => {
-              const drivingOptions = { 
-                map: map, 
-                hideMarkers: true,
-                autoFitView: false
-              }
-              // 设置驾车策略为最快捷路线
-              if (AMap.DrivingPolicy && AMap.DrivingPolicy.LEAST_TIME !== undefined) {
-                drivingOptions.policy = AMap.DrivingPolicy.LEAST_TIME
-              }
-              
-              const driving = new AMap.Driving(drivingOptions)
-              
-              driving.search(origin, dest, (status, result) => {
-                console.log(`路段 ${i + 1} 驾车规划状态:`, status)
-                
-                if (status === 'complete' && result.routes && result.routes.length > 0) {
-                  const route = result.routes[0]
-                  console.log(`路段 ${i + 1} 驾车路线:`, route)
-                  
-                  const pathCoords = []
-                  
-                  // 提取路径坐标
-                  if (route.steps && Array.isArray(route.steps)) {
-                    // 新版API格式
-                    route.steps.forEach(step => {
-                      if (step.path && Array.isArray(step.path)) {
-                        step.path.forEach(pt => {
-                          if (pt.lng !== undefined && pt.lat !== undefined) {
-                            pathCoords.push([pt.lng, pt.lat])
-                          } else if (pt[0] !== undefined && pt[1] !== undefined) {
-                            pathCoords.push([pt[0], pt[1]])
-                          }
-                        })
-                      }
-                    })
-                  } else if (route.paths && Array.isArray(route.paths)) {
-                    // 老版API格式
-                    route.paths.forEach(pth => {
-                      (pth.steps || []).forEach(step => {
-                        if (step.path && Array.isArray(step.path)) {
-                          step.path.forEach(pt => {
-                            if (pt.lng !== undefined && pt.lat !== undefined) {
-                              pathCoords.push([pt.lng, pt.lat])
-                            } else if (pt[0] !== undefined && pt[1] !== undefined) {
-                              pathCoords.push([pt[0], pt[1]])
-                            }
-                          })
-                        } else if (step.polyline && typeof step.polyline === 'string') {
-                          step.polyline.split(';').forEach(pair => {
-                            if (!pair) return
-                            const parts = pair.split(',')
-                            const lng = parseFloat(parts[0])
-                            const lat = parseFloat(parts[1])
-                            if (!isNaN(lng) && !isNaN(lat)) {
-                              pathCoords.push([lng, lat])
-                            }
-                          })
-                        }
-                      })
-                    })
-                  }
-
-                  if (pathCoords.length > 0) {
-                    console.log(`路段 ${i + 1} 驾车路径点数:`, pathCoords.length)
-                    const pl = new AMap.Polyline({
-                      path: pathCoords,
-                      strokeColor: '#1a73e8',
-                      strokeWeight: 6,
-                      strokeOpacity: 0.8,
-                      showDir: true,
-                      lineJoin: 'round',
-                      zIndex: 100
-                    })
-                    polylines.push(pl)
-                    map.add(pl)
-                    console.log(`路段 ${i + 1} 驾车路线绘制成功`)
-                  } else {
-                    console.warn(`路段 ${i + 1} 驾车规划返回的路径为空，使用直线`)
-                    const pl = new AMap.Polyline({
-                      path: [origin, dest],
-                      strokeColor: '#1a73e8',
-                      strokeWeight: 4,
-                      strokeOpacity: 0.6,
-                      strokeStyle: 'dashed',
-                      zIndex: 100
-                    })
-                    polylines.push(pl)
-                    map.add(pl)
-                  }
-                } else {
-                  console.warn(`路段 ${i + 1} 驾车规划失败 (status: ${status})，使用直线`)
-                  const pl = new AMap.Polyline({
-                    path: [origin, dest],
-                    strokeColor: '#1a73e8',
-                    strokeWeight: 4,
-                    strokeOpacity: 0.6,
-                    strokeStyle: 'dashed',
-                    zIndex: 100
-                  })
-                  polylines.push(pl)
-                  map.add(pl)
-                }
-                setTimeout(resolve, 200) // 增加延迟避免API限流
+          // 使用后端API获取驾车路径（安全且支持签名）
+          if (shouldUseDriving) {
+            console.log(`路段 ${i + 1} 调用后端API获取驾车路径`)
+            // 获取当前用户 token，后端接口需要鉴权
+            const token = getAuthToken()
+            if (!token) {
+              console.warn('未获取到 token，后端驾车路径接口需要登录，使用直线绘制')
+              const pl = new AMap.Polyline({
+                path: [origin, dest],
+                strokeColor: '#ff9800',
+                strokeWeight: 4,
+                strokeOpacity: 0.6,
+                strokeStyle: 'dashed',
+                zIndex: 100
               })
-            })
+              polylines.push(pl)
+              map.add(pl)
+              // continue to next segment
+              // eslint-disable-next-line no-await-in-loop
+              await new Promise(resolve => setTimeout(resolve, 200))
+              continue
+            }
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const response = await axios.post(
+                `${API_BASE_URL}/api/dispatch/get_driving_route`,
+                {
+                  origin: `${origin[0]},${origin[1]}`,
+                  destination: `${dest[0]},${dest[1]}`
+                },
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              )
+
+              if (response.data.success && response.data.path && response.data.path.length > 0) {
+                console.log(`路段 ${i + 1} 驾车路径获取成功，点数:`, response.data.path.length)
+                console.log(`路段 ${i + 1} 距离: ${response.data.distance_text}, 预计耗时: ${response.data.duration_text}`)
+                
+                const pl = new AMap.Polyline({
+                  path: response.data.path,
+                  strokeColor: '#1a73e8',
+                  strokeWeight: 6,
+                  strokeOpacity: 0.8,
+                  showDir: true,
+                  lineJoin: 'round',
+                  zIndex: 100
+                })
+                polylines.push(pl)
+                map.add(pl)
+                console.log(`路段 ${i + 1} 驾车路线绘制成功`)
+              } else {
+                console.warn(`路段 ${i + 1} 后端返回路径为空，使用直线`)
+                const pl = new AMap.Polyline({
+                  path: [origin, dest],
+                  strokeColor: '#ff9800',
+                  strokeWeight: 4,
+                  strokeOpacity: 0.6,
+                  strokeStyle: 'dashed',
+                  zIndex: 100
+                })
+                polylines.push(pl)
+                map.add(pl)
+              }
+            } catch (error) {
+              console.error(`路段 ${i + 1} 调用后端API失败:`, error)
+              if (error.response) {
+                console.error('后端返回错误:', error.response.data)
+              }
+              console.warn(`路段 ${i + 1} 使用直线绘制`)
+              const pl = new AMap.Polyline({
+                path: [origin, dest],
+                strokeColor: '#ff9800',
+                strokeWeight: 4,
+                strokeOpacity: 0.6,
+                strokeStyle: 'dashed',
+                zIndex: 100
+              })
+              polylines.push(pl)
+              map.add(pl)
+            }
+            // 添加延迟避免API限流
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise(resolve => setTimeout(resolve, 200))
           } else {
             // 使用直线绘制
             console.log(`路段 ${i + 1} 使用直线绘制`)
@@ -898,7 +880,7 @@ export default {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 .smart-dispatch-container { min-height: 100vh; background-color: #f5f7fa; font-family: "Microsoft YaHei", Arial, sans-serif; display: flex; flex-direction: column; }
 
-/* Header / 导航：与 LogisticsOrders.vue 保持一致 */
+/* Header  */
 .header { background-color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 15px 0; width: 100%; }
 .header-content { width: 100%; max-width: 100%; margin: 0 auto; padding: 0 20px; }
 .platform-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -915,7 +897,7 @@ export default {
 .auth-btn, .review-btn, .admin-btn, .change-btn, .login-btn { font-size: 14px; }
 .change-btn { border: 1px solid #1a73e8; background-color: transparent; color: #1a73e8; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 10px; transition: background-color 0.3s; }
 .change-btn:hover { background-color: rgba(26,115,232,0.08); }
-.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
+.auth-btn { background-color: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
 .auth-btn:hover { background-color: rgba(26,115,232,0.08); }
 .review-btn { background-color: #fff7e6; color: #b76c00; border: 1px solid #f3e5b8; padding: 8px 14px; border-radius: 4px; cursor: pointer; }
 .review-btn:hover { background-color: #ffeccc; }

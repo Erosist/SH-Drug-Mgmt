@@ -385,3 +385,101 @@ def search_address():
             'success': False,
             'message': f'服务器错误：{str(e)}'
         }), 500
+
+
+@bp.route('/get_driving_route', methods=['POST'])
+@jwt_required()
+def get_driving_route():
+    """
+    获取驾车路径规划（包含详细路径坐标）
+    使用后端安全密钥签名，避免前端暴露密钥
+    
+    请求体:
+    {
+        "origin": "121.48,31.23",      // 起点经纬度
+        "destination": "121.50,31.22",  // 终点经纬度
+        "waypoints": ["121.49,31.23"]   // 途经点（可选）
+    }
+    
+    返回:
+    {
+        "success": true,
+        "distance": 12345,              // 距离（米）
+        "distance_text": "12.3km",
+        "duration": 1234,               // 预计耗时（秒）
+        "duration_text": "20分钟",
+        "path": [[lng1, lat1], [lng2, lat2], ...]  // 路径坐标点数组
+    }
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'success': False, 'message': '用户未找到'}), 404
+        
+        # 验证用户角色（仅物流公司可使用）
+        if user.role != 'logistics':
+            return jsonify({
+                'success': False, 
+                'message': '仅物流公司用户可以使用驾车路径规划功能'
+            }), 403
+        
+        data = request.get_json()
+        
+        # 验证必需参数
+        if not data or 'origin' not in data or 'destination' not in data:
+            return jsonify({
+                'success': False,
+                'message': '缺少必需参数：origin（起点）和 destination（终点）'
+            }), 400
+        
+        # 解析起点和终点
+        origin_coords = parse_location_input(data['origin'])
+        dest_coords = parse_location_input(data['destination'])
+        
+        if not origin_coords or not dest_coords:
+            return jsonify({
+                'success': False,
+                'message': '起点或终点坐标格式错误'
+            }), 400
+        
+        # 解析途经点（可选）
+        waypoints = None
+        if 'waypoints' in data and isinstance(data['waypoints'], list):
+            waypoints = []
+            for wp in data['waypoints']:
+                wp_coords = parse_location_input(wp)
+                if wp_coords:
+                    waypoints.append(wp_coords)
+        
+        # 调用高德 API 获取路径
+        route_info = AmapService.get_driving_route(origin_coords, dest_coords, waypoints)
+        
+        if not route_info:
+            return jsonify({
+                'success': False,
+                'message': '无法获取驾车路径，可能是坐标无效或服务暂时不可用'
+            }), 400
+        
+        # 格式化返回数据
+        duration_minutes = route_info['duration'] // 60
+        duration_text = f"{duration_minutes}分钟" if duration_minutes > 0 else f"{route_info['duration']}秒"
+        
+        return jsonify({
+            'success': True,
+            'distance': route_info['distance'],
+            'distance_text': AmapService.format_distance(route_info['distance']),
+            'duration': route_info['duration'],
+            'duration_text': duration_text,
+            'path': route_info['path']
+        }), 200
+        
+    except Exception as e:
+        print(f"获取驾车路径异常: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'服务器错误：{str(e)}'
+        }), 500

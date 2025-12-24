@@ -10,13 +10,12 @@ from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
 
 from extensions import db, mail
-from models import User, PasswordResetCode
+from models import User
 from audit import record_admin_action
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 ALLOWED_ROLES = {'pharmacy', 'supplier', 'logistics', 'regulator', 'admin', 'unauth'}
-RESET_CODE_TTL_MINUTES = 10
 CONTACT_CHANNELS = {'email', 'phone'}
 
 # 临时存放验证码的字典（生产环境建议使用 Redis）
@@ -57,11 +56,6 @@ def find_user_by_identifier(identifier: str):
             User.phone == normalize_phone(ident)
         )
     ).first()
-
-
-def generate_numeric_code(length: int = 6) -> str:
-    digits = string.digits
-    return ''.join(secrets.choice(digits) for _ in range(length))
 
 
 def get_authenticated_user():
@@ -255,77 +249,17 @@ def change_password():
     return jsonify({'msg': '密码修改成功，请重新登录'}), 200
 
 
-@bp.route('/request-reset-code', methods=['POST'])
-def request_reset_code():
-    data = request.get_json() or {}
-    identifier = data.get('identifier')
-    channel = (data.get('channel') or '').lower()
-    contact_value_raw = data.get('contact') or ''
-
-    if not identifier or not channel or not contact_value_raw:
-        return jsonify({'msg': 'identifier, channel, contact are required'}), 400
-
-    if channel not in CONTACT_CHANNELS:
-        return jsonify({'msg': 'channel must be email or phone'}), 400
-
-    user = find_user_by_identifier(identifier)
-    if not user:
-        return jsonify({'msg': '用户不存在'}), 404
-
-    if channel == 'email':
-        expected = normalize_email(user.email)
-        provided = normalize_email(contact_value_raw)
-    else:
-        expected = normalize_phone(user.phone or '')
-        provided = normalize_phone(contact_value_raw)
-
-    if not expected:
-        return jsonify({'msg': f'当前账户未绑定{channel}，无法使用该方式找回密码'}), 400
-
-    if expected != provided:
-        return jsonify({'msg': '绑定信息与账户不匹配'}), 400
-
-    code_plain = generate_numeric_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=RESET_CODE_TTL_MINUTES)
-    reset_code = PasswordResetCode(
-        user_id=user.id,
-        channel=channel,
-        contact_value=expected,
-        code_hash=generate_password_hash(code_plain),
-        expires_at=expires_at
-    )
-    db.session.add(reset_code)
-    db.session.commit()
-
-    current_app.logger.info(
-        'Reset code generated for user %s via %s (expires %s)',
-        user.username,
-        channel,
-        expires_at.isoformat()
-    )
-
-    response = {
-        'msg': '验证码已发送',
-        'expires_in': RESET_CODE_TTL_MINUTES * 60
-    }
-
-    if current_app.config.get('DEBUG'):
-        response['debug_code'] = code_plain
-
-    return jsonify(response), 200
-
-
 @bp.route('/reset-password', methods=['POST'])
 def reset_password():
+    """简化版找回密码：通过账号和联系方式直接验证并重置密码"""
     data = request.get_json() or {}
     identifier = data.get('identifier')
     channel = (data.get('channel') or '').lower()
     contact_value_raw = data.get('contact') or ''
-    code = data.get('code')
-    new_password = data.get('new_password')
+    new_password = data.get('newPassword') or data.get('new_password')  # 兼容两种参数名
 
-    if not all([identifier, channel, contact_value_raw, code, new_password]):
-        return jsonify({'msg': 'identifier, channel, contact, code, new_password are required'}), 400
+    if not all([identifier, channel, contact_value_raw, new_password]):
+        return jsonify({'msg': 'identifier, channel, contact, newPassword are required'}), 400
 
     if channel not in CONTACT_CHANNELS:
         return jsonify({'msg': 'channel must be email or phone'}), 400
@@ -347,27 +281,10 @@ def reset_password():
     if password_errors:
         return jsonify({'msg': '新密码不符合安全策略', 'errors': password_errors}), 400
 
-    reset_code = PasswordResetCode.query.filter_by(
-        user_id=user.id,
-        channel=channel,
-        used=False
-    ).order_by(PasswordResetCode.created_at.desc()).first()
-
-    if (not reset_code) or reset_code.contact_value != expected:
-        return jsonify({'msg': '验证码无效，请重新获取'}), 400
-
-    if reset_code.expires_at < datetime.utcnow():
-        reset_code.used = True
-        db.session.commit()
-        return jsonify({'msg': '验证码已过期，请重新获取'}), 400
-
-    if not reset_code.verify_code(code):
-        return jsonify({'msg': '验证码错误'}), 400
-
-    reset_code.used = True
     user.set_password(new_password)
     db.session.commit()
 
+    current_app.logger.info(f'Password reset successfully for user {user.username} via {channel}')
     return jsonify({'msg': '密码已重置，请使用新密码登录'}), 200
 
 

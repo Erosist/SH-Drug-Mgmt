@@ -16,6 +16,8 @@ from nearby import bp as nearby_bp
 from home import bp as home_bp
 from reminders import bp as reminders_bp
 from dispatch import bp as dispatch_bp
+from announcements import bp as announcements_bp
+from regulator import bp as regulator_bp
 
 def create_app(config_name=None):
     
@@ -79,6 +81,8 @@ def create_app(config_name=None):
     app.register_blueprint(home_bp)
     app.register_blueprint(reminders_bp)
     app.register_blueprint(dispatch_bp)
+    app.register_blueprint(announcements_bp)
+    app.register_blueprint(regulator_bp)
     
     # register logistics blueprint
     register_logistics_blueprint(app)
