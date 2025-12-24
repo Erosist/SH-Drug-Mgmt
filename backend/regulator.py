@@ -4,9 +4,9 @@
 """
 
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models import Tenant, SupplyInfo, Drug, Order, OrderItem, User, InventoryItem
-from auth import token_required
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 
@@ -14,10 +14,13 @@ bp = Blueprint('regulator', __name__, url_prefix='/api/regulator')
 
 
 @bp.route('/enterprises', methods=['GET'])
-@token_required
-def get_all_enterprises(current_user):
+@jwt_required()
+def get_all_enterprises():
     """获取所有企业列表"""
-    if current_user.role != 'regulator':
+    user_id = get_jwt_identity()
+    current_user = User.query.get(user_id)
+    
+    if not current_user or current_user.role != 'regulator':
         return jsonify({'error': '权限不足，仅监管用户可访问'}), 403
     
     try:
@@ -58,10 +61,13 @@ def get_all_enterprises(current_user):
 
 
 @bp.route('/inventory/overview', methods=['GET'])
-@token_required
-def get_inventory_overview(current_user):
+@jwt_required()
+def get_inventory_overview():
     """获取所有企业的库存概览"""
-    if current_user.role != 'regulator':
+    user_id = get_jwt_identity()
+    current_user = User.query.get(user_id)
+    
+    if not current_user or current_user.role != 'regulator':
         return jsonify({'error': '权限不足，仅监管用户可访问'}), 403
     
     try:
@@ -146,10 +152,13 @@ def get_inventory_overview(current_user):
 
 
 @bp.route('/orders/overview', methods=['GET'])
-@token_required
-def get_orders_overview(current_user):
+@jwt_required()
+def get_orders_overview():
     """获取所有订单概览"""
-    if current_user.role != 'regulator':
+    user_id = get_jwt_identity()
+    current_user = User.query.get(user_id)
+    
+    if not current_user or current_user.role != 'regulator':
         return jsonify({'error': '权限不足，仅监管用户可访问'}), 403
     
     try:
@@ -260,10 +269,13 @@ def get_orders_overview(current_user):
 
 
 @bp.route('/orders/<int:order_id>', methods=['GET'])
-@token_required
-def get_order_detail(current_user, order_id):
+@jwt_required()
+def get_order_detail(order_id):
     """获取订单详情"""
-    if current_user.role != 'regulator':
+    user_id = get_jwt_identity()
+    current_user = User.query.get(user_id)
+    
+    if not current_user or current_user.role != 'regulator':
         return jsonify({'error': '权限不足，仅监管用户可访问'}), 403
     
     try:
@@ -312,10 +324,13 @@ def get_order_detail(current_user, order_id):
 
 
 @bp.route('/statistics/dashboard', methods=['GET'])
-@token_required
-def get_dashboard_statistics(current_user):
+@jwt_required()
+def get_dashboard_statistics():
     """获取监管仪表盘统计数据"""
-    if current_user.role != 'regulator':
+    user_id = get_jwt_identity()
+    current_user = User.query.get(user_id)
+    
+    if not current_user or current_user.role != 'regulator':
         return jsonify({'error': '权限不足，仅监管用户可访问'}), 403
     
     try:
