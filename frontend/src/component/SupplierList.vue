@@ -294,24 +294,14 @@ const fetchSupplyList = async () => {
       page: pagination.page,
       per_page: pagination.perPage,
       drug_name: filters.drugName || undefined,
-      supplier_name: filters.supplierName || undefined
+      supplier_name: filters.supplierName || undefined,
+      price_sort: filters.priceSort || undefined
     }
     
     const response = await supplyApi.getSupplyList(params)
     
     if (response.data && response.data.data) {
-      let items = response.data.data.items || []
-      
-      // 前端价格排序
-      if (filters.priceSort) {
-        items = items.sort((a, b) => {
-          const priceA = parseFloat(a.unit_price)
-          const priceB = parseFloat(b.unit_price)
-          return filters.priceSort === 'asc' ? priceA - priceB : priceB - priceA
-        })
-      }
-      
-      supplyList.value = items
+      supplyList.value = response.data.data.items || []
       pagination.total = response.data.data.pagination?.total || 0
       
       if (supplyList.value.length === 0 && filters.drugName) {
